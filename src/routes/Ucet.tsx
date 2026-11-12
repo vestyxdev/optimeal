@@ -6,26 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 /** Můj účet – stav přihlášení, e-mail, odhlášení. Profil a cíle přijdou ve fázi 2. */
 export function Ucet() {
-  const { uzivatel, nacitaSe, odhlasit, authDostupne } = useAuth();
+  const { uzivatel, nacitaSe, odhlasit } = useAuth();
   const naviguj = useNavigate();
-
-  if (!authDostupne) {
-    return (
-      <Card className="text-center">
-        <CardNadpis>Aplikace není připojena k databázi</CardNadpis>
-        <p className="mx-auto max-w-md text-sm text-muted">
-          Chybí přihlašovací údaje k Supabase. Otevřete{" "}
-          <button
-            className="font-semibold text-primary hover:underline"
-            onClick={() => naviguj("/nastaveni")}
-          >
-            Nastavení
-          </button>{" "}
-          a projděte krátký návod na propojení.
-        </p>
-      </Card>
-    );
-  }
 
   if (nacitaSe) {
     return <p className="text-sm text-muted">Načítám účet…</p>;

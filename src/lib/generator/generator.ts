@@ -1,0 +1,531 @@
+/**
+ * Generátor jídelníčku (port z PHP verze OptiMeal)
+ * ---------------------------------------------------------------
+ * Algoritmus „Chytrý generátor":
+ *  1) Potraviny s AKTUÁLNÍMI cenami (sleva, pokud platí, jinak běžná).
+ *  2) Denní cíle se rozdělí na jídla podle podílů
+ *     (Snídaně 25 %, Oběd 35 %, Svačina 15 %, Večeře 25 %).
+ *  3) Každá potravina spadá do kategorie podle DOMINUJÍCÍHO makra
+ *     (bílkovinová / sacharidová / tuková).
+ *  4) Skóre = kolik „úžitku" (gramů makra) dá potravina za 1 Kč;
+ *     slevové potraviny mají bonus 1,25× – generátor automaticky
+ *     upřednostní zlevněné potraviny.
+ *  5) Gramace se řeší krokem kotva (bílkoviny) → sacharidy → tuky,
+ *     každá porce zůstává v kalorickém limitu jídla.
+ *  6) Různorodost: filtr použitých ID + rotace mezi cenově
+ *     srovnatelnými kandidáty (denní plán 85 %, týdenní 60 %).
+ *
+ * Všechny funkce jsou ČISTÉ (vstup → výstup) – snadno testovatelné.
+ */
+
+/* ============================================================
+ * TYPY
+ * ============================================================ */
+
+/** Potravina s vyřešenou AKTUÁLNÍ cenou (sleva, pokud platí). */
+export interface Potravina {
+  id: string;
+  nazev: string;
+  /** g bílkovin / 100 g */
+  bilkoviny: number;
+  /** g sacharidů / 100 g */
+  sacharidy: number;
+  /** g tuků / 100 g */
+  tuky: number;
+  /** kcal / 100 g */
+  kalorie: number;
+  /** Kč / 100 g bez slevy */
+  beznaCena: number;
+  /** Kč / 100 g (akční, pokud existuje, jinak běžná) */
+  aktualniCena: number;
+  /** název obchodu, pokud je potravina ve slevě */
+  obchod: string | null;
+  /** je právě ve slevě? */
+  sleva: boolean;
+}
+
+export interface Jidlo {
+  id: string;
+  nazev: string;
+  gramy: number;
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  /** Kč za porci (akční cena) */
+  cena: number;
+  /** Kč za porci bez slevy – pro výpočet úspory */
+  cenaBezna: number;
+  obchod: string | null;
+  sleva: boolean;
+}
+
+export interface SouhrnJidla {
+  jidla: Jidlo[];
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  cena: number;
+  cenaBezna: number;
+}
+
+export interface DenVysledek {
+  jidelnicek: Record<string, SouhrnJidla>;
+  celkem: SouhrnJidlaBezJidel;
+}
+
+export interface SouhrnJidlaBezJidel {
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  cena: number;
+  cenaBezna: number;
+}
+
+export interface Cile {
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+}
+
+export interface NakupniPolozka {
+  id: string;
+  nazev: string;
+  gramy: number;
+  cenaZa100g: number;
+  cenaBeznaZa100g: number | null;
+  obchod: string | null;
+  sleva: boolean;
+  cenaCelkem: number;
+  usetreno: number;
+}
+
+/* ============================================================
+ * KONSTANTY
+ * ============================================================ */
+
+/** Podíly denních cílů na jednotlivá jídla */
+export const PODILY_JIDEL = {
+  Snídaně: 0.25,
+  Oběd: 0.35,
+  Svačina: 0.15,
+  Večeře: 0.25,
+} as const;
+
+export type NazevJidla = keyof typeof PODILY_JIDEL;
+
+/** Bonus ve skóre pro potraviny, které jsou právě ve slevě */
+export const BONUS_SLEVY = 1.25;
+
+type Kategorie = "bilkovinova" | "sacharidova" | "tukova";
+type KategorieMap = Record<Kategorie, Kandidat[]>;
+
+/** Potravina s vypočteným skórem (interní, vzniká v pripravKategorie). */
+interface Kandidat extends Potravina {
+  skore: number;
+}
+
+/* ============================================================
+ * KATEGORIE A SKÓRE
+ * ============================================================ */
+
+/**
+ * Kategorie podle DOMINUJÍCÍ makroživiny (podle podílu kcal):
+ *   bílkoviny 4 kcal/g, sacharidy 4 kcal/g, tuky 9 kcal/g.
+ */
+export function kategoriePotraviny(p: Potravina): Kategorie {
+  const kcalB = p.bilkoviny * 4;
+  const kcalS = p.sacharidy * 4;
+  const kcalT = p.tuky * 9;
+  const celkem = Math.max(kcalB + kcalS + kcalT, 0.001);
+
+  if (kcalB / celkem >= Math.max(kcalS, kcalT) / celkem) {
+    return "bilkovinova";
+  }
+  return kcalS >= kcalT ? "sacharidova" : "tukova";
+}
+
+/** Skóre = gramy dominujícího makra za 1 Kč (sleva má bonus). */
+export function skorePotraviny(p: Potravina, kategorie: Kategorie): number {
+  const cena = Math.max(0.01, p.aktualniCena);
+  const hodnota =
+    kategorie === "bilkovinova" ? p.bilkoviny : kategorie === "sacharidova" ? p.sacharidy : p.tuky;
+
+  let skore = hodnota / cena;
+  if (p.sleva) skore *= BONUS_SLEVY;
+  return skore;
+}
+
+/* ============================================================
+ * VÝBĚR KANDIDÁTA (různorodost + rotace)
+ * ============================================================ */
+
+/**
+ * Výběr kandidáta s ohledem na RŮZNORODOST:
+ *   1) FILTR POUŽITÝCH: potraviny už obsažené v dnešním jídelníčku
+ *      jsou odsunuty k pozadí.
+ *   2) DENNÍ ROTACE mezi cenově SROVNATELNÝMI kandidáty (skóre
+ *      alespoň poolMin nejlepšího). Denní plán 0,85 – výrazně
+ *      levnější alternativa vždy zvítězí; týdenní plán 0,60 –
+ *      širší výběr, aby 7 dní = 7 odlišných jídelníčků.
+ *      Offset podle dne (1–7) a pořadí jídla: plán je jiný každý
+ *      den, přitom DETERMINISTICKÝ.
+ */
+export function vyberKandidata(
+  kandidati: Kandidat[],
+  poradi: number,
+  pouziteId: string[] = [],
+  denniPosun: number | null = null,
+  poolMin = 0.85,
+): Kandidat | null {
+  if (kandidati.length === 0) return null;
+
+  // 1) preferujeme potraviny, které dnes dosud nebyly
+  const nove = kandidati.filter((p) => !pouziteId.includes(p.id));
+  if (nove.length > 0) {
+    kandidati = nove;
+  }
+
+  // 2) rotujeme jen mezi cenově srovnatelnými kandidáty
+  const nejlepsi = kandidati[0]?.skore ?? 0;
+  if (nejlepsi > 0) {
+    const srovnatelni = kandidati.filter((p) => p.skore >= nejlepsi * poolMin);
+    if (srovnatelni.length > 0) {
+      kandidati = srovnatelni;
+    }
+  }
+
+  // 3) denní rotace – pondělí ≠ úterý, snídaně ≠ oběd
+  //    (JS getDay(): 0 = neděle → převedeme na 1–7 dle ISO)
+  const den = denniPosun ?? (new Date().getDay() === 0 ? 7 : new Date().getDay());
+  const offset = den + poradi * 2;
+  return kandidati[offset % kandidati.length] ?? null;
+}
+
+/* ============================================================
+ * TVORBA JÍDLA A PLÁNOVÁNÍ
+ * ============================================================ */
+
+/** Vytvoří položku jídelníčku z potraviny a počtu gramů. */
+export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
+  const k = gramy / 100;
+  return {
+    id: p.id,
+    nazev: p.nazev,
+    gramy,
+    kalorie: Math.round(p.kalorie * k),
+    bilkoviny: Math.round(p.bilkoviny * k * 10) / 10,
+    sacharidy: Math.round(p.sacharidy * k * 10) / 10,
+    tuky: Math.round(p.tuky * k * 10) / 10,
+    cena: Math.round(p.aktualniCena * k * 100) / 100,
+    cenaBezna: Math.round(p.beznaCena * k * 100) / 100,
+    obchod: p.sleva ? p.obchod : null,
+    sleva: p.sleva,
+  };
+}
+
+/**
+ * Naplánuje jednotlivé jídlo ze 3 kroků:
+ *   1. „kotva" = bílkovinová potravina (kvantita podle bílkovin)
+ *   2. doplněk sacharidů (preferujeme nízko-bílkovinné zdroje)
+ *   3. doplněk tuků (jen když zbývá potřeba i kalorický prostor)
+ * Vybraná ID přibudou do pouziteId → další jídla preferují jiné
+ * potraviny (různorodost v rámci dne).
+ */
+export function naplanujJidlo(
+  kategorie: KategorieMap,
+  poradi: number,
+  cilB: number,
+  cilS: number,
+  cilT: number,
+  cilK: number,
+  pouziteId: string[] = [],
+  denniPosun: number | null = null,
+  poolMin = 0.85,
+): Jidlo[] {
+  const jidla: Jidlo[] = [];
+  const zbyva = { b: Math.max(cilB, 0), s: Math.max(cilS, 0), t: Math.max(cilT, 0), k: Math.max(cilK, 0) };
+
+  /** gramace podle požadovaného makra + kalorického stropu */
+  const gramace = (p: Kandidat, makro: "bilkoviny" | "sacharidy" | "tuky", cilNaMakro: number, min: number, max: number): number => {
+    const hodnotaNaGram = Math.max(p[makro], 0.5) / 100;
+    const gramyPodleMakra = Math.round(cilNaMakro / hodnotaNaGram);
+    const kcalNaGram = Math.max(p.kalorie, 1) / 100;
+    const gramyPodleKcal = Math.floor(zbyva.k / kcalNaGram);
+    return Math.max(min, Math.min(Math.min(gramyPodleMakra, gramyPodleKcal), max));
+  };
+
+  const pridej = (p: Potravina, gramy: number) => {
+    pouziteId.push(p.id);
+    const jidlo = vytvorJidlo(p, gramy);
+    jidla.push(jidlo);
+    zbyva.b -= jidlo.bilkoviny;
+    zbyva.s -= jidlo.sacharidy;
+    zbyva.t -= jidlo.tuky;
+    zbyva.k -= jidlo.kalorie;
+  };
+
+  // --- 1. kotva (bílkovinová potravina) ---
+  const kotva =
+    vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin) ??
+    vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin);
+  if (kotva !== null && zbyva.b >= 5) {
+    pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
+  }
+
+  // --- 2. doplněk sacharidů ---
+  // Sacharidový doplněk nechceme „přeflakovat" dalšími bílkovinami,
+  // proto preferujeme potraviny s nízkým obsahem bílkovin
+  // (rýže a vločky, ne čočka), existují-li mezi kandidáty.
+  let kandidatiS = kategorie.sacharidova;
+  const nizkoproteinovi = kandidatiS.filter((p) => p.bilkoviny <= 15.0);
+  if (nizkoproteinovi.length > 0) {
+    kandidatiS = nizkoproteinovi;
+  }
+  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin);
+  if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
+    pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
+  }
+
+  // --- 3. doplněk tuků ---
+  const tukovina = vyberKandidata(kategorie.tukova, poradi, pouziteId, denniPosun, poolMin);
+  if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
+    pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, 100));
+  }
+
+  return jidla;
+}
+
+/** Seřadí potraviny dle skóre a vrátí kategorie kandidátů. */
+function pripravKategorie(potraviny: Potravina[]): KategorieMap {
+  const kategorie: KategorieMap = { bilkovinova: [], sacharidova: [], tukova: [] };
+
+  for (const p of potraviny) {
+    const k = kategoriePotraviny(p);
+    const kandidat: Kandidat = { ...p, skore: skorePotraviny(p, k) };
+    kategorie[k].push(kandidat);
+  }
+
+  // seřadíme každou kategorii od NEJVÝHODNĚJŠÍHO kandidáta
+  for (const k of Object.keys(kategorie) as Kategorie[]) {
+    kategorie[k].sort((a, b) => b.skore - a.skore);
+  }
+
+  return kategorie;
+}
+
+/** Denní souhrn – vynuluje jíla. */
+function souhrnJidla(jidla: Jidlo[]): SouhrnJidla {
+  const s: SouhrnJidla = {
+    jidla,
+    kalorie: 0,
+    bilkoviny: 0,
+    sacharidy: 0,
+    tuky: 0,
+    cena: 0,
+    cenaBezna: 0,
+  };
+  for (const j of jidla) {
+    s.kalorie += j.kalorie;
+    s.bilkoviny += j.bilkoviny;
+    s.sacharidy += j.sacharidy;
+    s.tuky += j.tuky;
+    s.cena += j.cena;
+    s.cenaBezna += j.cenaBezna;
+  }
+  s.bilkoviny = Math.round(s.bilkoviny * 10) / 10;
+  s.sacharidy = Math.round(s.sacharidy * 10) / 10;
+  s.tuky = Math.round(s.tuky * 10) / 10;
+  s.cena = Math.round(s.cena * 100) / 100;
+  s.cenaBezna = Math.round(s.cenaBezna * 100) / 100;
+  return s;
+}
+
+/* ============================================================
+ * HLAVNÍ FUNKCE GENERÁTORU
+ * ============================================================ */
+
+/**
+ * Vygeneruje denní jídelníček.
+ * denniPosun: 1–7 (pondělí–neděle) – deterministický výstup dle dne;
+ * poolMin: 0.85 denní / 0.60 týdenní (viz vyberKandidata).
+ */
+export function vygenerujJidelnicek(
+  potraviny: Potravina[],
+  cile: Cile,
+  denniPosun: number | null = null,
+  poolMin = 0.85,
+): DenVysledek {
+  const kategorie = pripravKategorie(potraviny);
+
+  const jidelnicek: Record<string, SouhrnJidla> = {};
+  const celkem: SouhrnJidlaBezJidel = {
+    kalorie: 0,
+    bilkoviny: 0,
+    sacharidy: 0,
+    tuky: 0,
+    cena: 0,
+    cenaBezna: 0,
+  };
+  const pouziteId: string[] = [];
+  let poradi = 0;
+
+  for (const [nazevJidla, podil] of Object.entries(PODILY_JIDEL) as [NazevJidla, number][]) {
+    const jidla = naplanujJidlo(
+      kategorie,
+      poradi,
+      cile.bilkoviny * podil,
+      cile.sacharidy * podil,
+      cile.tuky * podil,
+      cile.kalorie * podil,
+      pouziteId,
+      denniPosun,
+      poolMin,
+    );
+
+    const souhrn = souhrnJidla(jidla);
+    jidelnicek[nazevJidla] = souhrn;
+
+    celkem.kalorie += souhrn.kalorie;
+    celkem.bilkoviny += souhrn.bilkoviny;
+    celkem.sacharidy += souhrn.sacharidy;
+    celkem.tuky += souhrn.tuky;
+    celkem.cena += souhrn.cena;
+    celkem.cenaBezna += souhrn.cenaBezna;
+
+    poradi++;
+  }
+
+  celkem.bilkoviny = Math.round(celkem.bilkoviny * 10) / 10;
+  celkem.sacharidy = Math.round(celkem.sacharidy * 10) / 10;
+  celkem.tuky = Math.round(celkem.tuky * 10) / 10;
+  celkem.cena = Math.round(celkem.cena * 100) / 100;
+  celkem.cenaBezna = Math.round(celkem.cenaBezna * 100) / 100;
+
+  return { jidelnicek, celkem };
+}
+
+/* ============================================================
+ * NÁKUPNÍ SEZNAM
+ * ============================================================ */
+
+/**
+ * Sesbírá potraviny ze všech jídel (i z více dnů), sečte gramy
+ * a ke každé spočítá celkovou cenu dle aktuální (slevové) ceny.
+ * Cena za 100 g už zahrnuje SLEVU – seznam ukazuje, v KTERÉM
+ * obchodě nakoupit nejvýhodněji + kolik sleva ušetřila.
+ */
+export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): NakupniPolozka[] {
+  const mapa = new Map<string, NakupniPolozka>();
+
+  for (const souhrn of Object.values(jidelnicek)) {
+    for (const jidlo of souhrn.jidla) {
+      let polozka = mapa.get(jidlo.id);
+      if (!polozka) {
+        polozka = {
+          id: jidlo.id,
+          nazev: jidlo.nazev,
+          gramy: 0,
+          cenaZa100g: jidlo.gramy > 0 ? Math.round(((jidlo.cena * 100) / jidlo.gramy) * 100) / 100 : 0,
+          cenaBeznaZa100g:
+            jidlo.gramy > 0 ? Math.round(((jidlo.cenaBezna * 100) / jidlo.gramy) * 100) / 100 : null,
+          obchod: jidlo.obchod,
+          sleva: jidlo.sleva,
+          cenaCelkem: 0,
+          usetreno: 0,
+        };
+        mapa.set(jidlo.id, polozka);
+      }
+      polozka.gramy += jidlo.gramy;
+    }
+  }
+
+  const seznam: NakupniPolozka[] = [];
+  for (const polozka of mapa.values()) {
+    polozka.cenaCelkem = Math.round(((polozka.gramy * polozka.cenaZa100g) / 100) * 100) / 100;
+    polozka.usetreno =
+      polozka.cenaBeznaZa100g !== null
+        ? Math.max(
+            0,
+            Math.round(((polozka.gramy * (polozka.cenaBeznaZa100g - polozka.cenaZa100g)) / 100) * 100) / 100,
+          )
+        : 0;
+    seznam.push(polozka);
+  }
+
+  // od nejdražší položky (hlavní nákup nahoře)
+  seznam.sort((a, b) => b.cenaCelkem - a.cenaCelkem);
+  return seznam;
+}
+
+/* ============================================================
+ * TÝDENNÍ PLÁN
+ * ============================================================ */
+
+export interface TydenniPlan {
+  dny: Record<number, DenVysledek>;
+  tyden: SouhrnJidlaBezJidel;
+  nakup: NakupniPolozka[];
+}
+
+/** Týdenní plán = 7 dnů, každý s vlastní rotací (denniPosun = 1–7). */
+export function vygenerujTydenniPlan(potraviny: Potravina[], cile: Cile): TydenniPlan {
+  const dny: Record<number, DenVysledek> = {};
+  const tyden: SouhrnJidlaBezJidel = {
+    kalorie: 0,
+    bilkoviny: 0,
+    sacharidy: 0,
+    tuky: 0,
+    cena: 0,
+    cenaBezna: 0,
+  };
+
+  for (let den = 1; den <= 7; den++) {
+    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6);
+    dny[den] = vysledek;
+
+    tyden.kalorie += vysledek.celkem.kalorie;
+    tyden.bilkoviny += vysledek.celkem.bilkoviny;
+    tyden.sacharidy += vysledek.celkem.sacharidy;
+    tyden.tuky += vysledek.celkem.tuky;
+    tyden.cena += vysledek.celkem.cena;
+    tyden.cenaBezna += vysledek.celkem.cenaBezna;
+  }
+
+  tyden.kalorie = Math.round(tyden.kalorie);
+  tyden.bilkoviny = Math.round(tyden.bilkoviny * 10) / 10;
+  tyden.sacharidy = Math.round(tyden.sacharidy * 10) / 10;
+  tyden.tuky = Math.round(tyden.tuky * 10) / 10;
+  tyden.cena = Math.round(tyden.cena * 100) / 100;
+  tyden.cenaBezna = Math.round(tyden.cenaBezna * 100) / 100;
+
+  // spojíme jídelníčky všech dnů do jednoho nákupního seznamu
+  const spojeny: Record<string, SouhrnJidla> = {};
+  for (const den of Object.values(dny)) {
+    for (const [nazev, souhrn] of Object.entries(den.jidelnicek)) {
+      const klic = `${den ?? ""}-${nazev}`; // dny se nesmí slít
+      spojeny[klic] = souhrn;
+    }
+  }
+
+  return { dny, tyden, nakup: sestavNakupniSeznam(spojeny) };
+}
+
+/* ============================================================
+ * POMOCNÍK: cíl vs. realita
+ * ============================================================ */
+
+/** Procenta shody (100 − |odchylka|) + barva progress baru. */
+export function panelTik(aktualni: number, cilovy: number): { shoda: number; trida: string } {
+  const odchylka = cilovy > 0 ? ((aktualni - cilovy) / cilovy) * 100 : 0;
+  const shoda = Math.max(0, Math.min(100, Math.round(100 - Math.abs(odchylka))));
+
+  let trida = "ok";
+  if (shoda < 70) trida = "danger";
+  else if (shoda < 90) trida = "warning";
+
+  return { shoda, trida };
+}
