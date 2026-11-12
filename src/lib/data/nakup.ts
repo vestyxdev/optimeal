@@ -114,3 +114,34 @@ export async function smazNakupniSeznam(idSeznamu: string): Promise<void> {
   const { error } = await klient.from("shopping_lists").delete().eq("id", idSeznamu);
   if (error) throw new Error(`Seznam se nesmazal: ${error.message}`);
 }
+
+/** Přepne „koupeno" u položky. */
+export async function prepnoutKoupeno(idPolozky: string, koupeno: boolean): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { error } = await klient.from("shopping_list_items").update({ koupeno }).eq("id", idPolozky);
+  if (error) throw new Error(`Položka se neupravila: ${error.message}`);
+}
+
+/** Ruční položka (není z katalogu – sůl, paprika, sáčky…). */
+export async function pridejVlastniPolozku(
+  idSeznamu: string,
+  nazev: string,
+): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { error } = await klient.from("shopping_list_items").insert({
+    list_id: idSeznamu,
+    nazev,
+    vlastni: true,
+  });
+  if (error) throw new Error(`Položka se nepřidala: ${error.message}`);
+}
+
+/** Smazání jedné položky. */
+export async function smazPolozku(idPolozky: string): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { error } = await klient.from("shopping_list_items").delete().eq("id", idPolozky);
+  if (error) throw new Error(`Položka se nesmazala: ${error.message}`);
+}

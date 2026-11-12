@@ -14,6 +14,7 @@ import { PlanyDetail } from "@/routes/PlanyDetail";
 import { Recepty } from "@/routes/Recepty";
 import { ReceptDetail } from "@/routes/ReceptDetail";
 import { Mealprep } from "@/routes/Mealprep";
+import { Nakup } from "@/routes/Nakup";
 
 export default function App() {
   // bez klíčů k Supabase produkt nespustí demo verzi – zobrazí přesný návod
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/recepty" element={<Recepty />} />
             <Route path="/recepty/:id" element={<ReceptDetail />} />
             <Route path="/mealprep" element={<Mealprep />} />
+            <Route path="/nakup" element={<Nakup />} />
             <Route path="/plany/:id" element={<PlanyDetail />} />
             <Route path="/ucet" element={<Ucet />} />
             <Route path="/nastaveni" element={<Nastaveni />} />

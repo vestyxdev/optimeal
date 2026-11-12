@@ -6,6 +6,7 @@ import {
   Moon,
   Receipt,
   Settings,
+  ShoppingBasket,
   Sun,
   UserRound,
   UtensilsCrossed,
@@ -34,6 +35,7 @@ const SEKCE: Sekce[] = [
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
   { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat },
   { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot },
+  { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },
   { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings },
 ];
