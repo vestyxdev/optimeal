@@ -194,7 +194,7 @@ export function Jidelnicek() {
             {dotazPlany.data?.map((p) => (
               <li key={p.id} className="flex items-center justify-between gap-3 py-2">
                 <Link to={`/plany/${p.id}`} className="font-medium hover:text-primary hover:underline">
-                  {p.typ === "tyden" ? "Týdenní" : "Denní"} · {p.cil_kalorie} kcal
+                  {p.typ === "tyden" ? "Týdenní" : p.typ === "mealprep" ? "Mealprep" : "Denní"} · {p.cil_kalorie} kcal
                   <span className="text-muted"> · {new Date(p.vytvoreno).toLocaleString("cs-CZ")}</span>
                 </Link>
                 <button

@@ -51,7 +51,7 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
 
 /** Uložení vygenerovaného plánu do meal_plans. */
 export async function ulozPlan(plan: {
-  typ: "den" | "tyden";
+  typ: "den" | "tyden" | "mealprep";
   cile: { kalorie: number; bilkoviny: number; sacharidy: number; tuky: number };
   vysledek: unknown;
 }): Promise<string> {
@@ -66,10 +66,10 @@ export async function ulozPlan(plan: {
     .insert({
       user_id: uzivatel.user.id,
       typ: plan.typ,
-      cil_kalorie: plan.cile.kalorie,
-      cil_bilkoviny: plan.cile.bilkoviny,
-      cil_sacharidy: plan.cile.sacharidy,
-      cil_tuky: plan.cile.tuky,
+      cil_kalorie: Math.round(plan.cile.kalorie),
+      cil_bilkoviny: Math.round(plan.cile.bilkoviny),
+      cil_sacharidy: Math.round(plan.cile.sacharidy),
+      cil_tuky: Math.round(plan.cile.tuky),
       data: { cile: plan.cile, vysledek: plan.vysledek },
     })
     .select("id")
@@ -108,7 +108,7 @@ export async function nactiPlan(id: string) {
   if (error) throw new Error(`Plán se nenačetl: ${error.message}`);
   return data as {
     id: string;
-    typ: "den" | "tyden";
+    typ: "den" | "tyden" | "mealprep";
     cil_kalorie: number;
     cil_bilkoviny: number;
     cil_sacharidy: number;

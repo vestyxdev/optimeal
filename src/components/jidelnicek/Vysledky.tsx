@@ -28,7 +28,7 @@ function Metrika({ nazev, hodnota, cilyJednotka }: { nazev: string; hodnota: num
   );
 }
 
-function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozka[]; soucetPopisek: string }) {
+export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozka[]; soucetPopisek: string }) {
   const celkem = polozky.reduce((s, x) => s + x.cenaCelkem, 0);
   const usetreno = polozky.reduce((s, x) => s + x.usetreno, 0);
 
