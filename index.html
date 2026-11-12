@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="OptiMeal – jezte lépe, šetřete peníze, plánujte chytře. Osobní jídelníček, mealprep a nákupní seznamy s aktuálními slevami z obchodů." />
+    <title>OptiMeal – jezte lépe, šetřete peníze</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // motiv dříve, než se cokoliv vykreslí – žádné probliknutí
+      (function () {
+        try {
+          var motiv = localStorage.getItem("optimeal-motiv") || "system";
+          var dark =
+            motiv === "dark" ||
+            (motiv === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (e) {
+          /* localStorage nedostupný – zůstane světlý motiv */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

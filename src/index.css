@@ -1,0 +1,127 @@
+/*
+ * OptiMeal – design systém
+ * ---------------------------------------------------------------
+ * Identita: hluboká lesní zeleň (primár), tlumená limetka (akcent),
+ * teplá off-white pozadí, bílé plochy, uhlí typografie.
+ * Světlý i tmavý motiv přes CSS proměnné – utility v Tailwindu
+ * (bg-surface, text-fg, …) se mapují na tyto tokeny.
+ */
+
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* plochy a pozadí */
+  --bg: #faf9f4;
+  --surface: #ffffff;
+  --surface-2: #f3f1ea;
+  --border: #e6e3da;
+
+  /* typografie */
+  --fg: #1d1b16;
+  --muted: #6f6a61;
+
+  /* značka */
+  --primary: #2d6a4f;
+  --primary-strong: #1b4332;
+  --primary-soft: #e7f0ea;
+  --primary-fg: #ffffff;
+  --accent: #7fae3e;
+  --accent-soft: #f0f5e3;
+  --accent-fg: #2a3315;
+
+  /* sémantické */
+  --ok: #15803d;
+  --ok-soft: #e6f4ea;
+  --warning: #b45309;
+  --warning-soft: #fdf2e3;
+  --danger: #b91c1c;
+  --danger-soft: #fdeaea;
+}
+
+.dark {
+  --bg: #0f140f;
+  --surface: #171d16;
+  --surface-2: #1e261d;
+  --border: #2b352a;
+
+  --fg: #ebe9e1;
+  --muted: #9a958a;
+
+  --primary: #5aa179;
+  --primary-strong: #2d6a4f;
+  --primary-soft: #1c2b21;
+  --primary-fg: #0c120d;
+  --accent: #a4cd5c;
+  --accent-soft: #232a15;
+  --accent-fg: #dceec4;
+
+  --ok: #4ade80;
+  --ok-soft: #14291b;
+  --warning: #f59e0b;
+  --warning-soft: #2a2013;
+  --danger: #f87171;
+  --danger-soft: #2b1515;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-card: 0.875rem;
+  --radius-pill: 999px;
+}
+
+/* ---------- základ ---------- */
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  min-height: 100dvh;
+}
+
+/* soustředěný obsah – maximální šířka čitelnosti */
+.om-kontejner {
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+/* karta – základní plocha systému */
+.om-karta {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+/* soustředění čísel v tabulkách */
+.om-tabulka-num {
+  font-variant-numeric: tabular-nums;
+}

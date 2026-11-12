@@ -1,0 +1,108 @@
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase, supabaseNastaveno } from "./supabase";
+
+/**
+ * Autentizace – Supabase Auth (e-mail + heslo).
+ * V demo režimu (bez klíčů) vrací session = null a feature flag.
+ */
+
+export interface Uzivatel {
+  id: string;
+  email: string;
+}
+
+interface AuthStav {
+  /** null = nepřihlášen */
+  uzivatel: Uzivatel | null;
+  nacitaSe: boolean;
+  /** false = aplikace běží bez Supabase klíčů (demo) */
+  authDostupne: boolean;
+  prihlasit: (email: string, heslo: string) => Promise<{ chyba?: string }>;
+  registrovat: (email: string, heslo: string) => Promise<{ chyba?: string }>;
+  odhlasit: () => Promise<void>;
+}
+
+const AuthKontext = createContext<AuthStav>({
+  uzivatel: null,
+  nacitaSe: false,
+  authDostupne: false,
+  prihlasit: async () => ({ chyba: "Auth není nakonfigurováno" }),
+  registrovat: async () => ({ chyba: "Auth není nakonfigurováno" }),
+  odhlasit: async () => undefined,
+});
+
+export function AuthPoskytovatel({ children }: { children: ReactNode }) {
+  const [uzivatel, setUzivatel] = useState<Uzivatel | null>(null);
+  const [nacitaSe, setNacitaSe] = useState(supabaseNastaveno);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    // počáteční session + reakce na změny (login, logout, obnova tokenu)
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setUzivatel(
+          session?.user
+            ? { id: session.user.id, email: session.user.email ?? "" }
+            : null,
+        );
+        setNacitaSe(false);
+      })
+      .catch(() => setNacitaSe(false));
+
+    const { data: odber } = supabase.auth.onAuthStateChange(
+      (_udalost, session) => {
+        setUzivatel(
+          session?.user
+            ? { id: session.user.id, email: session.user.email ?? "" }
+            : null,
+        );
+      },
+    );
+
+    return () => odber.subscription.unsubscribe();
+  }, []);
+
+  const hodnoty: AuthStav = {
+    uzivatel,
+    nacitaSe,
+    authDostupne: supabaseNastaveno,
+    prihlasit: async (email, heslo) => {
+      if (!supabase) return { chyba: "Aplikace není připojena k Supabase." };
+      const { error } = await supabase.auth.signInWithPassword({ email, password: heslo });
+      if (error) return { chyba: prelozAuthChybu(error.message) };
+      return {};
+    },
+    registrovat: async (email, heslo) => {
+      if (!supabase) return { chyba: "Aplikace není připojena k Supabase." };
+      const { error } = await supabase.auth.signUp({ email, password: heslo });
+      if (error) return { chyba: prelozAuthChybu(error.message) };
+      return {};
+    },
+    odhlasit: async () => {
+      if (supabase) await supabase.auth.signOut();
+    },
+  };
+
+  return <AuthKontext.Provider value={hodnoty}>{children}</AuthKontext.Provider>;
+}
+
+export function useAuth() {
+  return useContext(AuthKontext);
+}
+
+/** Většina chyb Supabase jde člověku vysvětlit česky. */
+function prelozAuthChybu(zprava: string): string {
+  if (zprava.includes("Invalid login credentials"))
+    return "Nesprávný e-mail nebo heslo.";
+  if (zprava.includes("User already registered"))
+    return "Tento e-mail je už registrovaný. Zkuste se přihlásit.";
+  if (zprava.includes("Password should be at least"))
+    return "Heslo musí mít alespoň 6 znaků.";
+  if (zprava.includes("Email not confirmed"))
+    return "Nejdřív potvrďte e-mail přes odkaz, který jsme vám poslali.";
+  if (zprava.includes("rate limit"))
+    return "Zkuste to prosím za chvíli (moc pokusů).";
+  return "Přihlášení/registrace se nepodařila: " + zprava;
+}
