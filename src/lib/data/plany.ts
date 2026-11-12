@@ -1,4 +1,4 @@
-import type { Potravina } from "@/lib/generator/generator";
+import type { Cile, Potravina } from "@/lib/generator/generator";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -91,6 +91,30 @@ export async function nactiMePlany() {
 
   if (error) throw new Error(`Plány se nenačetly: ${error.message}`);
   return data ?? [];
+}
+
+/** Detail jednoho plánu včetně JSONB obsahu. */
+export async function nactiPlan(id: string) {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient
+    .from("meal_plans")
+    .select("id, typ, cil_kalorie, cil_bilkoviny, cil_sacharidy, cil_tuky, data, vytvoreno")
+    .eq("id", id)
+    .single();
+
+  if (error) throw new Error(`Plán se nenačetl: ${error.message}`);
+  return data as {
+    id: string;
+    typ: "den" | "tyden";
+    cil_kalorie: number;
+    cil_bilkoviny: number;
+    cil_sacharidy: number;
+    cil_tuky: number;
+    data: { cile: Cile; vysledek: unknown };
+    vytvoreno: string;
+  };
 }
 
 /** Smazání plánu (RLS chrání – smaže se jen vlastní). */
