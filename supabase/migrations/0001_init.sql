@@ -136,7 +136,7 @@ select
   f.tuky,
   f.kalorie,
   f.bezna_cena,
-  nej.cena as aktualni_cena,
+  coalesce(nej.cena, f.bezna_cena) as aktualni_cena,
   nej.retailer_id,
   r.nazev as obchod,
   (nej.je_sleva and (nej.platnost_do is null or nej.platnost_do >= current_date)) as sleva,

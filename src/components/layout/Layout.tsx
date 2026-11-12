@@ -6,6 +6,7 @@ import {
   Settings,
   Sun,
   UserRound,
+  UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth";
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/Button";
 /**
  * Aplikační shell – desktop: úzké boční menu, mobil: spodní lišta.
  * Sekce se přidávají postupně, jak dává smysl – žádné mrtvé odkazy.
- * (Jídelníček, mealprep, slevy… přijdou v dalších fázích buildu.)
+ * (Mealprep, slevy… přijdou v dalších fázích buildu.)
  */
 
 interface Sekce {
@@ -28,8 +29,9 @@ interface Sekce {
 
 const SEKCE: Sekce[] = [
   { cesta: "/", nazev: "Přehled", ikona: Receipt, vListe: true },
+  { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },
-  { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings, vListe: true },
+  { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings },
 ];
 
 export function Layout() {
