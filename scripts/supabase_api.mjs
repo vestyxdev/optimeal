@@ -49,6 +49,17 @@ try {
     await sql(seed, "Seed (potraviny + ceny)");
   }
 
+  // spuštění libovolného SQL souboru: node scripts/supabase_api.mjs <PAT> soubor supabase/migrations/0002_recepty.sql
+  if (PRIKAZ === "soubor") {
+    const cesta = process.argv[4];
+    if (!cesta) {
+      console.error("Použití: node scripts/supabase_api.mjs \"<PAT>\" soubor <relativni/cesta.sql>");
+      process.exit(1);
+    }
+    const obsah = readFileSync(resolve(SLOZKA, cesta), "utf8");
+    await sql(obsah, `SQL soubor ${cesta}`);
+  }
+
   if (PRIKAZ === "migrace" || PRIKAZ === "overeni") {
     console.log("\n▶ Ověření…");
     const tabulky = await sql(

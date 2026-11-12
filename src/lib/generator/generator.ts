@@ -42,6 +42,8 @@ export interface Potravina {
   obchod: string | null;
   /** je právě ve slevě? */
   sleva: boolean;
+  /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
+  kategorie?: string;
 }
 
 export interface Jidlo {

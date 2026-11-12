@@ -37,6 +37,7 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
   return (data as RadkaAktualniCeny[]).map((r) => ({
     id: r.food_id,
     nazev: r.nazev,
+    kategorie: r.kategorie,
     bilkoviny: Number(r.bilkoviny),
     sacharidy: Number(r.sacharidy),
     tuky: Number(r.tuky),

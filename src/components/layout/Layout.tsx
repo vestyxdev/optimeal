@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  ChefHat,
   Leaf,
   Moon,
   Receipt,
@@ -30,6 +31,7 @@ interface Sekce {
 const SEKCE: Sekce[] = [
   { cesta: "/", nazev: "Přehled", ikona: Receipt, vListe: true },
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
+  { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },
   { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings },
 ];
