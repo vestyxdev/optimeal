@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, Printer, Save } from "lucide-react";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { nactiPotravinySeSlevami, nactiMePlany, ulozPlan } from "@/lib/data/plany";
+import { nactiAktivniCile } from "@/lib/data/profil";
 import { useAuth } from "@/lib/auth";
 import {
   sestavNakupniSeznam,
@@ -203,6 +204,16 @@ export function Jidelnicek() {
     queryKey: ["aktualni_ceny"],
     queryFn: nactiPotravinySeSlevami,
   });
+
+  // aktivní cíle uživatele → předvyplnění
+  const dotazCile = useQuery({
+    queryKey: ["cile"],
+    queryFn: nactiAktivniCile,
+    enabled: uzivatel !== null,
+  });
+  useEffect(() => {
+    if (dotazCile.data) setCile(dotazCile.data);
+  }, [dotazCile.data]);
 
   const dotazPlany = useQuery({
     queryKey: ["me_plany"],
