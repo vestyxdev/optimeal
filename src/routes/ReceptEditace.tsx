@@ -1,11 +1,11 @@
-import { useEffect } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Minus, Plus, Receipt, Trash2, Users } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -16,13 +16,18 @@ import {
   upravRecept,
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import type { Potravina } from "@/lib/generator/generator";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { VyberPotraviny } from "@/components/ui/VyberPotraviny";
+import { cn } from "@/lib/cn";
 
 /**
- * Nový / úprava vlastního receptu. Suroviny se vybírají z katalogu
- * potravin (živé ceny), gramáž je vždy na 1 porci. Validace zod +
- * react-hook-form; uložení přes RLS (jen vlastní recepty).
+ * „Receptová kasa“ – nový / úprava vlastního receptu.
+ * Levá sloupce: redakční formulář (kuchařka). Pravý sloupec:
+ * živá papírová účtenka, která se „tiskne“ při psaní – každá
+ * surovina je položka s gramáží a dnešní cenou, patička ukazuje
+ * cenu a výživu na porci. Na mobilu shrinknutá páska nad spodní
+ * navigací drží součty po ruce.
  */
 
 const KATEGORIE = ["snidane", "polevka", "hlavni", "svacina", "desert"] as const;
@@ -59,6 +64,44 @@ type Hodnoty = z.infer<typeof schema>;
 
 const VYCHOZI_SUROVINA = { foodId: "", gramyNaPorce: 100, poznamka: "" };
 
+const kc = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 2 });
+const celo = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 });
+
+interface PolozkaUctenky {
+  nazev: string;
+  gramy: number;
+  cena: number | null; // null = potravina bez ceny v katalogu
+  sleva: number; // usetřeno oproti běžné ceně
+}
+
+/** Živé položky účtenky z formuláře + katalogu cen. */
+function spocitejUctenku(
+  suroviny: Hodnoty["suroviny"],
+  mapa: Map<string, Potravina>,
+): { polozky: PolozkaUctenky[]; kcal: number; b: number; s: number; t: number } {
+  let kcal = 0;
+  let b = 0;
+  let s = 0;
+  let t = 0;
+  const polozky = suroviny.map((sur) => {
+    const p = mapa.get(sur.foodId);
+    const g = Number.isFinite(sur.gramyNaPorce) && sur.gramyNaPorce > 0 ? sur.gramyNaPorce : 0;
+    if (!p) return { nazev: "—", gramy: g, cena: null, sleva: 0 };
+    const podil = g / 100;
+    kcal += p.kalorie * podil;
+    b += p.bilkoviny * podil;
+    s += p.sacharidy * podil;
+    t += p.tuky * podil;
+    return {
+      nazev: p.nazev,
+      gramy: g,
+      cena: p.aktualniCena > 0 ? p.aktualniCena * podil : null,
+      sleva: p.sleva && p.beznaCena > p.aktualniCena ? (p.beznaCena - p.aktualniCena) * podil : 0,
+    };
+  });
+  return { polozky, kcal, b, s, t };
+}
+
 export function ReceptEditace() {
   const { id } = useParams<{ id: string }>();
   const editace = id !== undefined;
@@ -91,6 +134,26 @@ export function ReceptEditace() {
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "suroviny" });
+
+  // živé hodnoty pro účtenku
+  const suroviny = useWatch({ control, name: "suroviny" }) ?? [];
+  const porce = useWatch({ control, name: "porce" }) ?? 1;
+  const nazev = useWatch({ control, name: "nazev" }) ?? "";
+
+  const potraviny = dotazPotraviny.data ?? [];
+  const mapaPotravin = useMemo(() => new Map(potraviny.map((p) => [p.id, p])), [potraviny]);
+  const uctenka = useMemo(
+    () => spocitejUctenku(suroviny, mapaPotravin),
+    [suroviny, mapaPotravin],
+  );
+  const cenaZaPorce = useMemo(
+    () =>
+      uctenka.polozky.some((p) => p.cena === null)
+        ? null
+        : uctenka.polozky.reduce((sum, p) => sum + (p.cena ?? 0), 0),
+    [uctenka],
+  );
+  const usetreno = uctenka.polozky.reduce((sum, p) => sum + p.sleva, 0);
 
   // předvyplnění při editaci
   useEffect(() => {
@@ -143,8 +206,6 @@ export function ReceptEditace() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const potraviny = dotazPotraviny.data ?? [];
-
   if (editace && dotazRecept.isLoading) {
     return (
       <div className="space-y-3" aria-label="Načítám recept">
@@ -161,167 +222,376 @@ export function ReceptEditace() {
     );
   }
 
+  const porceBezpecne = Number.isFinite(porce) && porce > 0 ? porce : 1;
+
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <Link
-          to={editace ? `/recepty/${id}` : "/recepty"}
-          className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-fg"
-        >
-          <ArrowLeft className="size-4" /> {editace ? "Zpět na recept" : "Zpět na recepty"}
-        </Link>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight">
-          {editace ? "Upravit recept" : "Nový recept"}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Gramáže surovin zadávejte vždy na 1 porci – cena i výživa se dopočítají
-          automaticky z aktuálních cen.
-        </p>
-      </div>
+    <div className="max-w-5xl">
+      <Link
+        to={editace ? `/recepty/${id}` : "/recepty"}
+        className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-fg"
+      >
+        <ArrowLeft className="size-4" /> {editace ? "Zpět na recept" : "Zpět na recepty"}
+      </Link>
+      <h1 className="om-display mt-2 text-3xl font-extrabold tracking-tight">
+        {editace ? "Upravit recept" : "Nový recept"}
+      </h1>
+      <p className="mt-1 max-w-prose text-sm text-muted">
+        Gramáže pište na 1 porci – účtenka vedle rovnou počítá cenu a výživu
+        z dnešních cen.
+      </p>
 
-      <form onSubmit={handleSubmit((h) => mutace.mutate(h))} className="space-y-6">
-        {/* hlavička */}
-        <Card className="space-y-4">
-          <div>
-            <Label htmlFor="nazev">Název receptu</Label>
-            <Input id="nazev" {...register("nazev")} placeholder="Kuře s rýží a brokolicí" />
-            {errors.nazev && <Chyba text={errors.nazev.message} />}
-          </div>
-          <div>
-            <Label htmlFor="popis">Popis (volitelný)</Label>
-            <Input id="popis" {...register("popis")} placeholder="Rychlý oběd s dostatečným obsahem bílkovin…" />
-            {errors.popis && <Chyba text={errors.popis.message} />}
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <form
+        onSubmit={handleSubmit((h) => mutace.mutate(h))}
+        className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"
+      >
+        {/* -------- formulář -------- */}
+        <div className="min-w-0 space-y-6">
+          {/* základ */}
+          <Card className="space-y-4">
             <div>
-              <Label htmlFor="kategorie">Kategorie</Label>
-              <select
-                id="kategorie"
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
-                {...register("kategorie")}
-              >
-                {KATEGORIE.map((k) => (
-                  <option key={k} value={k}>{KATEGORIE_NAZVY[k]}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="porce">Porce</Label>
-              <Input id="porce" type="number" inputMode="numeric" min={1} max={12} {...register("porce", { valueAsNumber: true })} />
-              {errors.porce && <Chyba text={errors.porce.message} />}
-            </div>
-            <div>
-              <Label htmlFor="casMinuty">Čas (min, volitelné)</Label>
+              <Label htmlFor="nazev">Název receptu</Label>
               <Input
-                id="casMinuty" type="number" inputMode="numeric" min={1} max={600}
-                {...register("casMinuty", { setValueAs: (v: string) => (v === "" ? null : Number(v)) })}
-                placeholder="30"
+                id="nazev"
+                {...register("nazev")}
+                placeholder="Kuře s rýží a brokolicí"
+                className="h-12 px-3 text-lg font-semibold"
               />
-              {errors.casMinuty && <Chyba text={errors.casMinuty.message} />}
+              {errors.nazev && <Chyba text={errors.nazev.message} />}
             </div>
-          </div>
-        </Card>
+            <div>
+              <Label htmlFor="popis">Popis (volitelný)</Label>
+              <Input id="popis" {...register("popis")} placeholder="Rychlý oběd s dostatečným obsahem bílkovin…" />
+              {errors.popis && <Chyba text={errors.popis.message} />}
+            </div>
 
-        {/* suroviny */}
-        <Card>
-          <CardNadpis>Suroviny (na 1 porci)</CardNadpis>
-          {errors.suroviny?.message && <Chyba text={errors.suroviny.message} />}
-          <ul className="space-y-3">
-            {fields.map((pole, i) => (
-              <li key={pole.id} className="grid grid-cols-[1fr_88px_36px] items-start gap-2 sm:grid-cols-[1fr_88px_1fr_36px]">
-                <div>
-                  <Controller
-                    control={control}
-                    name={`suroviny.${i}.foodId`}
-                    render={({ field }) => (
-                      <VyberPotraviny
-                        potraviny={potraviny}
-                        hodnota={field.value}
-                        onZmena={field.onChange}
-                        chyba={Boolean(errors.suroviny?.[i]?.foodId)}
-                        ariaLabel={`Surovina ${i + 1} – potravina`}
-                      />
-                    )}
-                  />
-                  {errors.suroviny?.[i]?.foodId && <Chyba text={errors.suroviny[i]?.foodId?.message} />}
-                </div>
-                <div>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    step="1"
-                    min={1}
-                    placeholder="g"
-                    aria-label={`Surovina ${i + 1} – gramáž na porci`}
-                    {...register(`suroviny.${i}.gramyNaPorce`, { valueAsNumber: true })}
-                  />
-                  {errors.suroviny?.[i]?.gramyNaPorce && (
-                    <Chyba text={errors.suroviny[i]?.gramyNaPorce?.message} />
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+              <fieldset>
+                <legend className="mb-1.5 text-sm font-medium text-fg">Kategorie</legend>
+                <Controller
+                  control={control}
+                  name="kategorie"
+                  render={({ field }) => (
+                    <div role="radiogroup" aria-label="Kategorie receptu" className="flex flex-wrap gap-1.5">
+                      {KATEGORIE.map((kat) => (
+                        <button
+                          key={kat}
+                          type="button"
+                          role="radio"
+                          aria-checked={field.value === kat}
+                          onClick={() => field.onChange(kat)}
+                          className={cn(
+                            "h-9 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                            field.value === kat
+                              ? "border-primary bg-primary text-primary-fg"
+                              : "border-border bg-surface text-muted hover:border-primary/50 hover:text-fg",
+                          )}
+                        >
+                          {KATEGORIE_NAZVY[kat]}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </div>
-                <div className="col-span-3 sm:col-span-1">
+                />
+                {errors.kategorie && <Chyba text={errors.kategorie.message} />}
+              </fieldset>
+
+              <div>
+                <Label>Porce</Label>
+                <Controller
+                  control={control}
+                  name="porce"
+                  render={({ field }) => (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="Méně porcí"
+                        disabled={field.value <= 1}
+                        onClick={() => field.onChange(Math.max(1, field.value - 1))}
+                        className="grid size-9 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
+                      >
+                        <Minus className="size-4" />
+                      </button>
+                      <span className="flex h-9 min-w-12 items-center justify-center gap-1 text-sm font-semibold tabular-nums">
+                        <Users className="size-3.5 text-muted" />
+                        {field.value}×
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Více porcí"
+                        disabled={field.value >= 12}
+                        onClick={() => field.onChange(Math.min(12, field.value + 1))}
+                        className="grid size-9 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
+                      >
+                        <Plus className="size-4" />
+                      </button>
+                    </div>
+                  )}
+                />
+                {errors.porce && <Chyba text={errors.porce.message} />}
+              </div>
+
+              <div>
+                <Label htmlFor="casMinuty">Čas (volitelné)</Label>
+                <div className="relative w-28">
+                  <Clock className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
                   <Input
-                    placeholder="pozn. (volitelné)"
-                    aria-label={`Surovina ${i + 1} – poznámka`}
-                    {...register(`suroviny.${i}.poznamka`)}
+                    id="casMinuty" type="number" inputMode="numeric" min={1} max={600}
+                    {...register("casMinuty", { setValueAs: (v: string) => (v === "" ? null : Number(v)) })}
+                    placeholder="30"
+                    className="pl-8 pr-8 tabular-nums"
                   />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted">min</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => remove(i)}
-                  disabled={fields.length <= 1}
-                  aria-label={`Odebrat surovinu ${i + 1}`}
-                  className="col-start-3 row-start-1 grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30 sm:col-start-4"
-                  title="Odebrat surovinu"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <Button
-            type="button"
-            varianta="outline"
-            velikost="sm"
-            className="mt-3"
-            onClick={() => append(VYCHOZI_SUROVINA)}
-            disabled={fields.length >= 30}
-          >
-            <Plus className="size-4" /> Přidat surovinu
-          </Button>
-          {dotazPotraviny.isError && (
-            <p className="mt-2 text-xs text-danger">Katalog potravin se nepodařilo načíst.</p>
-          )}
-        </Card>
+                {errors.casMinuty && <Chyba text={errors.casMinuty.message} />}
+              </div>
+            </div>
+          </Card>
 
-        {/* postup */}
-        <Card>
-          <Label htmlFor="postup">Postup (každý krok na nový řádek)</Label>
-          <textarea
-            id="postup"
-            rows={6}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted focus:outline-2 focus:outline-primary"
-            placeholder={"Rýži uvařte podle návodu.\nKuře opepřete a osolte…"}
-            {...register("postup")}
-          />
-          {errors.postup && <Chyba text={errors.postup.message} />}
-        </Card>
+          {/* suroviny */}
+          <Card>
+            <CardNadpis>Suroviny (na 1 porci)</CardNadpis>
+            {errors.suroviny?.message && <Chyba text={errors.suroviny.message} />}
+            <ul className="space-y-3">
+              {fields.map((pole, i) => {
+                const polozka = uctenka.polozky[i];
+                return (
+                  <li
+                    key={pole.id}
+                    className="grid grid-cols-[1.4rem_1fr_88px_36px] items-start gap-2 sm:grid-cols-[1.4rem_1fr_88px_1fr_36px]"
+                  >
+                    <span className="mt-2.5 text-xs font-medium tabular-nums text-muted">
+                      {i + 1}.
+                    </span>
+                    <div>
+                      <Controller
+                        control={control}
+                        name={`suroviny.${i}.foodId`}
+                        render={({ field }) => (
+                          <VyberPotraviny
+                            potraviny={potraviny}
+                            hodnota={field.value}
+                            onZmena={field.onChange}
+                            chyba={Boolean(errors.suroviny?.[i]?.foodId)}
+                            ariaLabel={`Surovina ${i + 1} – potravina`}
+                          />
+                        )}
+                      />
+                      {errors.suroviny?.[i]?.foodId && <Chyba text={errors.suroviny[i]?.foodId?.message} />}
+                    </div>
+                    <div>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          step="1"
+                          min={1}
+                          placeholder="100"
+                          aria-label={`Surovina ${i + 1} – gramáž na porci`}
+                          {...register(`suroviny.${i}.gramyNaPorce`, { valueAsNumber: true })}
+                          className="pr-7 tabular-nums"
+                        />
+                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted">g</span>
+                      </div>
+                      {polozka && polozka.cena !== null && (
+                        <p className="mt-1 text-right text-[11px] tabular-nums text-muted">
+                          {kc.format(polozka.cena)} Kč
+                        </p>
+                      )}
+                      {errors.suroviny?.[i]?.gramyNaPorce && (
+                        <Chyba text={errors.suroviny[i]?.gramyNaPorce?.message} />
+                      )}
+                    </div>
+                    <div className="col-span-4 sm:col-span-1">
+                      <Input
+                        placeholder="pozn. (volitelné)"
+                        aria-label={`Surovina ${i + 1} – poznámka`}
+                        {...register(`suroviny.${i}.poznamka`)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => remove(i)}
+                      disabled={fields.length <= 1}
+                      aria-label={`Odebrat surovinu ${i + 1}`}
+                      className="col-start-4 row-start-1 grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30 sm:col-start-5"
+                      title="Odebrat surovinu"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              type="button"
+              onClick={() => append(VYCHOZI_SUROVINA)}
+              disabled={fields.length >= 30}
+              className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm font-medium text-muted transition-colors hover:border-primary hover:text-primary disabled:opacity-40"
+            >
+              <Plus className="size-4" /> Přidat surovinu
+            </button>
+            {dotazPotraviny.isError && (
+              <p className="mt-2 text-xs text-danger">Katalog potravin se nepodařilo načíst.</p>
+            )}
+          </Card>
 
-        <div className="flex gap-2">
-          <Button type="submit" disabled={mutace.isPending}>
-            {mutace.isPending ? "Ukládám…" : editace ? "Uložit změny" : "Uložit recept"}
-          </Button>
-          <Button
-            type="button"
-            varianta="ghost"
-            onClick={() => naviguj(editace ? `/recepty/${id}` : "/recepty")}
-          >
-            Zrušit
-          </Button>
+          {/* postup */}
+          <Card>
+            <Label htmlFor="postup">Postup (každý krok na nový řádek)</Label>
+            <textarea
+              id="postup"
+              rows={7}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm leading-relaxed text-fg placeholder:text-muted focus:outline-2 focus:outline-primary"
+              placeholder={"Rýži uvařte podle návodu.\nKuře opepřete, osolte a orestujte…"}
+              {...register("postup")}
+            />
+            {errors.postup && <Chyba text={errors.postup.message} />}
+          </Card>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" varianta="accent" velikost="lg" disabled={mutace.isPending}>
+              {mutace.isPending ? "Ukládám…" : editace ? "Uložit změny" : "Uložit recept"}
+            </Button>
+            <Button
+              type="button"
+              varianta="ghost"
+              velikost="lg"
+              onClick={() => naviguj(editace ? `/recepty/${id}` : "/recepty")}
+            >
+              Zrušit
+            </Button>
+          </div>
         </div>
+
+        {/* -------- živá účtenka (desktop sticky) -------- */}
+        <Uctenka
+          nazev={nazev}
+          porce={porceBezpecne}
+          uctenka={uctenka}
+          cenaZaPorce={cenaZaPorce}
+          usetreno={usetreno}
+          className="sticky top-24 hidden self-start lg:block"
+        />
       </form>
+
+      {/* mobilní páska se součty – sedí nad spodní navigací */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-dashed border-border bg-surface/95 px-4 py-2 font-mono text-xs backdrop-blur lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-1.5 text-muted">
+            <Receipt className="size-3.5 shrink-0" />
+            <span className="truncate">{nazev.trim() || "nový recept"}</span>
+          </span>
+          <span className="shrink-0 tabular-nums text-fg">
+            {cenaZaPorce !== null ? `${celo.format(cenaZaPorce)} Kč` : "— Kč"} · {celo.format(uctenka.kcal)} kcal
+          </span>
+        </div>
+      </div>
     </div>
   );
+}
+
+/* ---------------- účtenka ---------------- */
+
+function Uctenka({
+  nazev,
+  porce,
+  uctenka,
+  cenaZaPorce,
+  usetreno,
+  className,
+}: {
+  nazev: string;
+  porce: number;
+  uctenka: ReturnType<typeof spocitejUctenku>;
+  cenaZaPorce: number | null;
+  usetreno: number;
+  className?: string;
+}) {
+  const vyplnene = uctenka.polozky.filter((p) => p.nazev !== "—").length;
+  const zobrazene = uctenka.polozky.slice(0, 9);
+  const schovane = uctenka.polozky.length - zobrazene.length;
+
+  return (
+    <aside className={cn("relative", className)} aria-label="Živá účtenka receptu">
+      <span className="om-cenovka absolute -right-2 -top-3 z-10 rotate-3 text-xs">
+        {cenaZaPorce !== null ? `${celo.format(cenaZaPorce)} Kč / porce` : "živě z cen"}
+      </span>
+      <div className="om-uctenka rotate-[0.5deg] px-4 pb-9 pt-4 text-[11px] leading-relaxed">
+        <div className="text-center font-bold tracking-[0.2em]">OPTIMEAL</div>
+        <div className="text-center text-[10px] opacity-70">
+          receptová účtenka · {vyplnene} {sklonuj(vyplnene)}
+        </div>
+        {nazev.trim() && (
+          <div className="mt-1 truncate text-center font-semibold uppercase">
+            {nazev.trim()}
+          </div>
+        )}
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        {zobrazene.length === 0 || vyplnene === 0 ? (
+          <p className="py-3 text-center opacity-60">
+            přidáním surovin se účtenka začne tisknout…
+          </p>
+        ) : (
+          zobrazene.map((p, i) => (
+            <div key={i} className="flex items-baseline gap-1.5">
+              <span className="min-w-0 truncate">{p.nazev === "—" ? "(nevybráno)" : p.nazev}</span>
+              <span className="shrink-0 opacity-60">{celo.format(p.gramy)} g</span>
+              <span className="mx-0.5 flex-1 -translate-y-0.5 border-b border-dotted border-[#c9c9bd]" />
+              <span className="shrink-0 tabular-nums">
+                {p.cena !== null ? `${kc.format(p.cena)}` : "—"}
+              </span>
+            </div>
+          ))
+        )}
+        {schovane > 0 && (
+          <div className="opacity-60">… a {schovane} {sklonuj(schovane)} navíc</div>
+        )}
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        <div className="flex justify-between font-bold">
+          <span>ZA PORCI</span>
+          <span className="tabular-nums">
+            {cenaZaPorce !== null ? `${kc.format(cenaZaPorce)} Kč` : "— Kč"}
+          </span>
+        </div>
+        {usetreno > 0.009 && (
+          <div className="flex justify-between font-bold">
+            <span>Z TOHO SLEVA</span>
+            <span className="tabular-nums">−{kc.format(usetreno)} Kč</span>
+          </div>
+        )}
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        <div className="grid grid-cols-4 gap-1 text-center">
+          <span><b>{celo.format(uctenka.kcal)}</b><br />kcal</span>
+          <span><b>{celo.format(uctenka.b)}</b><br />bílk.</span>
+          <span><b>{celo.format(uctenka.s)}</b><br />sach.</span>
+          <span><b>{celo.format(uctenka.t)}</b><br />tuky</span>
+        </div>
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        {/* čárový kód – dekorativní, „EAN“ odvozený z receptu */}
+        <div
+          aria-hidden="true"
+          className="mx-auto h-7 w-3/4"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(90deg,#21261f 0 2px,transparent 2px 5px,#21261f 5px 6px,transparent 6px 8px,#21261f 8px 11px,transparent 11px 13px,#21261f 13px 14px,transparent 14px 17px)",
+          }}
+        />
+        <div className="mt-1 text-center tracking-[0.3em] opacity-70">
+          8 5940 {String(vyplnene).padStart(3, "0")} {String(porce).padStart(2, "0")}
+        </div>
+        <div className="mt-2 text-center opacity-60">
+          gramáže na 1 porci · ceny z dnešních slev
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/** český tvar podle počtu: 1 surovina / 2–4 suroviny / 5+ surovin */
+function sklonuj(n: number): string {
+  if (n === 1) return "surovina";
+  if (n >= 2 && n <= 4) return "suroviny";
+  return "surovin";
 }
 
 function Chyba({ text }: { text?: string | undefined }) {
