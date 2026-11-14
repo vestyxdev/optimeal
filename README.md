@@ -43,9 +43,13 @@ Jedním příkazem přes pooler (heslo se předává argumentem, neukládá se):
 node scripts/spust_migrace.mjs "<heslo-k-databazi>"
 ```
 
-Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0005)
+Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0007)
 a oba seedy (`seed.sql` potraviny + `seed_recepty.sql` recepty). Seedy jsou
 idempotentní – skript lze spustit opakovaně.
+
+**Důležité pořadí:** migrace běží před seedy – naplňují-li migrace data,
+spustí se nad prázdnými tabulkami. Proto naplnění `alergeny`/`diety`
+žije na konci `seed.sql` (až po `INSERT`ech potravin), ne v migraci 0006.
 
 Migrace:
 
@@ -56,6 +60,8 @@ Migrace:
 | `0003_…` | doplnění (viz soubor) |
 | `0004_mealprep_cile_a_uzivatelske_potraviny.sql` | širší limity mealprep cílů, `foods.vytvoril` + RLS pro vlastní potraviny, RPC `delete_own_account()`, index cen |
 | `0005_katalog_potravin_view.sql` | `aktualni_ceny` doplní `vytvoril`/`zdroj_potraviny` |
+| `0006_alergeny_a_diety.sql` | sloupce `foods.alergeny`/`diety` (jen schéma – data plní `seed.sql`) |
+| `0007_katalog_anon_a_rpc_grants.sql` | SELECT na `foods` i pro anonyma (join v receptech), ostražitější granty RPC |
 
 ## Funkce
 
@@ -84,6 +90,23 @@ Migrace:
 - **Netlify:** `public/_redirects` SPA fallback (v repu).
 - Env proměnné `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` nastavte v panelu
   hostingu – ne v repozitáři.
+
+## Scraper cen (ingest)
+
+Ceny se doplňují z **Open Prices** (openfoodfacts.org) – veřejné API
+s uživateli nahrávanými doklady cen, filtrované na ČR.
+
+- **Kód:** `scraper/` (`open_prices.py` stahování, `normalizace.py` přepočty
+  na Kč/100 g, `db.py` zápis přes PostgREST, `main.py` orchestrace).
+- **Běh:** GitHub Actions workflow `Ingest cen` (`.github/workflows/ceny.yml`),
+  denně ~5:23 CET + ruční `workflow_dispatch`.
+- **Secrets v repozitáři:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  (service-role klíč žije jen v Actions, nikdy ne v kódu ani frontendu).
+- **Odolnost:** stránky API se zkouší 3× s exponenciálním backoffem; vadná
+  stránka se přeskočí, ne shodí celý běh. Duplicity řeší DB unique constraint
+  (potravina + obchod + datum) – opakovaný běh je bezpečný.
+- **Lokálně:** `pip install -r scraper/requirements.txt && python -m scraper`
+  (vyžaduje `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` v prostředí).
 
 ## Architektura
 
