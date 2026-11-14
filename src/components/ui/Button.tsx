@@ -6,7 +6,7 @@ type Velikost = "sm" | "md" | "lg" | "icon";
 
 const VARIANTY: Record<Varianta, string> = {
   primary: "bg-primary text-primary-fg hover:bg-primary-strong",
-  accent: "bg-accent text-accent-fg hover:brightness-95",
+  accent: "bg-accent text-accent-ink hover:brightness-95",
   outline: "border border-border bg-transparent text-fg hover:bg-surface-2",
   ghost: "bg-transparent text-fg hover:bg-surface-2",
   danger: "bg-danger text-white hover:brightness-110",

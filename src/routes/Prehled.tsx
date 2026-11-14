@@ -153,7 +153,7 @@ function PrihlasenyPrehled() {
         podtitul="Váš přehled: denní cíl, poslední plán, úspory ze slev a nákupní seznamy – vše živě z účtu."
         vizual={
           uspora > 0 ? (
-            <span className="om-cenovka hidden rotate-6 text-sm md:inline-flex">
+            <span className="om-cenovka rotate-6 self-center text-sm lg:self-auto">
               sleva −{uspora.toFixed(0)} Kč
             </span>
           ) : undefined
@@ -321,7 +321,7 @@ function Hero({
 }) {
   return (
     <div className="rounded-card bg-primary-hero px-6 py-10 text-white md:px-10 md:py-14">
-      <div className="flex items-center justify-between gap-10">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
         <div className="min-w-0">
           <Badge tono="accent" className="mb-4">
             Chytrá strava pro Česko
@@ -348,7 +348,7 @@ const UKAZKA_UCTENKY = [
 function UctenkaUkazka() {
   return (
     <div
-      className="relative hidden shrink-0 drop-shadow-xl lg:block"
+      className="relative self-center drop-shadow-xl lg:self-auto"
       aria-hidden="true"
     >
       <div className="om-uctenka w-60 px-4 pb-7 pt-4 text-[11px] leading-relaxed">

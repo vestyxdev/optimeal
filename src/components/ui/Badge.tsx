@@ -6,7 +6,7 @@ type Tono = "neutral" | "primary" | "accent" | "ok" | "warning" | "danger";
 const TONY: Record<Tono, string> = {
   neutral: "bg-surface-2 text-muted",
   primary: "bg-primary-soft text-primary",
-  accent: "bg-accent-soft text-accent-fg",
+  accent: "bg-accent text-accent-ink",
   ok: "bg-ok-soft text-ok",
   warning: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",

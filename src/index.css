@@ -32,6 +32,7 @@
   --accent: #ffc81f;
   --accent-soft: #fff3c4;
   --accent-fg: #3a2e00;
+  --accent-ink: #3a2e00;
 
   /* sémantické */
   --ok: #15803d;
@@ -59,6 +60,7 @@
   --accent: #ffd23f;
   --accent-soft: #332d0d;
   --accent-fg: #ffefa8;
+  --accent-ink: #2a2200;
 
   --ok: #4ade80;
   --ok-soft: #14291b;
@@ -84,6 +86,7 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-ink: var(--accent-ink);
 
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
