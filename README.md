@@ -73,9 +73,13 @@ Migrace:
   seznamu jedním klikem, tisk.
 - **Recepty** – katalog globálních receptů (zobrazení všem) + vlastní recepty
   přihlášených uživatelů (vytvořit/upravit/smazat, validace, RLS).
-- **Potraviny** – katalog s aktuálními cenami ze view `aktualni_ceny`,
-  fulltext filtrace, přidání vlastní potraviny + dohledání hodnot
-  v OpenFoodFacts.
+- **Potraviny** – katalog (100+ potravin v seedu) s aktuálními cenami
+  ze view `aktualni_ceny`, fulltext + filtr kategorií, miniatury produktů,
+  páskem podílu B/S/T. Vlastní potraviny: přidat/upravit/smazat
+  (RLS), dohledání nutric a obrázku v OpenFoodFacts podle názvu
+  (výběr z více kandidátů) nebo čárového kódu – ručně i kamerou
+  (`BarcodeDetector`, kde prohlížeč umí). EAN se ukládá na potraviny,
+  takže opakované skenování matchuje lokálně.
 - **Mealprep** – výběr receptů a porcí → součty, živé ceny a nákupní seznam;
   uložení jako plán typu `mealprep`.
 - **Nákup** – uložené seznamy (z plánu i ruční), odškrtávání položek,
