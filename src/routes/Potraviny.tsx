@@ -17,7 +17,9 @@ import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
   hledejOpenFoodFacts,
+  hledejPodleEanLokalne,
   nactiOffPodleEan,
+  normalizujEan,
   nactiKatalogPotravin,
   pridejPotravinu,
   smazPotravinu,
@@ -335,6 +337,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
         sacharidy: cislo(f.sacharidy, "Sacharidy", 100),
         tuky: cislo(f.tuky, "Tuky", 100),
         beznaCena: cislo(f.cena, "Cena", 1000),
+        ean: normalizujEan(ean),
       });
     },
     onSuccess: () => {
@@ -380,9 +383,19 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
       toast.error("Zadejte čárový kód produktu.");
       return;
     }
+    const kodNorm = normalizujEan(vstup);
+    if (kodNorm === null) {
+      toast.error("Zadejte platný čárový kód (8–14 číslic).");
+      return;
+    }
     setHledaOff(true);
     try {
-      const nalezena = await nactiOffPodleEan(vstup);
+      const lokalni = await hledejPodleEanLokalne(kodNorm);
+      if (lokalni) {
+        toast.info(`„${lokalni.nazev}" už v katalogu pod tímto kódem existuje.`);
+        return;
+      }
+      const nalezena = await nactiOffPodleEan(kodNorm);
       if (!nalezena) {
         toast.info("Produkt s tímto kódem v OpenFoodFacts není – vyplňte ručně.");
         return;

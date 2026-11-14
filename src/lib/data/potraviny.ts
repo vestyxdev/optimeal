@@ -41,6 +41,21 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   }));
 }
 
+/** Najde potravinu v katalogu podle uloženého čárového kódu (lokální hit před OFF). */
+export async function hledejPodleEanLokalne(
+  ean: string,
+): Promise<{ id: string; nazev: string } | null> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { data, error } = await klient
+    .from("foods")
+    .select("id, nazev")
+    .eq("ean", ean)
+    .maybeSingle();
+  if (error) throw new Error(`Hledání podle kódu selhalo: ${error.message}`);
+  return data ? { id: data.id as string, nazev: data.nazev as string } : null;
+}
+
 /** Vloží vlastní potravinu přihlášeného uživatele (RLS: zdroj='uzivatel' + vytvoril=auth.uid()). */
 export async function pridejPotravinu(p: {
   nazev: string;
@@ -50,6 +65,7 @@ export async function pridejPotravinu(p: {
   sacharidy: number;
   tuky: number;
   beznaCena: number;
+  ean?: string | null;
 }): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -70,6 +86,7 @@ export async function pridejPotravinu(p: {
       sacharidy: p.sacharidy,
       tuky: p.tuky,
       bezna_cena: p.beznaCena,
+      ean: p.ean ?? null,
       zdroj: "uzivatel",
       vytvoril: user.id,
       schvaleno: true,
