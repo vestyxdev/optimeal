@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, Minus, Plus, Receipt, Trash2, Users } from "lucide-react";
+import { ArrowLeft, ChevronUp, Clock, Minus, Plus, Receipt, Trash2, Users } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -135,10 +135,13 @@ export function ReceptEditace() {
   });
   const { fields, append, remove } = useFieldArray({ control, name: "suroviny" });
 
+  const [uctenkaOtevrena, setUctenkaOtevrena] = useState(false);
+
   // živé hodnoty pro účtenku
   const suroviny = useWatch({ control, name: "suroviny" }) ?? [];
   const porce = useWatch({ control, name: "porce" }) ?? 1;
   const nazev = useWatch({ control, name: "nazev" }) ?? "";
+  const postup = useWatch({ control, name: "postup" }) ?? "";
 
   const potraviny = dotazPotraviny.data ?? [];
   const mapaPotravin = useMemo(() => new Map(potraviny.map((p) => [p.id, p])), [potraviny]);
@@ -154,6 +157,31 @@ export function ReceptEditace() {
     [uctenka],
   );
   const usetreno = uctenka.polozky.reduce((sum, p) => sum + p.sleva, 0);
+  const kroky = postup.split("\n").filter((l) => l.trim() !== "").length;
+  const duplicitni = useMemo(() => {
+    const pocty = new Map<string, number>();
+    suroviny.forEach((s) => {
+      if (s.foodId) pocty.set(s.foodId, (pocty.get(s.foodId) ?? 0) + 1);
+    });
+    return [...pocty]
+      .filter(([, n]) => n > 1)
+      .map(([fid]) => mapaPotravin.get(fid)?.nazev ?? "potravina");
+  }, [suroviny, mapaPotravin]);
+
+  // mobilní účtenka-sheet: Escape zavře + zámek posouvání pozadí
+  useEffect(() => {
+    if (!uctenkaOtevrena) return;
+    const stary = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    const naKlavesu = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUctenkaOtevrena(false);
+    };
+    document.addEventListener("keydown", naKlavesu);
+    return () => {
+      document.documentElement.style.overflow = stary;
+      document.removeEventListener("keydown", naKlavesu);
+    };
+  }, [uctenkaOtevrena]);
 
   // předvyplnění při editaci
   useEffect(() => {
@@ -225,7 +253,7 @@ export function ReceptEditace() {
   const porceBezpecne = Number.isFinite(porce) && porce > 0 ? porce : 1;
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl pb-14 lg:pb-0">
       <Link
         to={editace ? `/recepty/${id}` : "/recepty"}
         className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-fg"
@@ -430,6 +458,11 @@ export function ReceptEditace() {
             >
               <Plus className="size-4" /> Přidat surovinu
             </button>
+            {duplicitni.length > 0 && (
+              <p className="mt-2 text-xs text-warning">
+                {duplicitni.join(", ")} {duplicitni.length === 1 ? "je" : "jsou"} v receptu vícekrát – sečtěte gramáže do jedné suroviny.
+              </p>
+            )}
             {dotazPotraviny.isError && (
               <p className="mt-2 text-xs text-danger">Katalog potravin se nepodařilo načíst.</p>
             )}
@@ -437,7 +470,16 @@ export function ReceptEditace() {
 
           {/* postup */}
           <Card>
-            <Label htmlFor="postup">Postup (každý krok na nový řádek)</Label>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <label htmlFor="postup" className="text-sm font-medium text-fg">
+                Postup (každý krok na nový řádek)
+              </label>
+              {kroky > 0 && (
+                <span className="text-xs tabular-nums text-muted">
+                  {kroky} {sklonuj(kroky, "krok", "kroky", "kroků")}
+                </span>
+              )}
+            </div>
             <textarea
               id="postup"
               rows={7}
@@ -474,18 +516,46 @@ export function ReceptEditace() {
         />
       </form>
 
-      {/* mobilní páska se součty – sedí nad spodní navigací */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-dashed border-border bg-surface/95 px-4 py-2 font-mono text-xs backdrop-blur lg:hidden">
-        <div className="flex items-center justify-between gap-3">
+      {/* mobilní páska se součty – sedí nad spodní navigací, tap = účtenka */}
+      <button
+        type="button"
+        onClick={() => setUctenkaOtevrena(true)}
+        aria-label="Zobrazit účtenku receptu"
+        className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-dashed border-border bg-surface/95 px-4 py-2.5 font-mono text-xs backdrop-blur lg:hidden"
+      >
+        <span className="flex items-center justify-between gap-3" aria-live="polite">
           <span className="flex min-w-0 items-center gap-1.5 text-muted">
             <Receipt className="size-3.5 shrink-0" />
             <span className="truncate">{nazev.trim() || "nový recept"}</span>
           </span>
-          <span className="shrink-0 tabular-nums text-fg">
+          <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-fg">
             {cenaZaPorce !== null ? `${celo.format(cenaZaPorce)} Kč` : "— Kč"} · {celo.format(uctenka.kcal)} kcal
+            <ChevronUp className="size-3.5 text-muted" />
           </span>
+        </span>
+      </button>
+
+      {/* mobilní účtenka – bottom sheet */}
+      {uctenkaOtevrena && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Účtenka receptu">
+          <button
+            type="button"
+            aria-label="Zavřít účtenku"
+            className="absolute inset-0 bg-black/55"
+            onClick={() => setUctenkaOtevrena(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-bg px-5 pb-10 pt-9">
+            <Uctenka
+              nazev={nazev}
+              porce={porceBezpecne}
+              uctenka={uctenka}
+              cenaZaPorce={cenaZaPorce}
+              usetreno={usetreno}
+              className="mx-auto w-64"
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -510,6 +580,8 @@ function Uctenka({
   const vyplnene = uctenka.polozky.filter((p) => p.nazev !== "—").length;
   const zobrazene = uctenka.polozky.slice(0, 9);
   const schovane = uctenka.polozky.length - zobrazene.length;
+  const nejakaSleva = uctenka.polozky.some((p) => p.sleva > 0.009);
+  const dnes = new Date().toLocaleDateString("cs-CZ");
 
   return (
     <aside className={cn("relative", className)} aria-label="Živá účtenka receptu">
@@ -519,22 +591,26 @@ function Uctenka({
       <div className="om-uctenka rotate-[0.5deg] px-4 pb-9 pt-4 text-[11px] leading-relaxed">
         <div className="text-center font-bold tracking-[0.2em]">OPTIMEAL</div>
         <div className="text-center text-[10px] opacity-70">
-          receptová účtenka · {vyplnene} {sklonuj(vyplnene)}
+          receptová účtenka · KASA 01
         </div>
+        <div className="text-center text-[10px] opacity-50">{dnes}</div>
         {nazev.trim() && (
           <div className="mt-1 truncate text-center font-semibold uppercase">
             {nazev.trim()}
           </div>
         )}
         <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
-        {zobrazene.length === 0 || vyplnene === 0 ? (
+        {vyplnene === 0 ? (
           <p className="py-3 text-center opacity-60">
             přidáním surovin se účtenka začne tisknout…
           </p>
         ) : (
           zobrazene.map((p, i) => (
             <div key={i} className="flex items-baseline gap-1.5">
-              <span className="min-w-0 truncate">{p.nazev === "—" ? "(nevybráno)" : p.nazev}</span>
+              <span className="min-w-0 truncate">
+                {p.nazev === "—" ? "(nevybráno)" : p.nazev}
+                {p.sleva > 0.009 && <span className="font-bold">*</span>}
+              </span>
               <span className="shrink-0 opacity-60">{celo.format(p.gramy)} g</span>
               <span className="mx-0.5 flex-1 -translate-y-0.5 border-b border-dotted border-[#c9c9bd]" />
               <span className="shrink-0 tabular-nums">
@@ -544,7 +620,7 @@ function Uctenka({
           ))
         )}
         {schovane > 0 && (
-          <div className="opacity-60">… a {schovane} {sklonuj(schovane)} navíc</div>
+          <div className="opacity-60">… a {schovane} {sklonuj(schovane, "surovina", "suroviny", "surovin")} navíc</div>
         )}
         <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
         <div className="flex justify-between font-bold">
@@ -553,6 +629,14 @@ function Uctenka({
             {cenaZaPorce !== null ? `${kc.format(cenaZaPorce)} Kč` : "— Kč"}
           </span>
         </div>
+        {porce > 1 && (
+          <div className="flex justify-between">
+            <span>ZA {porce}× PORCI CELKEM</span>
+            <span className="tabular-nums">
+              {cenaZaPorce !== null ? `${kc.format(cenaZaPorce * porce)} Kč` : "— Kč"}
+            </span>
+          </div>
+        )}
         {usetreno > 0.009 && (
           <div className="flex justify-between font-bold">
             <span>Z TOHO SLEVA</span>
@@ -579,7 +663,9 @@ function Uctenka({
         <div className="mt-1 text-center tracking-[0.3em] opacity-70">
           8 5940 {String(vyplnene).padStart(3, "0")} {String(porce).padStart(2, "0")}
         </div>
-        <div className="mt-2 text-center opacity-60">
+        {nejakaSleva && <div className="mt-1 opacity-60">* dnes v akci</div>}
+        <div className="mt-2 text-center font-semibold">DĚKUJEME, ŽE VAŘÍTE</div>
+        <div className="text-center opacity-60">
           gramáže na 1 porci · ceny z dnešních slev
         </div>
       </div>
@@ -587,11 +673,11 @@ function Uctenka({
   );
 }
 
-/** český tvar podle počtu: 1 surovina / 2–4 suroviny / 5+ surovin */
-function sklonuj(n: number): string {
-  if (n === 1) return "surovina";
-  if (n >= 2 && n <= 4) return "suroviny";
-  return "surovin";
+/** české tvary podle počtu: sklonuj(5, "krok", "kroky", "kroků") */
+function sklonuj(n: number, jedna: string, malo: string, mnoho: string): string {
+  if (n === 1) return jedna;
+  if (n >= 2 && n <= 4) return malo;
+  return mnoho;
 }
 
 function Chyba({ text }: { text?: string | undefined }) {
