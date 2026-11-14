@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 import { Skeleton } from "@/components/ui/Nacitani";
-import { cn } from "@/lib/cn";
+import { VyberPotraviny } from "@/components/ui/VyberPotraviny";
 
 /**
  * Nový / úprava vlastního receptu. Suroviny se vybírají z katalogu
@@ -230,21 +230,19 @@ export function ReceptEditace() {
             {fields.map((pole, i) => (
               <li key={pole.id} className="grid grid-cols-[1fr_88px_36px] items-start gap-2 sm:grid-cols-[1fr_88px_1fr_36px]">
                 <div>
-                  <select
-                    aria-label={`Surovina ${i + 1} – potravina`}
-                    className={cn(
-                      "h-10 w-full rounded-lg border bg-surface px-2 text-sm text-fg focus:outline-2 focus:outline-primary",
-                      errors.suroviny?.[i]?.foodId ? "border-danger" : "border-border",
+                  <Controller
+                    control={control}
+                    name={`suroviny.${i}.foodId`}
+                    render={({ field }) => (
+                      <VyberPotraviny
+                        potraviny={potraviny}
+                        hodnota={field.value}
+                        onZmena={field.onChange}
+                        chyba={Boolean(errors.suroviny?.[i]?.foodId)}
+                        ariaLabel={`Surovina ${i + 1} – potravina`}
+                      />
                     )}
-                    {...register(`suroviny.${i}.foodId`)}
-                  >
-                    <option value="">— potravina —</option>
-                    {potraviny.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nazev} ({p.aktualniCena.toFixed(2)} Kč/100 g{p.sleva ? " – sleva" : ""})
-                      </option>
-                    ))}
-                  </select>
+                  />
                   {errors.suroviny?.[i]?.foodId && <Chyba text={errors.suroviny[i]?.foodId?.message} />}
                 </div>
                 <div>
