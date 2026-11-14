@@ -19,7 +19,7 @@ seznam s aktuálními slevami z českých obchodů – v jedné aplikaci.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest (čistá logika: výživa, generátor, mealprep)
+npm test           # Vitest (čistá logika + komponentní testy přes jsdom)
 npm run build      # produkční build (tsc + vite)
 ```
 
