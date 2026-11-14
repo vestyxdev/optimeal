@@ -17,6 +17,7 @@ import {
   smazNakupniSeznam,
   smazPolozku,
 } from "@/lib/data/nakup";
+import { sklonuj } from "@/lib/sklonovani";
 
 /**
  * Nákup – uložené nákupní seznamy (z Jídelníčku i Mealprepu).
@@ -90,8 +91,9 @@ export function Nakup() {
             </button>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{aktualniSeznam.nazev}</h1>
             <p className="mt-1 text-sm text-muted">
-              {new Date(aktualniSeznam.vytvoreno).toLocaleString("cs-CZ")} · zbývá {zbyva} z{" "}
-              {polozky.length} položek
+              {new Date(aktualniSeznam.vytvoreno).toLocaleString("cs-CZ")} ·{" "}
+              {sklonuj(zbyva, "zbývá", "zbývají", "zbývá")} {zbyva} z {polozky.length}{" "}
+              {sklonuj(polozky.length, "položka", "položky", "položek")}
             </p>
           </div>
           <div className="flex gap-2">
@@ -123,6 +125,8 @@ export function Nakup() {
           </div>
         </div>
 
+        {dotazPolozky.isLoading && <Skeleton className="h-40" />}
+        {!dotazPolozky.isLoading && (
         <Card className="p-0">
           <ul className="divide-y divide-border">
             {polozky.map((p) => (
@@ -179,6 +183,7 @@ export function Nakup() {
             </Button>
           </div>
         </Card>
+        )}
       </div>
     );
   }

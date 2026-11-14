@@ -11,6 +11,7 @@ import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { sklonuj } from "@/lib/sklonovani";
 
 /**
  * Detail receptu – suroviny s živými cenami, výživa na porci i celkem,
@@ -69,7 +70,9 @@ export function ReceptDetail() {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
             <Badge tono="neutral">{KATEGORIE_NAZVY[recept?.kategorie ?? ""] ?? recept?.kategorie}</Badge>
             {vlastni && <Badge tono="primary">Vlastní recept</Badge>}
-            <span>{recept?.porce ?? "—"} × porce</span>
+            <span>
+              {recept?.porce ?? "—"} × {sklonuj(recept?.porce ?? 0, "porce", "porce", "porcí")}
+            </span>
             {recept?.casMinuty != null && (
               <span className="inline-flex items-center gap-1">
                 <Clock className="size-3" /> {recept.casMinuty} min
@@ -203,7 +206,9 @@ export function ReceptDetail() {
                       </div>
                     </div>
                     <p className="mt-3 text-xs text-muted">
-                      Celý recept ({recept.porce} porcí): {rozbor.celkem.cena.toFixed(2)} Kč ·{" "}
+                      Celý recept ({recept.porce}{" "}
+                      {sklonuj(recept.porce, "porce", "porce", "porcí")}):{" "}
+                      {rozbor.celkem.cena.toFixed(2)} Kč ·{" "}
                       {rozbor.celkem.kalorie} kcal
                     </p>
                   </Card>

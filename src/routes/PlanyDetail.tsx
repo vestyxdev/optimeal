@@ -9,6 +9,7 @@ import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek, KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiPlan, smazPlan } from "@/lib/data/plany";
+import { sklonuj } from "@/lib/sklonovani";
 import type { Cile, DenVysledek, NakupniPolozka, TydenniPlan } from "@/lib/generator/generator";
 
 /**
@@ -149,7 +150,9 @@ function MealprepDetail({ obsah }: { obsah: unknown }) {
         <Card className="py-4">
           <div className="text-xs font-medium text-muted">Porce celkem</div>
           <div className="mt-1 text-xl font-extrabold tabular-nums">{porceCelkem}</div>
-          <div className="text-xs text-muted">{m.detaily?.length ?? 0} receptů</div>
+          <div className="text-xs text-muted">
+            {m.detaily?.length ?? 0} {sklonuj(m.detaily?.length ?? 0, "recept", "recepty", "receptů")}
+          </div>
         </Card>
         <Card className="py-4">
           <div className="text-xs font-medium text-muted">Nakupujte za</div>
@@ -177,7 +180,10 @@ function MealprepDetail({ obsah }: { obsah: unknown }) {
             {m.detaily.map((d) => (
               <li key={d.receptId} className="flex items-center justify-between py-2">
                 <span className="font-medium">
-                  {d.nazev} <span className="text-muted">× {d.porce} porcí</span>
+                  {d.nazev}{" "}
+                  <span className="text-muted">
+                    × {d.porce} {sklonuj(d.porce, "porce", "porce", "porcí")}
+                  </span>
                 </span>
                 <span className="tabular-nums text-muted">
                   {d.kalorie} kcal · {d.cena.toFixed(2)} Kč
@@ -188,7 +194,7 @@ function MealprepDetail({ obsah }: { obsah: unknown }) {
         </Card>
       )}
 
-      <KartaNakupu polozky={m.polozky} soucetPopisek={`Celkem za ${porceCelkem} porcí`} />
+      <KartaNakupu polozky={m.polozky} soucetPopisek={`Celkem za ${porceCelkem} ${sklonuj(porceCelkem, "porce", "porce", "porcí")}`} />
     </div>
   );
 }

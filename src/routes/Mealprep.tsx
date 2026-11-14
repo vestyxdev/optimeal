@@ -10,6 +10,7 @@ import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recept
 import { nactiPotravinySeSlevami, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { sestavMealprep, type MealprepVstup } from "@/lib/mealprep/mealprep";
+import { sklonuj } from "@/lib/sklonovani";
 
 /**
  * Mealprep – vaření na zásobu. Vyberete recepty a kolik porcí
@@ -92,7 +93,7 @@ export function Mealprep() {
   const mutaceUlozitNakup = useMutation({
     mutationFn: () =>
       ulozNakupniSeznam(
-        `Mealprep – ${vysledek.porceCelkem} porcí`,
+        `Mealprep – ${vysledek.porceCelkem} ${sklonuj(vysledek.porceCelkem, "porce", "porce", "porcí")}`,
         vysledek.polozky.map((p) => ({
           foodId: p.id,
           nazev: p.nazev,
@@ -167,7 +168,9 @@ export function Mealprep() {
             <Card className="py-4">
               <div className="text-xs font-medium text-muted">Porce celkem</div>
               <div className="mt-1 text-xl font-extrabold tabular-nums">{vysledek.porceCelkem}</div>
-              <div className="text-xs text-muted">{vysledek.detaily.length} receptů</div>
+              <div className="text-xs text-muted">
+                {vysledek.detaily.length} {sklonuj(vysledek.detaily.length, "recept", "recepty", "receptů")}
+              </div>
             </Card>
             <Card className="py-4">
               <div className="text-xs font-medium text-muted">Nakupujte za</div>
@@ -202,7 +205,10 @@ export function Mealprep() {
               {vysledek.detaily.map((d) => (
                 <li key={d.receptId} className="flex items-center justify-between py-2">
                   <span className="font-medium">
-                    {d.nazev} <span className="text-muted">× {d.porce} porcí</span>
+                    {d.nazev}{" "}
+                    <span className="text-muted">
+                      × {d.porce} {sklonuj(d.porce, "porce", "porce", "porcí")}
+                    </span>
                   </span>
                   <span className="tabular-nums text-muted">
                     {d.kalorie} kcal · {d.cena.toFixed(2)} Kč
@@ -243,7 +249,7 @@ export function Mealprep() {
           </div>
 
           {/* nákupní seznam */}
-          <KartaNakupu polozky={vysledek.polozky} soucetPopisek={`Celkem za ${vysledek.porceCelkem} porcí`} />
+          <KartaNakupu polozky={vysledek.polozky} soucetPopisek={`Celkem za ${vysledek.porceCelkem} ${sklonuj(vysledek.porceCelkem, "porce", "porce", "porcí")}`} />
 
           {vysledek.chybejiciCeny.length > 0 && (
             <Card className="bg-warning-soft text-sm text-warning">
