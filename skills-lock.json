@@ -1,11 +1,23 @@
 {
   "version": 2,
   "skills": {
+    "agent-memory-repo": {
+      "source": "AgentMemoryRepo/agentmemoryrepo",
+      "sourceType": "github",
+      "skillPath": "skills/agent-memory-repo/SKILL.md",
+      "computedHash": "7e5d1161f4f9e69f25c899288599d65b0c2aec27579f82c1109c52890ef99795"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c"
+    },
+    "tdvorak-fullstack": {
+      "source": "Dvorinka/tdvorak-fullstack",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "1d26b94cef0b19cc5707e5317d52d61ada14380fb8bfc1ba2b87d20c74549689"
     }
   }
 }
