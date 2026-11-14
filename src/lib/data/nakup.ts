@@ -113,11 +113,13 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
     .order("id");
   // před migrací 0009 foods.obrazek neexistuje → fallback bez joinu
   if (error && /obrazek/i.test(error.message)) {
-    ({ data, error } = await klient
+    const znovu = await klient
       .from("shopping_list_items")
       .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie")
       .eq("list_id", idSeznamu)
-      .order("id"));
+      .order("id");
+    data = znovu.data as unknown as typeof data;
+    error = znovu.error;
   }
   if (error) throw new Error(`Položky se nenačetly: ${error.message}`);
   return (data ?? []).map((p) => ({
