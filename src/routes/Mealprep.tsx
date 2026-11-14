@@ -22,21 +22,34 @@ import { sklonuj } from "@/lib/sklonovani";
 /** krok voliče porcí */
 const MAX_PORCI = 8;
 
-function VolicPorci({ porce, nastav }: { porce: number; nastav: (n: number) => void }) {
+function VolicPorci({
+  porce,
+  nastav,
+  nazev,
+}: {
+  porce: number;
+  nastav: (n: number) => void;
+  nazev: string;
+}) {
   return (
     <div className="flex items-center gap-1">
       <button
         onClick={() => nastav(Math.max(0, porce - 1))}
         className="grid size-8 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-        aria-label="Snížit porce"
+        aria-label={`Snížit porce – ${nazev}`}
       >
         <Minus className="size-4" />
       </button>
-      <span className="w-8 text-center text-sm font-extrabold tabular-nums">{porce}</span>
+      <span
+        className="w-8 text-center text-sm font-extrabold tabular-nums"
+        aria-live="polite"
+      >
+        {porce}
+      </span>
       <button
         onClick={() => nastav(Math.min(MAX_PORCI, porce + 1))}
         className="grid size-8 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-        aria-label="Zvětšit porce"
+        aria-label={`Zvětšit porce – ${nazev}`}
       >
         <Plus className="size-4" />
       </button>
@@ -153,6 +166,7 @@ export function Mealprep() {
                 </div>
                 <VolicPorci
                   porce={vybrano}
+                  nazev={recept.nazev}
                   nastav={(n) => setPorce((p) => ({ ...p, [recept.id]: n }))}
                 />
               </div>

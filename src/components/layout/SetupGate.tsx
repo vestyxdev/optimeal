@@ -78,8 +78,10 @@ export function SetupGate() {
             </div>
           </li>
           <li>
-            Pouštějte databázi: <code>supabase/migrations/0001_init.sql</code> a{" "}
-            <code>supabase/seed.sql</code> (SQL editor v Supabase → New query).
+            Pouštějte databázi: všechny soubory v <code>supabase/migrations/</code>{" "}
+            v číselném pořadí a pak <code>supabase/seed.sql</code> (SQL editor →
+            New query) – nebo najednou skriptem{" "}
+            <code>node scripts/spust_migrace.mjs</code>.
           </li>
           <li>Restartujte dev server (<code>npm run dev</code>).</li>
         </ol>
