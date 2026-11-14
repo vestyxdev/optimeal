@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Carrot,
   ChefHat,
@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { titulekProCestu } from "@/lib/titulky";
 import { useAuth } from "@/lib/auth";
 import { useMotiv } from "@/lib/motiv";
 import { Button } from "@/components/ui/Button";
@@ -51,9 +52,15 @@ export function Layout() {
   const { uzivatel, odhlasit } = useAuth();
   const { motiv, nastavMotiv } = useMotiv();
   const naviguj = useNavigate();
+  const { pathname } = useLocation();
   const [viceOtevrene, nastavViceOtevrene] = useState(false);
   const viceDialogRef = useRef<HTMLDivElement>(null);
   const viceTlacitkoRef = useRef<HTMLButtonElement>(null);
+
+  // titulek záložky podle aktuální cesty
+  useEffect(() => {
+    document.title = titulekProCestu(pathname);
+  }, [pathname]);
 
   // fokus: při otevření do panelu, při zavření zpět na tlačítko „Více“
   useEffect(() => {

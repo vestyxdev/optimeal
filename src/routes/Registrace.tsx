@@ -4,9 +4,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
+import { useTitulek } from "@/lib/titulky";
 
 /** Registrace e-mailem a heslem (Supabase Auth). */
 export function Registrace() {
+  useTitulek("Registrace");
   const { registrovat } = useAuth();
   const naviguj = useNavigate();
   const [email, setEmail] = useState("");

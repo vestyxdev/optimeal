@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
+import { useTitulek } from "@/lib/titulky";
 
 /** Obnovení hesla – odešle e-mail s odkazem na nastavení nového hesla. */
 export function ObnoveniHesla() {
+  useTitulek("Obnovení hesla");
   const { obnovitHeslo } = useAuth();
   const [email, setEmail] = useState("");
   const [chyba, setChyba] = useState<string | null>(null);

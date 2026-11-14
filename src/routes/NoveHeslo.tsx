@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { useTitulek } from "@/lib/titulky";
 
 /**
  * Nastavení nového hesla – cíl odkazu z obnovovacího e-mailu.
@@ -12,6 +13,7 @@ import { supabase } from "@/lib/supabase";
  * událost PASSWORD_RECOVERY (nebo přijde #access_token v URL).
  */
 export function NoveHeslo() {
+  useTitulek("Nové heslo");
   const { ulozitNoveHeslo, uzivatel, nacitaSe } = useAuth();
   const naviguj = useNavigate();
   const [heslo, setHeslo] = useState("");
