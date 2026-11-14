@@ -62,6 +62,18 @@ class SupabaseWriter:
             rid = r.json()[0]["id"] if isinstance(r.json(), list) else r.json()["id"]
             self._retailery[klic] = rid
             return rid
+        # ignore-duplicates: obchod už existuje, jen jinak normalizovaný –
+        # dohledej ho podle přesného názvu místo přeskočení všech jeho cen
+        if r.ok and not r.json():
+            try:
+                existujici = self._get("retailers", "id,nazev", nazev=f"eq.{nazev}")
+            except requests.RequestException as e:
+                log.warning("Dohledání retailera '%s' selhalo: %s", nazev, e)
+                existujici = []
+            if existujici:
+                self._retailery[klic] = existujici[0]["id"]
+                self._retailery[normalizuj_nazev(existujici[0]["nazev"])] = existujici[0]["id"]
+                return existujici[0]["id"]
         log.warning("Retailer '%s' se nepodařilo založit: %s", nazev, r.text[:200])
         return None
 
