@@ -132,7 +132,34 @@ export function ReceptDetail() {
                 <UtensilsCrossed className="size-5 text-primary" /> Suroviny
               </CardNadpis>
             </div>
-            <div className="overflow-x-auto">
+            {/* mobil: kompaktní řádky (název, g/porci, obchod, cena) */}
+            <div className="divide-y divide-border md:hidden">
+              {recept.suroviny.map((s) => {
+                const p = ceny?.find((x) => x.id === s.foodId);
+                const cena = p ? (p.aktualniCena * s.gramyNaPorce * recept.porce) / 100 : null;
+                return (
+                  <div key={s.foodId} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <span className="flex min-w-0 items-center gap-2 font-medium">
+                      <MiniaturaPotraviny obrazek={s.obrazek} velikost="size-7" />
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {s.nazev}
+                          {s.poznamka && <span className="text-muted"> ({s.poznamka})</span>}
+                        </span>
+                        <span className="text-xs text-muted tabular-nums">
+                          {Math.round(s.gramyNaPorce)} g/porci{p?.obchod ? ` · ${p.obchod}` : ""}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums">
+                      {cena == null ? "—" : `${cena.toFixed(2)} Kč`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* desktop: plná tabulka */}
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
