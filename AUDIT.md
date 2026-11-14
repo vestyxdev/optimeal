@@ -159,3 +159,13 @@ All P0-P3 items above are now implemented and verified live against the producti
 - **Výměna jídla**: vymenJidlo/vymenJidloVTydnu – náhrada nepoužívá potraviny ostatních jídel ani vyměňovaného (garance změny), respektuje cíle i dietní/alergenový filtr, přepočítá denní/týdenní součty i nákup.
 - **Týdenní plán UI**: rozpis dnů – rozbalovací sekce se sdílenou MrizkaJidel (dříve jen holá tabulka součtů, jídla nešla vidět).
 - **Responzivita/tisk**: mobilní karty katalogu místo scrollovací tabulky; miniatury se netisknou.
+
+
+## Nasazení a provoz (produkce)
+
+- **Vercel** produkce optimeal-woad.vercel.app, auto-deploy z main, SPA rewrite, env v panelu.
+- **Security hlavičky**: nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy (camera=self kvůli BarcodeDetector), immutable cache na /assets.
+- **Supabase**: projekt gduquvqofcohbjzzsicb (eu-west-2). Migrace 0001–0009 + seedy aplikovány (103 potravin, recepty, 21 slev).
+- **spust_migrace.mjs** je nově idempotentní: tracking public.om_migrace, transakce per soubor, přeskočení již aplikovaných; toleruje objekty vytvořené mimo tracking.
+- **0004** opraven na drop constraint if exists (znovuspustitelné).
+- **dopln_obrazky.mjs**: backfill foods.obrazek z OpenFoodFacts (world → cz doména), slušný rate-limit.
