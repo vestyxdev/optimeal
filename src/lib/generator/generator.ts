@@ -126,7 +126,7 @@ export interface NakupniPolozka {
   id: string;
   nazev: string;
   gramy: number;
-  cenaZa100g: number;
+  cenaZa100g: number | null;
   cenaBeznaZa100g: number | null;
   obchod: string | null;
   sleva: boolean;
@@ -523,12 +523,12 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
 
   const seznam: NakupniPolozka[] = [];
   for (const polozka of mapa.values()) {
-    polozka.cenaCelkem = Math.round(((polozka.gramy * polozka.cenaZa100g) / 100) * 100) / 100;
+    polozka.cenaCelkem = Math.round(((polozka.gramy * (polozka.cenaZa100g ?? 0)) / 100) * 100) / 100;
     polozka.usetreno =
       polozka.cenaBeznaZa100g !== null
         ? Math.max(
             0,
-            Math.round(((polozka.gramy * (polozka.cenaBeznaZa100g - polozka.cenaZa100g)) / 100) * 100) / 100,
+            Math.round(((polozka.gramy * (polozka.cenaBeznaZa100g - (polozka.cenaZa100g ?? 0))) / 100) * 100) / 100,
           )
         : 0;
     seznam.push(polozka);

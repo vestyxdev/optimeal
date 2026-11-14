@@ -203,7 +203,7 @@ describe("vygenerujJidelnicek", () => {
     for (const x of nakup) {
       if (x.cenaBeznaZa100g !== null && x.sleva) {
         expect(x.usetreno).toBeCloseTo(
-          Math.max(0, (x.gramy * (x.cenaBeznaZa100g - x.cenaZa100g)) / 100),
+          Math.max(0, (x.gramy * (x.cenaBeznaZa100g - (x.cenaZa100g ?? 0))) / 100),
           1,
         );
       }

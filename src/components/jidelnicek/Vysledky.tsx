@@ -66,12 +66,12 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
                 {x.sleva && <Badge tono="warning" className="ml-2">SLEVA</Badge>}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">{Math.round(x.gramy)} g</td>
-              <td className="px-2 py-2 text-right tabular-nums">{x.cenaZa100g.toFixed(2)} Kč</td>
+              <td className="px-2 py-2 text-right tabular-nums">{x.cenaZa100g !== null ? `${x.cenaZa100g.toFixed(2)} Kč` : "—"}</td>
               <td className="px-2 py-2">{x.obchod ?? "—"}</td>
               <td className="px-2 py-2 text-right tabular-nums text-ok">
                 {x.usetreno > 0 ? `−${x.usetreno.toFixed(2)} Kč` : "—"}
               </td>
-              <td className="px-5 py-2 text-right tabular-nums font-semibold">{x.cenaCelkem.toFixed(2)} Kč</td>
+              <td className="px-5 py-2 text-right tabular-nums font-semibold">{x.cenaZa100g !== null ? `${x.cenaCelkem.toFixed(2)} Kč` : "—"}</td>
             </tr>
           ))}
         </tbody>

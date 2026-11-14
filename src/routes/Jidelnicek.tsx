@@ -42,6 +42,7 @@ export function Jidelnicek() {
   const [cile, setCile] = useState<Cile>({ kalorie: 2450, bilkoviny: 184, sacharidy: 244, tuky: 82 });
   const [vysledek, setVysledek] = useState<DenVysledek | TydenniPlan | null>(null);
   const [ulozenyPlanId, setUlozenyPlanId] = useState<string | null>(null);
+  const [nakupUlozen, nastavNakupUlozen] = useState(false);
   const [smazanyPlanId, setSmazanyPlanId] = useState<string | null>(null);
 
   // katalog potravin s aktuálními cenami
@@ -113,6 +114,7 @@ export function Jidelnicek() {
       );
     },
     onSuccess: () => {
+      nastavNakupUlozen(true);
       toast.success("Nákupní seznam uložen – najdete ho v sekci Nákup.");
       void navigaceQ.invalidateQueries({ queryKey: ["me_nakupni_seznamy"] });
     },
@@ -135,6 +137,7 @@ export function Jidelnicek() {
       return;
     }
     setUlozenyPlanId(null);
+    nastavNakupUlozen(false);
     setVysledek(
       typ === "den"
         ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel, filtr)
@@ -208,20 +211,28 @@ export function Jidelnicek() {
             <Button
               varianta="outline"
               onClick={() => mutaceUlozit.mutate()}
-              disabled={mutaceUlozit.isPending}
+              disabled={mutaceUlozit.isPending || ulozenyPlanId !== null}
             >
               <Save className="size-4" />
-              {mutaceUlozit.isPending ? "Ukládám…" : "Uložit plán"}
+              {mutaceUlozit.isPending
+                ? "Ukládám…"
+                : ulozenyPlanId !== null
+                  ? "Plán uložen"
+                  : "Uložit plán"}
             </Button>
           )}
           {vysledek && uzivatel && (
             <Button
               varianta="outline"
               onClick={() => mutaceUlozitNakup.mutate()}
-              disabled={mutaceUlozitNakup.isPending}
+              disabled={mutaceUlozitNakup.isPending || nakupUlozen}
             >
               <ShoppingBasket className="size-4" />
-              {mutaceUlozitNakup.isPending ? "Ukládám…" : "Uložit nákupní seznam"}
+              {mutaceUlozitNakup.isPending
+                ? "Ukládám…"
+                : nakupUlozen
+                  ? "Seznam uložen"
+                  : "Uložit nákupní seznam"}
             </Button>
           )}
           {vysledek && (

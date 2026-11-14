@@ -96,26 +96,28 @@ export function sestavMealprep(
       if (p.aktualniCena > 0) {
         cena += (p.aktualniCena * gramy) / 100;
         cenaBezna += (p.beznaCena * gramy) / 100;
-
-        // nákupní položka – sečte se přes recepty
-        const existujici = nakup.get(p.id);
-        if (existujici) {
-          existujici.gramy += gramy;
-        } else {
-          nakup.set(p.id, {
-            id: p.id,
-            nazev: p.nazev,
-            gramy,
-            cenaZa100g: p.aktualniCena,
-            cenaBeznaZa100g: p.beznaCena,
-            obchod: p.obchod,
-            sleva: p.sleva,
-            cenaCelkem: 0,
-            usetreno: 0,
-          });
-        }
       } else {
         chybejiciCeny.add(p.nazev);
+      }
+
+      // nákupní položka – sečte se přes recepty; potravina bez ceny
+      // jde na seznam taky (cenaZa100g null → „—"), jinak by se
+      // v uloženém seznamu tiše ztratila
+      const existujici = nakup.get(p.id);
+      if (existujici) {
+        existujici.gramy += gramy;
+      } else {
+        nakup.set(p.id, {
+          id: p.id,
+          nazev: p.nazev,
+          gramy,
+          cenaZa100g: p.aktualniCena > 0 ? p.aktualniCena : null,
+          cenaBeznaZa100g: p.beznaCena > 0 ? p.beznaCena : null,
+          obchod: p.aktualniCena > 0 ? p.obchod : null,
+          sleva: p.aktualniCena > 0 && p.sleva,
+          cenaCelkem: 0,
+          usetreno: 0,
+        });
       }
     }
 
@@ -140,9 +142,9 @@ export function sestavMealprep(
 
   // ceny položek a úspory z konečných gramáží
   const polozky = [...nakup.values()].map((p) => {
-    p.cenaCelkem = Math.round(((p.gramy * p.cenaZa100g) / 100) * 100) / 100;
+    p.cenaCelkem = Math.round(((p.gramy * (p.cenaZa100g ?? 0)) / 100) * 100) / 100;
     p.usetreno =
-      p.cenaBeznaZa100g !== null
+      p.cenaBeznaZa100g !== null && p.cenaZa100g !== null
         ? Math.max(
             0,
             Math.round(((p.gramy * (p.cenaBeznaZa100g - p.cenaZa100g)) / 100) * 100) / 100,

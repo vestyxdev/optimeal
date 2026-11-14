@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Carrot,
@@ -20,9 +20,8 @@ import { useMotiv } from "@/lib/motiv";
 import { Button } from "@/components/ui/Button";
 
 /**
- * Aplikační shell – desktop: úzké boční menu, mobil: spodní lišta.
- * Sekce se přidávají postupně, jak dává smysl – žádné mrtvé odkazy.
- * (Mealprep, slevy… přijdou v dalších fázích buildu.)
+ * Aplikační shell – desktop: úzké boční menu, mobil: spodní lišta
+ * s nabídkou „Více“ pro sekundární sekce.
  */
 
 interface Sekce {
@@ -53,6 +52,17 @@ export function Layout() {
   const { motiv, nastavMotiv } = useMotiv();
   const naviguj = useNavigate();
   const [viceOtevrene, nastavViceOtevrene] = useState(false);
+  const viceDialogRef = useRef<HTMLDivElement>(null);
+  const viceTlacitkoRef = useRef<HTMLButtonElement>(null);
+
+  // fokus: při otevření do panelu, při zavření zpět na tlačítko „Více“
+  useEffect(() => {
+    if (!viceOtevrene) return;
+    const panel = viceDialogRef.current;
+    const prvni = panel?.querySelector<HTMLElement>("a, button");
+    prvni?.focus();
+    return () => viceTlacitkoRef.current?.focus();
+  }, [viceOtevrene]);
 
   const odkazSekce = (s: Sekce, mobilni: boolean) => (
     <NavLink
@@ -156,8 +166,10 @@ export function Layout() {
         {SEKCE.filter((s) => s.vListe).map((s) => odkazSekce(s, true))}
         <button
           type="button"
+          ref={viceTlacitkoRef}
           onClick={() => nastavViceOtevrene(true)}
           aria-expanded={viceOtevrene}
+          aria-haspopup="dialog"
           aria-label="Další sekce – Potraviny, Mealprep, Můj účet, Nastavení"
           className="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-muted"
         >
@@ -177,11 +189,29 @@ export function Layout() {
           role="presentation"
         >
           <div
+            ref={viceDialogRef}
             className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface p-4 pb-6 shadow-lg"
             role="dialog"
             aria-modal="true"
             aria-label="Další sekce"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // Tab-trap – fokus zůstává uvnitř panelu
+              if (e.key !== "Tab") return;
+              const prvky = e.currentTarget.querySelectorAll<HTMLElement>(
+                "a[href], button:not([disabled])",
+              );
+              if (prvky.length === 0) return;
+              const prvni = prvky[0]!;
+              const posledni = prvky[prvky.length - 1]!;
+              if (e.shiftKey && document.activeElement === prvni) {
+                posledni.focus();
+                e.preventDefault();
+              } else if (!e.shiftKey && document.activeElement === posledni) {
+                prvni.focus();
+                e.preventDefault();
+              }
+            }}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
             <nav className="space-y-0.5" aria-label="Další sekce">

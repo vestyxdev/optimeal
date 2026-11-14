@@ -113,8 +113,14 @@ describe("sestavMealprep", () => {
     // bezcenná surovina: cena 0, ale výživa se počítá
     expect(vysledek.soucty.kalorie).toBe(400);
     expect(vysledek.chybejiciCeny).toEqual(["Bez ceny"]);
-    // žádné nákupní položky (cenu neznáme)
-    expect(vysledek.polozky).toHaveLength(0);
+    // položka je na seznamu i bez ceny – jinak by se z uloženého
+    // nákupu tiše ztratila (cenaZa100g null → UI ukáže „—")
+    expect(vysledek.polozky).toHaveLength(1);
+    const bezCeny = vysledek.polozky[0];
+    expect(bezCeny?.gramy).toBe(200); // 100 g × 2 porce
+    expect(bezCeny?.cenaZa100g).toBeNull();
+    expect(bezCeny?.cenaCelkem).toBe(0);
+    expect(bezCeny?.obchod).toBeNull();
   });
 
   it("celkový nákup se rovná součtu cen za porce (úspory zahrnuty)", () => {
