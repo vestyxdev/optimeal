@@ -102,3 +102,29 @@ Gaps: `meal_plans` CHECKs sized for daily plans only (bug #2); `shopping_lists.p
 **P3 – platform**
 10. Price ingestion pipeline (Edge Function + schedule or external scraper)
 11. Account deletion; generated DB types; CI; deployment config
+
+
+---
+
+## 9. Implementation status (2026-11-14, faze 7-18)
+
+All P0-P3 items above are now implemented and verified live against the production Supabase project.
+
+**P0 done:** weekly-plan shopping merge fix (+regression test), migration 0004 (mealprep checks, foods.vytvoril, profiles DELETE, delete_own_account RPC), checkbox invalidation, wildcard redirect, Nákup copy.
+
+**P1 done:** route guards with redirect-back, password reset flow (request + update), recipe CRUD UI (RHF+zod), shopping lists saved from generated plans with food_id/plan_id.
+
+**P2 done:** real dashboard on Přehled (goals, macro chart, last plan, savings, active lists), pocet_jidel_denne honored by generator + profile UI, food catalog + custom foods with OFF lookup, weekly budget comparison.
+
+**P3 done:** deploy configs (vercel.json, _redirects), print stylesheet, account deletion via RPC, GitHub Actions price ingestion (Open Prices API, daily cron + manual dispatch, verified run).
+
+**Additional work beyond the audit:**
+- Migration 0005-0007: catalog view ownership columns, alergeny/diety schema, anon catalog reads (recipe ingredient joins) + tighter RPC grants.
+- Seed-ordering fix: migration 0006 UPDATEs moved into seed.sql tail (migrations run before seeds); live DB patched via PostgREST.
+- Generator quality: anchor no longer repeats when protein category exhausted; gram amounts capped by fat/carb budgets only for macro-significant foods (>=3 g/100 g) — fatty anchors no longer blow the fat budget, and lean carb fillers aren't starved by a spent fat budget.
+- UX/design-system pass: PotvrdDialog replaces window.confirm everywhere; Select/Skeleton primitives; lucide icons replace emoji; aria-labels, keyboard-accessible cards, table overflow wrappers; skeleton loaders on all data routes.
+- Mobile nav: Více bottom-sheet exposes Potraviny/Mealprep/Účet/Nastavení + theme toggle + logout (previously unreachable on mobile).
+- Performance: vendor code-splitting (react/supabase/query/router/forms) — index chunk 610 kB -> 112 kB; Recharts already lazy.
+- Accessibility: focus-visible outline, prefers-reduced-motion honored globally; native <dialog> gives focus trap + Escape.
+- Scraper resilience: Open Prices pages retried 3x with exponential backoff; a dead page is skipped instead of aborting the ingest; dedupe via unique (food_id, retailer_id, pozorovano_at) + ignore-duplicates.
+- Tests: 42 -> 63 (macro-cap regressions, pure plan helpers usporaPlanu/cenaPlanu).
