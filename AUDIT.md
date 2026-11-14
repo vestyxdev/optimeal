@@ -2,6 +2,12 @@
 
 Date: 2026-11-14 · Codebase: `main` @ `e147d56` (phases 1–6a)
 
+
+## Prezentace a demo data (obhajoba)
+
+- **seed_demo.mjs**: 4 persony (kulturista 3500 kcal / hubnutí 1750 kcal / veganka+ořechy / táta s rybí alergií) s profilem, cíli, 2–3 plány datované do minulosti a nákupními seznamy. Plány generuje skutečný generátor nad produkčním katalogem; uživatele zakládá přímo v auth.users (bcrypt přes pgcrypto) – signUp obchází kvůli SMTP rate-limitu. Idempotentní.
+- **over_demo.mjs**: E2E sanity check na produkci – přihlášení přes GoTrue, katalog, generace, uložení plánu, RPC nákupní seznam, zpětné čtení přes RLS, úklid. 10/10 kroků pro ověřené persony (i veganskou s filtry).
+- Přihlašovací údaje k demo účtům jsou v README (sekce Demo účty).
 ## 1. Current architecture
 
 **Frontend (SPA, no app server)**
