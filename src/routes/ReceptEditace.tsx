@@ -45,7 +45,14 @@ const schema = z.object({
         poznamka: z.string().trim().max(120).optional(),
       }),
     )
-    .min(1, "Přidejte alespoň jednu surovinu."),
+    .min(1, "Přidejte alespoň jednu surovinu.")
+    .refine(
+      (s) => {
+        const ids = s.map((x) => x.foodId).filter(Boolean);
+        return new Set(ids).size === ids.length;
+      },
+      "Každá potravina smí být v receptu jen jednou – sečtěte gramáže dohromady.",
+    ),
 });
 
 type Hodnoty = z.infer<typeof schema>;
@@ -224,6 +231,7 @@ export function ReceptEditace() {
               <li key={pole.id} className="grid grid-cols-[1fr_88px_1fr_36px] items-start gap-2">
                 <div>
                   <select
+                    aria-label={`Surovina ${i + 1} – potravina`}
                     className={cn(
                       "h-10 w-full rounded-lg border bg-surface px-2 text-sm text-fg focus:outline-2 focus:outline-primary",
                       errors.suroviny?.[i]?.foodId ? "border-danger" : "border-border",
@@ -246,17 +254,23 @@ export function ReceptEditace() {
                     step="1"
                     min={1}
                     placeholder="g"
+                    aria-label={`Surovina ${i + 1} – gramáž na porci`}
                     {...register(`suroviny.${i}.gramyNaPorce`, { valueAsNumber: true })}
                   />
                   {errors.suroviny?.[i]?.gramyNaPorce && (
                     <Chyba text={errors.suroviny[i]?.gramyNaPorce?.message} />
                   )}
                 </div>
-                <Input placeholder="pozn. (volitelné)" {...register(`suroviny.${i}.poznamka`)} />
+                <Input
+                  placeholder="pozn. (volitelné)"
+                  aria-label={`Surovina ${i + 1} – poznámka`}
+                  {...register(`suroviny.${i}.poznamka`)}
+                />
                 <button
                   type="button"
                   onClick={() => remove(i)}
                   disabled={fields.length <= 1}
+                  aria-label={`Odebrat surovinu ${i + 1}`}
                   className="grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30"
                   title="Odebrat surovinu"
                 >
