@@ -155,9 +155,12 @@ export async function pridejVlastniPolozku(
 ): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
+  const n = nazev.trim();
+  if (n.length === 0) throw new Error("Název položky je prázdný.");
+  if (n.length > 120) throw new Error("Název položky je moc dlouhý (max 120 znaků).");
   const { error } = await klient.from("shopping_list_items").insert({
     list_id: idSeznamu,
-    nazev,
+    nazev: n,
     vlastni: true,
   });
   if (error) throw new Error(`Položka se nepřidala: ${error.message}`);

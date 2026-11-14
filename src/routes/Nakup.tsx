@@ -16,6 +16,7 @@ import {
   pridejVlastniPolozku,
   smazNakupniSeznam,
   smazPolozku,
+  type PolozkaNakupu,
 } from "@/lib/data/nakup";
 import { sklonuj } from "@/lib/sklonovani";
 
@@ -41,8 +42,23 @@ export function Nakup() {
 
   const mutaceKoupeno = useMutation({
     mutationFn: (p: { id: string; koupeno: boolean }) => prepnoutKoupeno(p.id, p.koupeno),
-    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["nakupni_seznam", vybrany] }),
-    onError: neplatneMutace,
+    // optimistický přepnutí – odškrtávání musí být okamžité, chyba vrátí stav
+    onMutate: async (p) => {
+      const klic = ["nakupni_seznam", vybrany];
+      await klientQ.cancelQueries({ queryKey: klic });
+      const pred = klientQ.getQueryData<PolozkaNakupu[]>(klic);
+      klientQ.setQueryData<PolozkaNakupu[]>(klic, (stare) =>
+        stare?.map((x) => (x.id === p.id ? { ...x, koupeno: p.koupeno } : x)),
+      );
+      return { pred };
+    },
+    onError: (e, _p, ctx) => {
+      if (ctx?.pred) {
+        klientQ.setQueryData(["nakupni_seznam", vybrany], ctx.pred);
+      }
+      neplatneMutace(e);
+    },
+    onSettled: () => void klientQ.invalidateQueries({ queryKey: ["nakupni_seznam", vybrany] }),
   });
   const mutaceHotovo = useMutation({
     mutationFn: (p: { id: string; hotovo: boolean }) => prepnoutHotovo(p.id, p.hotovo),
@@ -91,9 +107,14 @@ export function Nakup() {
             </button>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{aktualniSeznam.nazev}</h1>
             <p className="mt-1 text-sm text-muted">
-              {new Date(aktualniSeznam.vytvoreno).toLocaleString("cs-CZ")} ·{" "}
-              {sklonuj(zbyva, "zbývá", "zbývají", "zbývá")} {zbyva} z {polozky.length}{" "}
-              {sklonuj(polozky.length, "položka", "položky", "položek")}
+              {new Date(aktualniSeznam.vytvoreno).toLocaleString("cs-CZ")}
+              {!dotazPolozky.isLoading && (
+                <>
+                  {" · "}
+                  {sklonuj(zbyva, "zbývá", "zbývají", "zbývá")} {zbyva} z {polozky.length}{" "}
+                  {sklonuj(polozky.length, "položka", "položky", "položek")}
+                </>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
