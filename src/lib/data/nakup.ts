@@ -106,7 +106,7 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { data, error } = await klient
+  let { data, error } = await klient
     .from("shopping_list_items")
     .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, potravina:foods(obrazek)")
     .eq("list_id", idSeznamu)
@@ -129,7 +129,9 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
     jeSleva: p.je_sleva,
     koupeno: p.koupeno,
     vlastni: p.vlastni,
-    obrazek: (p.potravina?.obrazek ?? null) as string | null,
+    obrazek: (Array.isArray(p.potravina)
+      ? (p.potravina[0]?.obrazek ?? null)
+      : ((p.potravina as { obrazek?: string | null } | null)?.obrazek ?? null)) as string | null,
     kategorie: p.kategorie,
   }));
 }
