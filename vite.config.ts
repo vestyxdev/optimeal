@@ -28,9 +28,10 @@ export default defineConfig({
       },
     },
   },
-  // Vitest – testy čisté logiky (výživa, generátor, ceny)
+  // Vitest – testy čisté logiky (výživa, generátor, ceny) + komponenty
+  // (komponentní testy si přepnou na jsdom přes pragma v souboru)
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
