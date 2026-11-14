@@ -91,10 +91,16 @@ Migrace:
 
 ## Nasazení (SPA)
 
+- **Produkce:** https://optimeal-woad.vercel.app (Vercel projekt `vertyx1/optimeal`,
+  napojený na GitHub – každý push do `main` se automaticky nasadí).
 - **Vercel:** `vercel.json` rewrite `/ → /index.html` (v repu).
 - **Netlify:** `public/_redirects` SPA fallback (v repu).
 - Env proměnné `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` nastavte v panelu
   hostingu – ne v repozitáři.
+- **Databáze:** Supabase projekt `gduquvqofcohbjzzsicb` (region eu-west-2);
+  migrace `supabase/migrations/0001`–`0009` + `seed.sql` aplikovány
+  (103 potravin, RLS, RPC `uloz_*`). Změny schématu:
+  `node scripts/spust_migrace.mjs "<db-heslo>"`.
 
 ## Scraper cen (ingest)
 
