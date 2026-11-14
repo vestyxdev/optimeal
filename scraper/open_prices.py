@@ -40,6 +40,8 @@ def _stahni_stranku(stranka: int) -> dict | None:
             odpoved.raise_for_status()
             return odpoved.json()
         except requests.RequestException as e:
+            if pokus == POKUSY:
+                break  # poslední pokus – už se nečeká
             cekani = 2**pokus
             log.warning(
                 "Stránka %d: pokus %d/%d selhal (%s), čekám %d s",
