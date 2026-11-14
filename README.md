@@ -101,7 +101,7 @@ Migrace:
   hostingu – ne v repozitáři.
 - **Databáze:** Supabase projekt `gduquvqofcohbjzzsicb` (region eu-west-2);
   migrace `supabase/migrations/0001`–`0009` + seedy aplikovány
-  (103 potravin – 99 s EAN, 90 s obrázkem – RLS, RPC `uloz_*`).
+  (103 potravin – všechny s EAN, 96 s obrázkem – RLS, RPC `uloz_*`).
   Změny schématu: `node scripts/spust_migrace.mjs "<db-heslo>"`
   (idempotentní, sleduje `public.om_migrace`). Obohacení katalogu:
   `dopln_obrazky.mjs`, `dopln_obrazky_ean.mjs`, `dopln_ean.mjs`.

@@ -47,16 +47,16 @@ const ALIASY = {
   skyr: "skyr",
   rýže: "basmati rice",
   česnek: "garlic",
-  rajče: "tomato",
   quinoa: "quinoa",
   chléb: "wholemeal bread",
   fazole: "kidney beans",
   svíčková: "beef sirloin",
   hrách: "peas",
-  krabí: "crab sticks",
+  krabí: "surimi",
   kuřecí: "chicken thighs",
   piškoty: "ladyfingers",
   "sojové mléko": "soy milk",
+  rajče: "rajčata",
 };
 
 function variantyNazvu(nazev) {
@@ -64,6 +64,9 @@ function variantyNazvu(nazev) {
   const varianty = [nazev];
   if (zjednoduseny && zjednoduseny.toLowerCase() !== nazev.toLowerCase())
     varianty.push(zjednoduseny);
+  // přehozené pořadí slov („Chléb celozrnný" → „celozrnný chléb")
+  const slova = nazev.split(/\s+/);
+  if (slova.length === 2) varianty.push(`${slova[1]} ${slova[0]}`);
   const klic = Object.keys(ALIASY).find((k) => nazev.toLowerCase().includes(k));
   if (klic) varianty.push(ALIASY[klic]);
   return varianty;
