@@ -114,9 +114,9 @@ function MrizkaJidel({
               <span className="font-semibold">{nazevJidla}</span>
               <span className="flex items-center gap-2">
                 <span className="text-xs text-muted">{Math.round(souhrn.kalorie)} kcal</span>
-                {naVymenu && souhrn.jidla.length > 0 && (
+                {naVymenuJidla && souhrn.jidla.length > 0 && (
                   <button
-                    onClick={() => naVymenu(nazevJidla)}
+                    onClick={() => naVymenuJidla(nazevJidla)}
                     className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
                     title={`Vyměnit ${nazevJidla.toLowerCase()} za jinou kombinaci`}
                     aria-label={`Vyměnit ${nazevJidla.toLowerCase()}`}
