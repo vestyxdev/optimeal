@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
-  hledejOpenFoodFacts,
+  hledejOpenFoodFactsVice,
   hledejPodleEanLokalne,
   nactiOffPodleEan,
   normalizujEan,
@@ -24,6 +24,7 @@ import {
   pridejPotravinu,
   smazPotravinu,
   type KatalogPotravina,
+  type OffNalezenaPotravina,
 } from "@/lib/data/potraviny";
 
 /**
@@ -312,6 +313,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
   const [hledaOff, setHledaOff] = useState(false);
   const [ean, setEan] = useState("");
   const [skenovani, setSkenovani] = useState(false);
+  const [offKandidati, setOffKandidati] = useState<OffNalezenaPotravina[]>([]);
   const uprav = (klic: keyof FormPotravina, hodnota: string) =>
     setF((pred) => ({ ...pred, [klic]: hodnota }));
 
@@ -349,6 +351,19 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
     onError: (e) => toast.error((e as Error).message),
   });
 
+  function aplikujOff(nalezena: OffNalezenaPotravina) {
+    setF((pred) => ({
+      ...pred,
+      nazev: nalezena.nazev,
+      kalorie: nalezena.kalorie?.toString() ?? pred.kalorie,
+      bilkoviny: nalezena.bilkoviny?.toString() ?? pred.bilkoviny,
+      sacharidy: nalezena.sacharidy?.toString() ?? pred.sacharidy,
+      tuky: nalezena.tuky?.toString() ?? pred.tuky,
+    }));
+    setOffKandidati([]);
+    toast.success("Hodnoty doplněny z OpenFoodFacts – cenu doplňte ručně.");
+  }
+
   async function dohledatOff() {
     if (f.nazev.trim().length < 2) {
       toast.error("Nejdřív zadejte název potraviny.");
@@ -356,20 +371,16 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
     }
     setHledaOff(true);
     try {
-      const nalezena = await hledejOpenFoodFacts(f.nazev.trim());
-      if (!nalezena) {
+      const nalezene = await hledejOpenFoodFactsVice(f.nazev.trim());
+      if (nalezene.length === 0) {
         toast.info("V OpenFoodFacts se nic nenašlo – vyplňte ručně.");
         return;
       }
-      setF((pred) => ({
-        ...pred,
-        nazev: nalezena.nazev,
-        kalorie: nalezena.kalorie?.toString() ?? pred.kalorie,
-        bilkoviny: nalezena.bilkoviny?.toString() ?? pred.bilkoviny,
-        sacharidy: nalezena.sacharidy?.toString() ?? pred.sacharidy,
-        tuky: nalezena.tuky?.toString() ?? pred.tuky,
-      }));
-      toast.success("Hodnoty doplněny z OpenFoodFacts – cenu doplňte ručně.");
+      if (nalezene.length === 1) {
+        aplikujOff(nalezene[0]!);
+        return;
+      }
+      setOffKandidati(nalezene);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -504,6 +515,29 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
             </Button>
           </div>
         </div>
+        {offKandidati.length > 0 && (
+          <div className="sm:col-span-2 rounded-lg border border-border bg-surface-2/50 p-2" role="group" aria-label="Nalezené produkty v OpenFoodFacts">
+            <p className="mb-1 px-1 text-xs text-muted">
+              Nalezeno {offKandidati.length} {sklonuj(offKandidati.length, "produkt", "produkty", "produktů")} – vyberte ten správný:
+            </p>
+            <ul className="max-h-48 divide-y divide-border/60 overflow-y-auto">
+              {offKandidati.map((k, i) => (
+                <li key={`${k.nazev}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => aplikujOff(k)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                  >
+                    <span className="min-w-0 truncate font-medium">{k.nazev}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted">
+                      {k.kalorie ?? "?"} kcal · B {k.bilkoviny ?? "?"} · S {k.sacharidy ?? "?"} · T {k.tuky ?? "?"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div>
           <Label htmlFor="pKat">Kategorie</Label>
           <Select

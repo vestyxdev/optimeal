@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizujEan, parsujOffProdukty } from "@/lib/data/potraviny";
+import { normalizujEan, parsujOffProdukty, parsujOffProduktyVice } from "@/lib/data/potraviny";
 
 describe("parsujOffProdukty", () => {
   it("preferuje energy-kcal_100g a český název", () => {
@@ -72,6 +72,28 @@ describe("parsujOffProdukty", () => {
 
   it("prázdný seznam produktů → null", () => {
     expect(parsujOffProdukty([])).toBeNull();
+  });
+});
+
+describe("parsujOffProduktyVice", () => {
+  it("vrátí všechny použitelné kandidáty a přeskočí neplatné", () => {
+    const v = parsujOffProduktyVice([
+      { product_name: "A", nutriments: { "energy-kcal_100g": 100 } },
+      { product_name: "Bez nutric" },
+      { product_name: "B", nutriments: { "energy-kcal_100g": 200 } },
+      { product_name: "Nulová", nutriments: { "energy-kcal_100g": 0 } },
+      { product_name: "C", nutriments: { energy_100g: 209.2 } },
+    ]);
+    expect(v.map((x) => x.nazev)).toEqual(["A", "B", "C"]);
+    expect(v[2]?.kalorie).toBe(50); // 209,2 kJ ÷ 4,184
+  });
+
+  it("parsujOffProdukty je jen první kandidát", () => {
+    const produkty = [
+      { product_name: "První", nutriments: { "energy-kcal_100g": 100 } },
+      { product_name: "Druhý", nutriments: { "energy-kcal_100g": 200 } },
+    ];
+    expect(parsujOffProdukty(produkty)?.nazev).toBe("První");
   });
 });
 

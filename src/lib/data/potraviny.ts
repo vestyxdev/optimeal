@@ -130,48 +130,62 @@ export interface OffProdukt {
   nutriments?: Record<string, unknown>;
 }
 
+const cisloOff = (v: unknown) => {
+  const c = Number(v);
+  return Number.isFinite(c) && c >= 0 ? Math.round(c * 10) / 10 : null;
+};
+
+/** Převede jeden OFF produkt na potravinu; null když chybí název nebo kladné kcal. */
+function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
+  const n = p.nutriments;
+  if (!n) return null;
+  // energy-kcal_100g je kcal; energy_100g je kJ → převést (1 kcal = 4,184 kJ)
+  const kcalRaw = n["energy-kcal_100g"];
+  const kcal =
+    kcalRaw != null
+      ? Number(kcalRaw)
+      : n.energy_100g != null
+        ? Number(n.energy_100g) / 4.184
+        : NaN;
+  if (!Number.isFinite(kcal) || kcal <= 0) return null;
+  const nazev = (p.product_name_cs ?? p.product_name ?? "").trim();
+  if (!nazev) return null;
+  return {
+    nazev,
+    kalorie: Math.round(kcal),
+    bilkoviny: cisloOff(n.proteins_100g),
+    sacharidy: cisloOff(n.carbohydrates_100g),
+    tuky: cisloOff(n.fat_100g),
+  };
+}
+
 /**
  * Z JSON odpovědi OFF vybere první produkt s kompletními nutrienty.
- * energy-kcal_100g je kcal; energy_100g je kJ → převádí se ÷4,184.
  * Čistá funkce – testovatelná bez sítě.
  */
 export function parsujOffProdukty(produkty: OffProdukt[]): OffNalezenaPotravina | null {
-  for (const p of produkty) {
-    const n = p.nutriments;
-    if (!n) continue;
-    // energy-kcal_100g je kcal; energy_100g je kJ → převést (1 kcal = 4,184 kJ)
-    const kcalRaw = n["energy-kcal_100g"];
-    const kcal =
-      kcalRaw != null
-        ? Number(kcalRaw)
-        : n.energy_100g != null
-          ? Number(n.energy_100g) / 4.184
-          : NaN;
-    if (!Number.isFinite(kcal) || kcal <= 0) continue;
-    const nazev = (p.product_name_cs ?? p.product_name ?? "").trim();
-    if (!nazev) continue;
-    const cislo = (v: unknown) => {
-      const c = Number(v);
-      return Number.isFinite(c) && c >= 0 ? Math.round(c * 10) / 10 : null;
-    };
-    return {
-      nazev,
-      kalorie: Math.round(kcal),
-      bilkoviny: cislo(n.proteins_100g),
-      sacharidy: cislo(n.carbohydrates_100g),
-      tuky: cislo(n.fat_100g),
-    };
-  }
-  return null;
+  return parsujOffProduktyVice(produkty)[0] ?? null;
 }
 
-export async function hledejOpenFoodFacts(
+/** Všechny použitelné produkty z OFF odpovědi – pro výběr z více kandidátů. */
+export function parsujOffProduktyVice(produkty: OffProdukt[]): OffNalezenaPotravina[] {
+  const vysledky: OffNalezenaPotravina[] = [];
+  for (const p of produkty) {
+    const v = parsujOffProdukt(p);
+    if (v) vysledky.push(v);
+  }
+  return vysledky;
+}
+
+/** Vyhledá produkty v OFF podle názvu – vrací všechny použitelné kandidáty. */
+export async function hledejOpenFoodFactsVice(
   dotaz: string,
-): Promise<OffNalezenaPotravina | null> {
+  limit = 8,
+): Promise<OffNalezenaPotravina[]> {
   const url =
     "https://world.openfoodfacts.org/cgi/search.pl" +
     `?search_terms=${encodeURIComponent(dotaz)}` +
-    "&search_simple=1&action=process&json=1&page_size=5&lc=cs";
+    `&search_simple=1&action=process&json=1&page_size=${limit}&lc=cs`;
 
   const odpoved = await fetch(url, {
     headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
@@ -179,7 +193,13 @@ export async function hledejOpenFoodFacts(
   if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
 
   const json = (await odpoved.json()) as { products?: OffProdukt[] };
-  return parsujOffProdukty(json.products ?? []);
+  return parsujOffProduktyVice(json.products ?? []);
+}
+
+export async function hledejOpenFoodFacts(
+  dotaz: string,
+): Promise<OffNalezenaPotravina | null> {
+  return (await hledejOpenFoodFactsVice(dotaz, 5))[0] ?? null;
 }
 
 /** Normalizuje čárový kód (EAN/UPC): jen číslice, délka 8/12/13/14. Jinak null. */
