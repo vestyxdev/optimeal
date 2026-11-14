@@ -14,31 +14,8 @@ comment on column public.foods.alergeny is
 comment on column public.foods.diety is
   'Vhodné pro diety: vegetariansky, vegansky, bezlepkovy.';
 
--- --- reálná data pro katalog (22 seed potravin) ---------------
-update public.foods set alergeny = array['arasidy'], diety = array['vegetariansky','vegansky','bezlepkovy']
-  where nazev = 'Arašidy';
-update public.foods set alergeny = '{}', diety = array['vegetariansky','vegansky','bezlepkovy']
-  where nazev in ('Banán','Brambory','Jablko');
-update public.foods set alergeny = array['lepek'], diety = array['vegetariansky']
-  where nazev = 'Chléb celozrnný';  -- pekárny často hlásí i sezam – konzervativně lepek
-update public.foods set alergeny = '{}', diety = '{}'
-  where nazev = 'Hovězí svíčková';
-update public.foods set alergeny = array['mleko'], diety = array['vegetariansky','bezlepkovy']
-  where nazev in ('Jogurt bílý 3,5%','Mléko čerstvé','Parmigiano Reggiano','Sýr Eidam','Sýr Niva','Tvaroh polotučný');
-update public.foods set alergeny = array['ryby','lepek','vejce'], diety = '{}'
-  where nazev = 'Krabí tyčky';  -- surimi: ryba + často lepek a vaječný bílek
-update public.foods set alergeny = '{}', diety = '{}'
-  where nazev = 'Kuřecí prsa';
-update public.foods set alergeny = array['ryby'], diety = '{}'
-  where nazev = 'Losos';
-update public.foods set alergeny = array['lepek'], diety = array['vegetariansky','vegansky']
-  where nazev = 'Ovesné vločky';  -- stopy lepku z běžné produkce
-update public.foods set alergeny = '{}', diety = array['vegetariansky','vegansky','bezlepkovy']
-  where nazev in ('Pohanka','Quinoa','Rýže basmati','Čočka červená');
-update public.foods set alergeny = array['lepek'], diety = array['vegetariansky']
-  where nazev = 'Těstoviny celozrnné';
-update public.foods set alergeny = array['vejce'], diety = array['vegetariansky']
-  where nazev = 'Vejce';
+-- Reálná data pro katalog se naplňují na KONCI supabase/seed.sql
+-- (migrace běží před seedem – UPDATE zde by zasáhl prázdnou tabulku).
 
 -- --- view aktualni_ceny: doplň alergeny/diety -----------------
 create or replace view public.aktualni_ceny as
