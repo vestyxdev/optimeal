@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { supabaseNastaveno } from "@/lib/supabase";
 import { MotivPoskytovatel } from "@/lib/motiv";
 import { AuthPoskytovatel } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { Registrace } from "@/routes/Registrace";
 import { ObnoveniHesla } from "@/routes/ObnoveniHesla";
 import { NoveHeslo } from "@/routes/NoveHeslo";
 import { VyzadujePrihlaseni } from "@/components/layout/VyzadujePrihlaseni";
+import { Nenalezeno } from "@/routes/Nenalezeno";
 
 // těžké routy se načítají lazy – hlavní bundle zůstane malý
 const Ucet = lazy(() => import("@/routes/Ucet").then((m) => ({ default: m.Ucet })));
@@ -99,8 +100,8 @@ export default function App() {
             <Route path="/nastaveni" element={<Nastaveni />} />
           </Route>
 
-          {/* neznámá cesta → přehled */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* neznámá cesta → 404 */}
+          <Route path="*" element={<Nenalezeno />} />
         </Routes>
         </Suspense>
       </AuthPoskytovatel>
