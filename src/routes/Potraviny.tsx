@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardNadpis } from "@/components/ui/Card";
+import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input, Label } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import {
   hledejOpenFoodFacts,
@@ -115,16 +118,17 @@ export function Potraviny() {
             className="pl-9"
           />
         </div>
-        <select
+        <Select
           value={kategorie}
           onChange={(e) => setKategorie(e.target.value)}
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
+          aria-label="Filtrovat podle kategorie"
+          className="w-auto min-w-44"
         >
           <option value="vse">Všechny kategorie</option>
           {Object.entries(KATEGORIE).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {dotaz.isError && (
@@ -133,7 +137,7 @@ export function Potraviny() {
 
       {/* tabulka */}
       <div className="overflow-x-auto rounded-card border border-border">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
               <th className="px-4 py-3">Název</th>
@@ -147,6 +151,14 @@ export function Potraviny() {
             </tr>
           </thead>
           <tbody>
+            {dotaz.isLoading &&
+              Array.from({ length: 5 }, (_, i) => (
+                <tr key={i} className="border-b border-border/60">
+                  <td className="px-4 py-3" colSpan={8}>
+                    <Skeleton className="h-4 w-2/3" />
+                  </td>
+                </tr>
+              ))}
             {filtrovane.map((p) => (
               <RadekPotraviny key={p.id} p={p} uzivatelId={uzivatel?.id ?? null} />
             ))}
@@ -173,6 +185,7 @@ function RadekPotraviny({
   uzivatelId: string | null;
 }) {
   const klient = useQueryClient();
+  const [potvrdit, setPotvrdit] = useState(false);
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const mutaceSmaz = useMutation({
     mutationFn: () => smazPotravinu(p.id),
@@ -215,16 +228,26 @@ function RadekPotraviny({
       {uzivatelId !== null && (
         <td className="px-4 py-2.5 text-right">
           {vlastni && (
+            <>
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm(`Smazat „${p.nazev}" z katalogu?`)) mutaceSmaz.mutate();
-              }}
+              onClick={() => setPotvrdit(true)}
               className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
               title="Smazat vlastní potravinu"
+              aria-label={`Smazat ${p.nazev}`}
             >
               <Trash2 className="size-4" />
             </button>
+            <PotvrdDialog
+              otevren={potvrdit}
+              naZavreni={() => setPotvrdit(false)}
+              naPotvrzeni={() => mutaceSmaz.mutate()}
+              nadpis="Smazat potravinu"
+              text={<>Opravdu smazat „{p.nazev}" z katalogu? Zmizí z vašeho seznamu i z generátoru.</>}
+              potvrdit="Smazat"
+              destruktivni
+            />
+            </>
           )}
         </td>
       )}
@@ -338,16 +361,15 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
         </div>
         <div>
           <Label htmlFor="pKat">Kategorie</Label>
-          <select
+          <Select
             id="pKat"
-            className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
             value={f.kategorie}
             onChange={(e) => uprav("kategorie", e.target.value)}
           >
             {Object.entries(KATEGORIE).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <Label htmlFor="pCena">Cena (Kč/100 g)</Label>

@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { CalendarDays, Printer, Save, ShoppingBasket, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input, Label } from "@/components/ui/Input";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek } from "@/components/jidelnicek/Vysledky";
 import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
@@ -40,6 +42,7 @@ export function Jidelnicek() {
   const [cile, setCile] = useState<Cile>({ kalorie: 2450, bilkoviny: 184, sacharidy: 244, tuky: 82 });
   const [vysledek, setVysledek] = useState<DenVysledek | TydenniPlan | null>(null);
   const [ulozenyPlanId, setUlozenyPlanId] = useState<string | null>(null);
+  const [smazanyPlanId, setSmazanyPlanId] = useState<string | null>(null);
 
   // katalog potravin s aktuálními cenami
   const dotazPotraviny = useQuery({
@@ -230,7 +233,7 @@ export function Jidelnicek() {
       </Card>
 
       {/* načítání / chyba katalogu */}
-      {dotazPotraviny.isLoading && <p className="text-sm text-muted">Načítám katalog potravin…</p>}
+      {dotazPotraviny.isLoading && <Skeleton className="h-24" />}
       {dotazPotraviny.isError && (
         <Card className="bg-danger-soft text-sm text-danger">
           {(dotazPotraviny.error as Error).message}
@@ -262,11 +265,10 @@ export function Jidelnicek() {
                   <span className="text-muted"> · {new Date(p.vytvoreno).toLocaleString("cs-CZ")}</span>
                 </Link>
                 <button
-                  onClick={() => {
-                    if (window.confirm("Opravdu smazat tento plán?")) mutaceSmazat.mutate(p.id);
-                  }}
+                  onClick={() => setSmazanyPlanId(p.id)}
                   className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat plán"
+                  aria-label="Smazat plán"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -275,6 +277,18 @@ export function Jidelnicek() {
           </ul>
         </Card>
       )}
+
+      <PotvrdDialog
+        otevren={smazanyPlanId !== null}
+        naZavreni={() => setSmazanyPlanId(null)}
+        naPotvrzeni={() => {
+          if (smazanyPlanId) mutaceSmazat.mutate(smazanyPlanId);
+        }}
+        nadpis="Smazat plán"
+        text="Opravdu smazat tento uložený plán? Akce je nevratná."
+        potvrdit="Smazat"
+        destruktivni
+      />
     </div>
   );
 }

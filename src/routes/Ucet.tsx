@@ -4,7 +4,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input, Label } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
@@ -155,7 +158,7 @@ export function Ucet() {
   });
 
   if (nacitaSe) {
-    return <p className="text-sm text-muted">Načítám účet…</p>;
+    return <SkeletonText radky={4} className="max-w-lg" />;
   }
 
   if (!uzivatel) {
@@ -176,7 +179,7 @@ export function Ucet() {
   }
 
   if (dotazProfil.isLoading || (form === null && !dotazProfil.isError)) {
-    return <p className="text-sm text-muted">Načítám profil…</p>;
+    return <SkeletonText radky={6} className="max-w-lg" />;
   }
 
   if (!form) {
@@ -263,16 +266,15 @@ export function Ucet() {
           </div>
           <div>
             <Label htmlFor="pohlavi">Pohlaví</Label>
-            <select
+            <Select
               id="pohlavi"
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
               value={form.pohlavi ?? ""}
               onChange={(e) => uprav({ pohlavi: (e.target.value || null) as Profil["pohlavi"] })}
             >
               <option value="">— vyberte —</option>
               <option value="m">Muž</option>
               <option value="z">Žena</option>
-            </select>
+            </Select>
           </div>
           <div>
             <Label htmlFor="teloTuk">Tělesný tuk (%) – volitelné</Label>
@@ -287,9 +289,8 @@ export function Ucet() {
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="aktivita">Aktivita</Label>
-            <select
+            <Select
               id="aktivita"
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
               value={form.aktivita ?? ""}
               onChange={(e) => uprav({ aktivita: (e.target.value || null) as Profil["aktivita"] })}
             >
@@ -297,13 +298,12 @@ export function Ucet() {
               {Object.entries(AKTIVITA_NAZVY).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <Label htmlFor="cilTela">Cíl</Label>
-            <select
+            <Select
               id="cilTela"
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
               value={form.cilTela ?? ""}
               onChange={(e) => uprav({ cilTela: (e.target.value || null) as Profil["cilTela"] })}
             >
@@ -311,7 +311,7 @@ export function Ucet() {
               {Object.entries(CIL_TELA_NAZVY).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <Label htmlFor="rozpocet">Týdenní rozpočet (Kč)</Label>
@@ -326,16 +326,15 @@ export function Ucet() {
           </div>
           <div>
             <Label htmlFor="pocetJidel">Jídel denně</Label>
-            <select
+            <Select
               id="pocetJidel"
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
               value={form.pocetJidelDenne}
               onChange={(e) => uprav({ pocetJidelDenne: Number(e.target.value) })}
             >
               {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <option key={n} value={n}>{n}× denně</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -451,17 +450,11 @@ function SekceSmazaniUctu() {
   const { odhlasit } = useAuth();
   const naviguj = useNavigate();
   const [maze, setMaze] = useState(false);
+  const [potvrdit, setPotvrdit] = useState(false);
 
   async function smazatUcet() {
     const klient = supabase;
     if (!klient) return;
-    if (
-      !window.confirm(
-        "Opravdu chcete trvale smazat účet? Zmizí profil, cíle, plány, nákupní seznamy i vlastní recepty a potraviny. Akce je nevratná.",
-      )
-    ) {
-      return;
-    }
     setMaze(true);
     try {
       const { error } = await klient.rpc("delete_own_account");
@@ -485,11 +478,20 @@ function SekceSmazaniUctu() {
       <Button
         varianta="danger"
         className="mt-3"
-        onClick={() => void smazatUcet()}
+        onClick={() => setPotvrdit(true)}
         disabled={maze}
       >
         {maze ? "Mažu účet…" : "Smazat účet"}
       </Button>
+      <PotvrdDialog
+        otevren={potvrdit}
+        naZavreni={() => setPotvrdit(false)}
+        naPotvrzeni={() => void smazatUcet()}
+        nadpis="Trvale smazat účet?"
+        text="Zmizí profil, cíle, plány, nákupní seznamy i vlastní recepty a potraviny. Akce je nevratná."
+        potvrdit="Trvale smazat"
+        destruktivni
+      />
     </Card>
   );
 }

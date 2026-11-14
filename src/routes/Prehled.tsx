@@ -16,6 +16,7 @@ import {
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
@@ -54,7 +55,18 @@ const TYP_NAZVY: Record<string, string> = {
 
 export function Prehled() {
   const { uzivatel, nacitaSe } = useAuth();
-  if (nacitaSe) return <p className="text-sm text-muted">Načítám…</p>;
+  if (nacitaSe) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-48" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
   return uzivatel ? <PrihlasenyPrehled /> : <VerejnyPrehled />;
 }
 
@@ -169,7 +181,7 @@ function PrihlasenyPrehled() {
         <Card>
           <CardNadpis>Denní cíl</CardNadpis>
           {dotazCile.isLoading ? (
-            <p className="text-sm text-muted">Načítám…</p>
+            <Skeleton className="h-24" />
           ) : cile ? (
             <>
               <div className="text-2xl font-extrabold tabular-nums">{cile.kalorie} kcal</div>
@@ -198,7 +210,7 @@ function PrihlasenyPrehled() {
         <Card>
           <CardNadpis>Poslední plán</CardNadpis>
           {dotazPlan.isLoading ? (
-            <p className="text-sm text-muted">Načítám…</p>
+            <Skeleton className="h-24" />
           ) : plan ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">

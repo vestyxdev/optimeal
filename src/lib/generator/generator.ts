@@ -324,9 +324,22 @@ export function naplanujJidlo(
   };
 
   // --- 1. kotva (bílkovinová potravina) ---
-  const kotva =
-    vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin) ??
-    vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin);
+  // Když jsou všechny bílkovinové potraviny dnes použité (malý katalog,
+  // třeba filtr bezlepkovy), ukotvíme jídlo nevyužitou potravinou s nejvyšším
+  // obsahem bílkovin z jiných kategorií (sýry, čočka…) – jinak by se kotva
+  // opakovala v každém jídle.
+  let kotva: Kandidat | null;
+  if (kategorie.bilkovinova.some((p) => !pouziteId.includes(p.id))) {
+    kotva = vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin);
+  } else {
+    const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
+      .filter((p) => !pouziteId.includes(p.id))
+      .sort((a, b) => b.bilkoviny - a.bilkoviny);
+    kotva =
+      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5) ??
+      vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin) ??
+      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin);
+  }
   if (kotva !== null && zbyva.b >= 5) {
     pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
   }

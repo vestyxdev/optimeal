@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Minus, Plus, Printer, ShoppingBasket, Save } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { Button } from "@/components/ui/Button";
 import { KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
@@ -119,7 +120,7 @@ export function Mealprep() {
       {/* výběr receptů */}
       <Card>
         <CardNadpis>Které recepty uvaříte?</CardNadpis>
-        {dotazRecepty.isLoading && <p className="text-sm text-muted">Načítám recepty…</p>}
+        {dotazRecepty.isLoading && <Skeleton className="h-24" />}
         {dotazRecepty.isError && (
           <Card className="bg-danger-soft text-sm text-danger">
             {(dotazRecepty.error as Error).message}

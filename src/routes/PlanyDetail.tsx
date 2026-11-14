@@ -1,9 +1,12 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useState } from "react";
 import { ArrowLeft, Printer, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { PotvrdDialog } from "@/components/ui/Dialog";
+import { SkeletonText } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek, KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiPlan, smazPlan } from "@/lib/data/plany";
 import type { Cile, DenVysledek, NakupniPolozka, TydenniPlan } from "@/lib/generator/generator";
@@ -17,6 +20,7 @@ export function PlanyDetail() {
   const { id } = useParams<{ id: string }>();
   const naviguj = useNavigate();
   const klientQ = useQueryClient();
+  const [potvrditSmazani, setPotvrditSmazani] = useState(false);
 
   const dotaz = useQuery({
     queryKey: ["plan", id],
@@ -35,7 +39,12 @@ export function PlanyDetail() {
   });
 
   if (dotaz.isLoading) {
-    return <p className="text-sm text-muted">Načítám plán…</p>;
+    return (
+      <div className="space-y-4">
+        <Zpet />
+        <SkeletonText radky={3} className="max-w-lg" />
+      </div>
+    );
   }
 
   if (dotaz.isError || !dotaz.data) {
@@ -78,13 +87,20 @@ export function PlanyDetail() {
           </Button>
           <Button
             varianta="ghost"
-            onClick={() => {
-              if (window.confirm("Opravdu smazat tento plán?")) mutaceSmazat.mutate();
-            }}
+            onClick={() => setPotvrditSmazani(true)}
             className="text-danger hover:bg-danger-soft"
           >
             <Trash2 className="size-4" /> Smazat
           </Button>
+          <PotvrdDialog
+            otevren={potvrditSmazani}
+            naZavreni={() => setPotvrditSmazani(false)}
+            naPotvrzeni={() => mutaceSmazat.mutate()}
+            nadpis="Smazat plán"
+            text="Opravdu smazat tento uložený plán? Akce je nevratná."
+            potvrdit="Smazat"
+            destruktivni
+          />
         </div>
       </div>
 

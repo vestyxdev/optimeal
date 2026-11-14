@@ -358,3 +358,22 @@ describe("panelTik", () => {
     expect(panelTik(1750, 2000).trida).toBe("warning");
   });
 });
+
+describe("vygenerujJidelnicek – kotva se neopakuje", () => {
+  it("když je jen jedna bílkovinová potravina, kotvy jídel se liší", () => {
+    // Malý katalog: jediná bilkovinová + vysokoproteinové v jiných kategoriích
+    const maly: Potravina[] = [
+      p("t1", "Tvaroh", 12, 4, 1.5, 85, 6),
+      p("e1", "Sýr Eidam", 25, 1, 30, 380, 9),
+      p("c1", "Čočka", 25, 52, 1, 320, 5.5),
+      p("r1", "Rýže", 7, 78, 1, 350, 4),
+      p("b1", "Brambory", 2, 17, 0.1, 77, 2),
+    ];
+    const v = vygenerujJidelnicek(maly, CILE, 2, 0.85, 4);
+    const kotvy = Object.values(v.jidelnicek)
+      .map((j) => j.jidla[0]?.id)
+      .filter(Boolean);
+    // 4 jídla, alespoň 2 různé kotvy (dříve všechny = "t1")
+    expect(new Set(kotvy).size).toBeGreaterThan(1);
+  });
+});

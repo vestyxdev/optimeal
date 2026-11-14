@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { Clock, Plus } from "lucide-react";
+import { ChefHat, Clock, Coins, Flame, Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
@@ -70,14 +71,23 @@ export function Recepty() {
         ))}
       </div>
 
-      {dotazRecepty.isLoading && <p className="text-sm text-muted">Načítám recepty…</p>}
       {dotazRecepty.isError && (
         <Card className="bg-danger-soft text-sm text-danger">
           {(dotazRecepty.error as Error).message}
         </Card>
       )}
+      {!dotazRecepty.isLoading && filtrovane.length === 0 && (
+        <Card className="text-center text-sm text-muted">
+          <ChefHat className="mx-auto mb-2 size-6" />
+          {kategorie
+            ? "V této kategorii zatím nic není – zkuste jinou."
+            : "Zatím žádné recepty."}
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {dotazRecepty.isLoading &&
+          Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-32" />)}
         {filtrovane.map((recept) => {
           const rozbor = spocitejRecept(recept, dotazCeny.data ?? null);
           return (
@@ -96,14 +106,16 @@ export function Recepty() {
                   <p className="mt-1 line-clamp-2 text-sm text-muted">{recept.popis}</p>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-                  <span>
-                    🔥 <strong className="text-fg">{rozbor.naPorci.kalorie}</strong> kcal/porci
+                  <span className="inline-flex items-center gap-1">
+                    <Flame className="size-3 text-warning" />
+                    <strong className="text-fg">{rozbor.naPorci.kalorie}</strong> kcal/porci
                   </span>
                   <span>
                     B <strong className="text-fg">{rozbor.naPorci.bilkoviny}</strong> g
                   </span>
-                  <span>
-                    💰 <strong className="text-fg">{rozbor.naPorci.cena.toFixed(2)}</strong> Kč/porci
+                  <span className="inline-flex items-center gap-1">
+                    <Coins className="size-3 text-ok" />
+                    <strong className="text-fg">{rozbor.naPorci.cena.toFixed(2)}</strong> Kč/porci
                   </span>
                   {recept.casMinuty != null && (
                     <span className="inline-flex items-center gap-1">

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Printer, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ChefHat, Clock, Pencil, Printer, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PotvrdDialog } from "@/components/ui/Dialog";
+import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
@@ -19,6 +22,7 @@ export function ReceptDetail() {
   const { uzivatel } = useAuth();
   const naviguj = useNavigate();
   const klientQ = useQueryClient();
+  const [potvrditSmazani, setPotvrditSmazani] = useState(false);
 
   const dotazRecept = useQuery({
     queryKey: ["recept", id],
@@ -66,7 +70,11 @@ export function ReceptDetail() {
             <Badge tono="neutral">{KATEGORIE_NAZVY[recept?.kategorie ?? ""] ?? recept?.kategorie}</Badge>
             {vlastni && <Badge tono="primary">Vlastní recept</Badge>}
             <span>{recept?.porce ?? "—"} × porce</span>
-            {recept?.casMinuty != null && <span>⏱ {recept.casMinuty} min</span>}
+            {recept?.casMinuty != null && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-3" /> {recept.casMinuty} min
+              </span>
+            )}
             <span>zdroj: {recept?.zdroj}</span>
             {recept && alergenyReceptu(recept).length > 0 && (
               <span>alergeny: {alergenyReceptu(recept).join(", ")}</span>
@@ -82,13 +90,20 @@ export function ReceptDetail() {
               <Button
                 varianta="ghost"
                 className="text-danger hover:bg-danger-soft"
-                onClick={() => {
-                  if (window.confirm("Opravdu smazat tento recept?")) mutaceSmazat.mutate();
-                }}
+                onClick={() => setPotvrditSmazani(true)}
                 disabled={mutaceSmazat.isPending}
               >
                 <Trash2 className="size-4" /> Smazat
               </Button>
+              <PotvrdDialog
+                otevren={potvrditSmazani}
+                naZavreni={() => setPotvrditSmazani(false)}
+                naPotvrzeni={() => mutaceSmazat.mutate()}
+                nadpis="Smazat recept"
+                text={`Opravdu smazat recept „${recept?.nazev ?? ""}"? Akce je nevratná.`}
+                potvrdit="Smazat"
+                destruktivni
+              />
             </>
           )}
           <Button varianta="outline" onClick={() => window.print()}>
@@ -97,7 +112,7 @@ export function ReceptDetail() {
         </div>
       </div>
 
-      {dotazRecept.isLoading && <p className="text-sm text-muted">Načítám recept…</p>}
+      {dotazRecept.isLoading && <SkeletonText radky={4} className="max-w-lg" />}
       {dotazRecept.isError && (
         <Card className="bg-danger-soft text-sm text-danger">
           {(dotazRecept.error as Error).message}
@@ -109,9 +124,12 @@ export function ReceptDetail() {
           {/* suroviny */}
           <Card className="p-0 lg:col-span-3">
             <div className="border-b border-border px-5 py-4">
-              <CardNadpis className="mb-0">🥣 Suroviny</CardNadpis>
+              <CardNadpis className="mb-0 flex items-center gap-2">
+                <UtensilsCrossed className="size-5 text-primary" /> Suroviny
+              </CardNadpis>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
                   <th className="px-5 py-2 font-medium">Potravina</th>
@@ -134,7 +152,15 @@ export function ReceptDetail() {
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums">{Math.round(s.gramyNaPorce)} g</td>
                       <td className="px-2 py-2 text-right tabular-nums text-muted">{Math.round(celkemG)} g</td>
-                      <td className="px-2 py-2">{p?.sleva ? `${p.obchod} 🏷` : p?.obchod ?? "—"}</td>
+                      <td className="px-2 py-2">
+                        {p?.sleva ? (
+                          <span className="inline-flex items-center gap-1">
+                            {p.obchod} <Tag className="size-3 text-warning" />
+                          </span>
+                        ) : (
+                          p?.obchod ?? "—"
+                        )}
+                      </td>
                       <td className="px-5 py-2 text-right tabular-nums font-semibold">
                         {cena == null ? "—" : `${cena.toFixed(2)} Kč`}
                       </td>
@@ -143,6 +169,7 @@ export function ReceptDetail() {
                 })}
               </tbody>
             </table>
+            </div>
           </Card>
 
           {/* výživa */}
@@ -182,7 +209,9 @@ export function ReceptDetail() {
                   </Card>
 
                   <Card>
-                    <CardNadpis>👨‍🍳 Postup</CardNadpis>
+                    <CardNadpis className="flex items-center gap-2">
+                      <ChefHat className="size-5 text-primary" /> Postup
+                    </CardNadpis>
                     <ol className="list-decimal space-y-2 pl-5 text-sm">
                       {kroky.map((krok, i) => (
                         <li key={i}>{krok}</li>

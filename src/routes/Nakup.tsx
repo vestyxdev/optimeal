@@ -5,7 +5,9 @@ import { ArrowLeft, Printer, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
+import { Skeleton } from "@/components/ui/Nacitani";
 import {
   nactiMeNakupniSeznamy,
   nactiPolozkySeznamu,
@@ -25,6 +27,7 @@ export function Nakup() {
   const klientQ = useQueryClient();
   const [vybrany, setVybrany] = useState<string | null>(null);
   const [novaPolozka, setNovaPolozka] = useState("");
+  const [potvrditSmazani, setPotvrditSmazani] = useState(false);
 
   const dotazSeznamy = useQuery({ queryKey: ["me_nakupni_seznamy"], queryFn: nactiMeNakupniSeznamy });
   const dotazPolozky = useQuery({
@@ -104,12 +107,19 @@ export function Nakup() {
             <Button
               varianta="ghost"
               className="text-danger hover:bg-danger-soft"
-              onClick={() => {
-                if (window.confirm("Opravdu smazat celý seznam?")) mutaceSmazatSeznam.mutate(aktualniSeznam.id);
-              }}
+              onClick={() => setPotvrditSmazani(true)}
             >
               <Trash2 className="size-4" /> Smazat
             </Button>
+            <PotvrdDialog
+              otevren={potvrditSmazani}
+              naZavreni={() => setPotvrditSmazani(false)}
+              naPotvrzeni={() => mutaceSmazatSeznam.mutate(aktualniSeznam.id)}
+              nadpis="Smazat seznam"
+              text={`Opravdu smazat celý seznam „${aktualniSeznam.nazev}"? Akce je nevratná.`}
+              potvrdit="Smazat"
+              destruktivni
+            />
           </div>
         </div>
 
@@ -136,6 +146,7 @@ export function Nakup() {
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}
                   className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat položku"
+                  aria-label={`Smazat ${p.nazev}`}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -182,7 +193,7 @@ export function Nakup() {
         </p>
       </div>
 
-      {dotazSeznamy.isLoading && <p className="text-sm text-muted">Načítám seznamy…</p>}
+      {dotazSeznamy.isLoading && <Skeleton className="h-24" />}
       {dotazSeznamy.isError && (
         <Card className="bg-danger-soft text-sm text-danger">
           {(dotazSeznamy.error as Error).message}
@@ -200,8 +211,16 @@ export function Nakup() {
         {seznamy.map((s) => (
           <Card
             key={s.id}
-            className="cursor-pointer transition-colors hover:border-primary"
+            role="button"
+            tabIndex={0}
+            className="cursor-pointer transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
             onClick={() => setVybrany(s.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setVybrany(s.id);
+              }
+            }}
           >
             <div className="flex items-start justify-between gap-2">
               <h2 className="font-semibold">{s.nazev}</h2>
