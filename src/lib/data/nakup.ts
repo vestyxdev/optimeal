@@ -71,7 +71,12 @@ export async function ulozNakupniSeznam(
         kategorie: p.kategorie ?? "ostatni",
       })),
     );
-    if (err) throw new Error(`Položky se neuložily: ${err.message}`);
+    if (err) {
+      // kompenzace – jinak zůstane osiřelý prázdný seznam
+      // (PostgREST nemá multi-table transakce; ideálně RPC)
+      await klient.from("shopping_lists").delete().eq("id", idSeznamu);
+      throw new Error(`Položky se neuložily: ${err.message}`);
+    }
   }
 
   return idSeznamu;

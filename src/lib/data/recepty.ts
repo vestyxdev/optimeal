@@ -156,7 +156,11 @@ export async function ulozRecept(recept: {
         poznamka: s.poznamka ?? null,
       })),
     );
-    if (errS) throw new Error(`Suroviny se neuložily: ${errS.message}`);
+    if (errS) {
+      // kompenzace – jinak zůstane osiřelý recept bez surovin
+      await klient.from("recipes").delete().eq("id", idReceptu);
+      throw new Error(`Suroviny se neuložily: ${errS.message}`);
+    }
   }
 
   return idReceptu;
@@ -191,7 +195,13 @@ export async function upravRecept(
     .eq("id", id);
   if (error) throw new Error(`Recept se neuložil: ${error.message}`);
 
-  // suroviny nahradíme celou sadou (smazat → vložit)
+  // snapshot původních surovin – když vložení nových selže, recept
+  // by jinak přišel o všechny suroviny (PostgREST nemá transakce)
+  const { data: stareSuroviny } = await klient
+    .from("recipe_ingredients")
+    .select("food_id, gramy_na_porce, poznamka")
+    .eq("recipe_id", id);
+
   const { error: errDel } = await klient.from("recipe_ingredients").delete().eq("recipe_id", id);
   if (errDel) throw new Error(`Suroviny se neuložily: ${errDel.message}`);
 
@@ -204,7 +214,15 @@ export async function upravRecept(
         poznamka: s.poznamka ?? null,
       })),
     );
-    if (errIns) throw new Error(`Suroviny se neuložily: ${errIns.message}`);
+    if (errIns) {
+      // kompenzace – obnovit původní suroviny, ať recept nezůstane prázdný
+      if (stareSuroviny && stareSuroviny.length > 0) {
+        await klient.from("recipe_ingredients").insert(
+          stareSuroviny.map((s) => ({ ...s, recipe_id: id })),
+        );
+      }
+      throw new Error(`Suroviny se neuložily: ${errIns.message}`);
+    }
   }
 }
 
