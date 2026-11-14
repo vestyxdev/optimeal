@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 /**
- * Správa motivu (světlý / tmavý / systém) – výchozí je systém.
+ * Správa motivu (světlý / tmavý / systém) – výchozí je tmavý.
  * Třída `dark` na <html> řídí celý design systém (viz index.css).
  */
 
@@ -10,7 +10,7 @@ type Motiv = "light" | "dark" | "system";
 const MotivKontext = createContext<{
   motiv: Motiv;
   nastavMotiv: (m: Motiv) => void;
-}>({ motiv: "system", nastavMotiv: () => undefined });
+}>({ motiv: "dark", nastavMotiv: () => undefined });
 
 const KLIC = "optimeal-motiv";
 
@@ -24,9 +24,9 @@ function vyhodnotDark(motiv: Motiv): boolean {
 export function MotivPoskytovatel({ children }: { children: ReactNode }) {
   const [motiv, setMotiv] = useState<Motiv>(() => {
     try {
-      return (localStorage.getItem(KLIC) as Motiv | null) ?? "system";
+      return (localStorage.getItem(KLIC) as Motiv | null) ?? "dark";
     } catch {
-      return "system";
+      return "dark";
     }
   });
 

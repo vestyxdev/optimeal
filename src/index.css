@@ -43,13 +43,13 @@
 }
 
 .dark {
-  --bg: #0f140f;
-  --surface: #171d16;
-  --surface-2: #1e261d;
-  --border: #2b352a;
+  --bg: #0a0e0b;
+  --surface: #141a15;
+  --surface-2: #1d251e;
+  --border: #2a342b;
 
-  --fg: #ebe9e1;
-  --muted: #9a958a;
+  --fg: #eeeee3;
+  --muted: #9aa293;
 
   --primary: #5bbf7e;
   --primary-strong: #1b7a44;
