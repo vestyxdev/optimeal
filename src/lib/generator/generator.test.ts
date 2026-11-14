@@ -377,3 +377,28 @@ describe("vygenerujJidelnicek – kotva se neopakuje", () => {
     expect(new Set(kotvy).size).toBeGreaterThan(1);
   });
 });
+
+describe("naplanujJidlo – strop ostatních maker", () => {
+  const KATEGORIE_ZYRA = {
+    bilkovinova: [{ ...p("n1", "Tučný sýr", 21, 0.5, 32, 360, 18), skore: 1 }],
+    sacharidova: [{ ...p("b1", "Brambory", 2, 17, 0.1, 77, 2), skore: 1 }],
+    tukova: [{ ...p("o1", "Olej", 0, 0, 100, 900, 20), skore: 1 }],
+  } as never;
+
+  it("tučná kotva se omezí tukovým rozpočtem (ne cele bílkoviny)", () => {
+    // jídlo s cílem 40 B / 60 S / 15 T: bez stropu by sýr nabral ~190 g
+    // a 60 g tuku – s omítkou 15×1,3 = 19,5 g tuku vyjde ~60 g sýra
+    const jidla = naplanujJidlo(KATEGORIE_ZYRA, 0, 40, 60, 15, 600);
+    const kotva = jidla[0];
+    expect(kotva.tuky).toBeLessThanOrEqual(15 * 1.3 + 1);
+  });
+
+  it("tukem nezatížený sacharidový doplněk se neškrtí vyčerpaným tukem", () => {
+    // regrese: brambory (0,1 g tuku/100 g) dostávaly 30 g minimum,
+    // protože strop šel do minusu → jídlo končilo bez sacharidů
+    const jidla = naplanujJidlo(KATEGORIE_ZYRA, 0, 40, 60, 15, 600);
+    const brambory = jidla.find((j) => j.id === "b1");
+    expect(brambory).toBeDefined();
+    expect(brambory!.sacharidy).toBeGreaterThan(20);
+  });
+});
