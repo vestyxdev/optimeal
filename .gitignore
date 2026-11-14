@@ -25,3 +25,4 @@ npm-debug.log*
 Thumbs.db
 .vercel
 .env*
+scripts/_ingest_off_state.json  
