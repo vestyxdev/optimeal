@@ -389,8 +389,7 @@ describe("naplanujJidlo – strop ostatních maker", () => {
     // jídlo s cílem 40 B / 60 S / 15 T: bez stropu by sýr nabral ~190 g
     // a 60 g tuku – s omítkou 15×1,3 = 19,5 g tuku vyjde ~60 g sýra
     const jidla = naplanujJidlo(KATEGORIE_ZYRA, 0, 40, 60, 15, 600);
-    const kotva = jidla[0];
-    expect(kotva.tuky).toBeLessThanOrEqual(15 * 1.3 + 1);
+    expect(jidla[0]!.tuky).toBeLessThanOrEqual(15 * 1.3 + 1);
   });
 
   it("tukem nezatížený sacharidový doplněk se neškrtí vyčerpaným tukem", () => {
