@@ -18,6 +18,7 @@ import {
   sestavNakupniSeznam,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
+  vymenJidlo,
   type Cile,
   type DenVysledek,
   type NakupniPolozka,
@@ -161,6 +162,21 @@ export function Jidelnicek() {
     );
   }
 
+  function vymen(nazevJidla: string) {
+    const potraviny = dotazPotraviny.data ?? [];
+    if (potraviny.length === 0 || vysledek === null || typ !== "den") return;
+    const novy = vymenJidlo(potraviny, vysledek as DenVysledek, nazevJidla, cile, filtr);
+    if (novy === null) {
+      toast.error("Pro toto jídlo se nepodařilo najít náhradu.");
+      return;
+    }
+    // obsah se změnil – uložený plán / nákup už neodpovídá
+    setVysledek(novy);
+    setUlozenyPlanId(null);
+    nastavNakupUlozen(false);
+    toast.success(`${nazevJidla} bylo vyměněno.`);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -289,7 +305,7 @@ export function Jidelnicek() {
       {/* výsledek */}
       {vysledek &&
         (typ === "den" ? (
-          <DenniVysledek den={vysledek as DenVysledek} cile={cile} />
+          <DenniVysledek den={vysledek as DenVysledek} cile={cile} naVymenu={vymen} />
         ) : (
           <>
             <TydennyVysledek plan={vysledek as TydenniPlan} cile={cile} />

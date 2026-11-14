@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CalendarDays, PiggyBank, ShoppingBasket } from "lucide-react";
+import { CalendarDays, PiggyBank, RefreshCw, ShoppingBasket } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -97,7 +97,15 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
   );
 }
 
-export function DenniVysledek({ den, cile }: { den: DenVysledek; cile: Cile }) {
+export function DenniVysledek({
+  den,
+  cile,
+  naVymenu,
+}: {
+  den: DenVysledek;
+  cile: Cile;
+  naVymenu?: ((nazevJidla: string) => void) | undefined;
+}) {
   const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
 
   return (
@@ -114,7 +122,19 @@ export function DenniVysledek({ den, cile }: { den: DenVysledek; cile: Cile }) {
           <Card key={nazevJidla} className="p-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="font-semibold">{nazevJidla}</span>
-              <span className="text-xs text-muted">{Math.round(souhrn.kalorie)} kcal</span>
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-muted">{Math.round(souhrn.kalorie)} kcal</span>
+                {naVymenu && souhrn.jidla.length > 0 && (
+                  <button
+                    onClick={() => naVymenu(nazevJidla)}
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
+                    title={`Vyměnit ${nazevJidla.toLowerCase()} za jinou kombinaci`}
+                    aria-label={`Vyměnit ${nazevJidla.toLowerCase()}`}
+                  >
+                    <RefreshCw className="size-4" />
+                  </button>
+                )}
+              </span>
             </div>
             {souhrn.jidla.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted">Bez jídel</p>

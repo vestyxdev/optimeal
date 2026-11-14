@@ -7,6 +7,7 @@ import {
   panelTik,
   podilyProPocetJidel,
   sestavNakupniSeznam,
+  vymenJidlo,
   skorePotraviny,
   vytvorJidlo,
   vyberKandidata,
@@ -487,5 +488,58 @@ describe("obrazek – propagace z katalogu do plánu a seznamu", () => {
       Snídaně: { jidla: [jidlo], kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 },
     });
     expect(seznam[0]!.obrazek).toBe("https://images.off.org/skyr.jpg");
+  });
+});
+
+describe("vymenJidlo", () => {
+  it("vymění jídlo za jinou kombinaci potravin", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    const nazev = Object.keys(den.jidelnicek)[0]!;
+    const stara = den.jidelnicek[nazev]!;
+    const vysledek = vymenJidlo(KATALOG, den, nazev, CILE);
+    expect(vysledek).not.toBeNull();
+    const nova = vysledek!.jidelnicek[nazev]!;
+    expect(nova.jidla.length).toBeGreaterThan(0);
+    const staraId = new Set(stara.jidla.map((j) => j.id));
+    expect(nova.jidla.every((j) => !staraId.has(j.id))).toBe(true);
+  });
+
+  it("nepoužije potraviny ostatních jídel (různorodost dne)", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    const nazev = Object.keys(den.jidelnicek)[1]!;
+    const vysledek = vymenJidlo(KATALOG, den, nazev, CILE)!;
+    const ostatniId = new Set(
+      Object.entries(vysledek.jidelnicek)
+        .filter(([n]) => n !== nazev)
+        .flatMap(([, s]) => s.jidla.map((j) => j.id)),
+    );
+    expect(vysledek.jidelnicek[nazev]!.jidla.every((j) => !ostatniId.has(j.id))).toBe(true);
+  });
+
+  it("ostatní jídla zůstanou beze změny a celkem se přepočítá", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    const nazev = Object.keys(den.jidelnicek)[0]!;
+    const vysledek = vymenJidlo(KATALOG, den, nazev, CILE)!;
+    for (const [n, s] of Object.entries(den.jidelnicek)) {
+      if (n !== nazev) expect(vysledek.jidelnicek[n]).toEqual(s);
+    }
+    const kcal = Object.values(vysledek.jidelnicek).reduce((a, s) => a + s.kalorie, 0);
+    expect(vysledek.celkem.kalorie).toBe(Math.round(kcal));
+  });
+
+  it("vrátí null pro neexistující jídlo", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    expect(vymenJidlo(KATALOG, den, "Brunc", CILE)).toBeNull();
+  });
+
+  it("respektuje dietní filtr při výběru náhrady", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    const nazev = Object.keys(den.jidelnicek)[0]!;
+    const vysledek = vymenJidlo(KATALOG, den, nazev, CILE, { diety: ["vegansky"] });
+    // pokud náhrada vůbec existuje, nesmí obsahovat živočišné potraviny z katalogu
+    if (vysledek !== null) {
+      const id = vysledek.jidelnicek[nazev]!.jidla.map((j) => j.id);
+      expect(id.some((i) => ["1", "2", "3", "4"].includes(i))).toBe(false);
+    }
   });
 });

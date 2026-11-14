@@ -626,3 +626,50 @@ export function panelTik(aktualni: number, cilovy: number): { shoda: number; tri
 
   return { shoda, trida };
 }
+
+/**
+ * Vymění jedno jídlo v hotovém denním plánu. Nová kombinace pro daný slot
+ * nesmí použít potraviny ostatních jídel ani potraviny původního jídla,
+ * takže je výsledek zaručeně jiný – ale pořád respektuje cíle a filtr.
+ * Vrací null, když slot neexistuje nebo generátor nenajde náhradu.
+ */
+export function vymenJidlo(
+  potraviny: Potravina[],
+  den: DenVysledek,
+  nazevJidla: string,
+  cile: Cile,
+  filtr: FiltrPotraviny | null = null,
+  poolMin = 0.85,
+): DenVysledek | null {
+  const stara = den.jidelnicek[nazevJidla];
+  if (!stara) return null;
+  const podil = podilyProPocetJidel(Object.keys(den.jidelnicek).length)[nazevJidla];
+  if (podil === undefined) return null;
+
+  // všechna jídla včetně vyměňovaného → náhrada použije vždy jiné potraviny
+  const pouziteId = Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => j.id));
+  const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
+  const jidla = naplanujJidlo(
+    kategorie,
+    0,
+    cile.bilkoviny * podil,
+    cile.sacharidy * podil,
+    cile.tuky * podil,
+    cile.kalorie * podil,
+    pouziteId,
+    null,
+    poolMin,
+  );
+  if (jidla.length === 0) return null;
+
+  const nova = souhrnJidla(jidla);
+  const celkem = {
+    kalorie: Math.round(den.celkem.kalorie - stara.kalorie + nova.kalorie),
+    bilkoviny: Math.round((den.celkem.bilkoviny - stara.bilkoviny + nova.bilkoviny) * 10) / 10,
+    sacharidy: Math.round((den.celkem.sacharidy - stara.sacharidy + nova.sacharidy) * 10) / 10,
+    tuky: Math.round((den.celkem.tuky - stara.tuky + nova.tuky) * 10) / 10,
+    cena: Math.round((den.celkem.cena - stara.cena + nova.cena) * 100) / 100,
+    cenaBezna: Math.round((den.celkem.cenaBezna - stara.cenaBezna + nova.cenaBezna) * 100) / 100,
+  };
+  return { ...den, jidelnicek: { ...den.jidelnicek, [nazevJidla]: nova }, celkem };
+}
