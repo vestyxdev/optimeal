@@ -208,9 +208,12 @@ export function kategoriePotraviny(p: Potravina): Kategorie {
   return kcalS >= kcalT ? "sacharidova" : "tukova";
 }
 
-/** Skóre = gramy dominujícího makra za 1 Kč (sleva má bonus). */
-export function skorePotraviny(p: Potravina, kategorie: Kategorie): number {
-  const cena = Math.max(0.01, p.aktualniCena);
+/** Skóre = gramy dominujícího makra za 1 Kč (sleva má bonus).
+ *  Potraviny bez ceny (0 = neceněné, např. import z OFF) používají
+ *  medián ceny své kategorie – jinak by 0,01 Kč strop udělal z každé
+ *  neceněné potraviny vítěze a plán by se skládal jen z neceněných. */
+export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?: number): number {
+  const cena = p.aktualniCena > 0 ? p.aktualniCena : Math.max(vychoziCena ?? 15, 0.01);
   const hodnota =
     kategorie === "bilkovinova" ? p.bilkoviny : kategorie === "sacharidova" ? p.sacharidy : p.tuky;
 
@@ -382,13 +385,21 @@ export function naplanujJidlo(
   return jidla;
 }
 
+/** Medián kladných cen jako „typická cena" pro neceněné položky. */
+function medianCeny(potraviny: Potravina[]): number {
+  const ceny = potraviny.map((p) => p.aktualniCena).filter((c) => c > 0).sort((a, b) => a - b);
+  if (ceny.length === 0) return 15; // celý katalog bez cen – rozumná výchozí Kč/100g
+  return ceny[Math.floor(ceny.length / 2)]!;
+}
+
 /** Seřadí potraviny dle skóre a vrátí kategorie kandidátů. */
 function pripravKategorie(potraviny: Potravina[]): KategorieMap {
   const kategorie: KategorieMap = { bilkovinova: [], sacharidova: [], tukova: [] };
+  const median = medianCeny(potraviny);
 
   for (const p of potraviny) {
     const k = kategoriePotraviny(p);
-    const kandidat: Kandidat = { ...p, skore: skorePotraviny(p, k) };
+    const kandidat: Kandidat = { ...p, skore: skorePotraviny(p, k, median) };
     kategorie[k].push(kandidat);
   }
 

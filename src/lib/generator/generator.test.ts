@@ -648,4 +648,17 @@ describe("QA bug hunt – další okrajové případy", () => {
     const nakup = sestavNakupniSeznam(den.jidelnicek);
     for (const x of nakup) expect(Number.isFinite(x.cenaCelkem)).toBe(true);
   });
+
+  it("neceněná potravina (OFF import) neodstřelí ceněné – skóre přes medián", () => {
+    const bezCeny = { ...p("levna", "Protein bez ceny", 50, 0, 0, 200, 0), aktualniCena: 0 };
+    const cenena = { ...p("cenena", "Ceněná", 20, 0, 0, 80, 10), aktualniCena: 10 };
+    // bez mediánového skóre by 0.01 Kč strop dával bezCeny skóre 5000 (50x vítěz)
+    const sBez = skorePotraviny(bezCeny, "bilkovinova", 10);
+    const sCen = skorePotraviny(cenena, "bilkovinova", 10);
+    expect(sBez).toBeCloseTo(5); // 50 / 10 (medián), ne 50 / 0.01
+    expect(sCen).toBeCloseTo(2); // 20 / 10
+    // a plán s neceněnými položkami stále běží
+    const den = vygenerujJidelnicek([bezCeny, cenena], CILE);
+    expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
+  });
 });
