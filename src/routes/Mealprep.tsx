@@ -64,6 +64,11 @@ export function Mealprep() {
     [vstupy, recepty, dotazCeny.data],
   );
 
+  // podpis aktuální konfigurace – uložení se zamkne, dokud se porce nezmění
+  const podpis = useMemo(() => JSON.stringify(vstupy), [vstupy]);
+  const [ulozenyPlanPodpis, setUlozenyPlanPodpis] = useState<string | null>(null);
+  const [ulozenyNakupPodpis, setUlozenyNakupPodpis] = useState<string | null>(null);
+
   const mutaceUlozitPlan = useMutation({
     mutationFn: () =>
       ulozPlan({
@@ -77,6 +82,7 @@ export function Mealprep() {
         vysledek: { vstupy, soucty: vysledek.soucty, detaily: vysledek.detaily, polozky: vysledek.polozky },
       }),
     onSuccess: () => {
+      setUlozenyPlanPodpis(podpis);
       toast.success("Mealprep uložen – najdete ho v sekci Mé plány.");
       void klientQ.invalidateQueries({ queryKey: ["me_plany"] });
     },
@@ -98,6 +104,7 @@ export function Mealprep() {
         })),
       ),
     onSuccess: () => {
+      setUlozenyNakupPodpis(podpis);
       toast.success("Nákupní seznam uložen.");
       void klientQ.invalidateQueries({ queryKey: ["me_nakupni_seznamy"] });
     },
@@ -207,13 +214,28 @@ export function Mealprep() {
 
           {/* akce */}
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => mutaceUlozitNakup.mutate()} disabled={mutaceUlozitNakup.isPending}>
+            <Button
+              onClick={() => mutaceUlozitNakup.mutate()}
+              disabled={mutaceUlozitNakup.isPending || ulozenyNakupPodpis === podpis}
+            >
               <ShoppingBasket className="size-4" />
-              {mutaceUlozitNakup.isPending ? "Ukládám…" : "Uložit nákupní seznam"}
+              {mutaceUlozitNakup.isPending
+                ? "Ukládám…"
+                : ulozenyNakupPodpis === podpis
+                  ? "Seznam uložen"
+                  : "Uložit nákupní seznam"}
             </Button>
-            <Button varianta="outline" onClick={() => mutaceUlozitPlan.mutate()} disabled={mutaceUlozitPlan.isPending}>
+            <Button
+              varianta="outline"
+              onClick={() => mutaceUlozitPlan.mutate()}
+              disabled={mutaceUlozitPlan.isPending || ulozenyPlanPodpis === podpis}
+            >
               <Save className="size-4" />
-              {mutaceUlozitPlan.isPending ? "Ukládám…" : "Uložit jako plán"}
+              {mutaceUlozitPlan.isPending
+                ? "Ukládám…"
+                : ulozenyPlanPodpis === podpis
+                  ? "Plán uložen"
+                  : "Uložit jako plán"}
             </Button>
             <Button varianta="ghost" onClick={() => window.print()}>
               <Printer className="size-4" /> Tisk
