@@ -9,7 +9,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { DenniVysledek, TydennyVysledek } from "@/components/jidelnicek/Vysledky";
 import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
-import { nactiAktivniCile } from "@/lib/data/profil";
+import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { useAuth } from "@/lib/auth";
 import {
   sestavNakupniSeznam,
@@ -62,6 +62,15 @@ export function Jidelnicek() {
     queryFn: nactiMePlany,
     enabled: uzivatel !== null,
   });
+
+  // profil: počet jídel denně + týdenní rozpočet
+  const dotazProfil = useQuery({
+    queryKey: ["profil"],
+    queryFn: nactiProfil,
+    enabled: uzivatel !== null,
+  });
+  const pocetJidel = dotazProfil.data?.pocetJidelDenne ?? 4;
+  const rozpocet = dotazProfil.data?.tydennyRozpocetKc ?? null;
 
   const mutaceUlozit = useMutation({
     mutationFn: () => ulozPlan({ typ, cile, vysledek }),
@@ -122,8 +131,8 @@ export function Jidelnicek() {
     setUlozenyPlanId(null);
     setVysledek(
       typ === "den"
-        ? vygenerujJidelnicek(potraviny, cile)
-        : vygenerujTydenniPlan(potraviny, cile),
+        ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel)
+        : vygenerujTydenniPlan(potraviny, cile, pocetJidel),
     );
   }
 
@@ -230,7 +239,12 @@ export function Jidelnicek() {
         (typ === "den" ? (
           <DenniVysledek den={vysledek as DenVysledek} cile={cile} />
         ) : (
-          <TydennyVysledek plan={vysledek as TydenniPlan} cile={cile} />
+          <>
+            <TydennyVysledek plan={vysledek as TydenniPlan} cile={cile} />
+            {rozpocet !== null && rozpocet > 0 && (
+              <RozpocetKarta cena={(vysledek as TydenniPlan).tyden.cena} rozpocet={rozpocet} />
+            )}
+          </>
         ))}
 
       {/* uložené plány */}
@@ -259,5 +273,35 @@ export function Jidelnicek() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** Porovnání ceny týdenního plánu s rozpočtem z profilu. */
+function RozpocetKarta({ cena, rozpocet }: { cena: number; rozpocet: number }) {
+  const procento = Math.round((cena / rozpocet) * 100);
+  const presahuje = cena > rozpocet;
+  return (
+    <Card>
+      <CardNadpis>Týdenní rozpočet</CardNadpis>
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-semibold tabular-nums">
+          {cena.toFixed(0)} / {rozpocet.toFixed(0)} Kč
+        </span>
+        <span className={presahuje ? "font-semibold text-danger" : "text-muted"}>
+          {procento} %
+        </span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-pill bg-surface-2">
+        <div
+          className={presahuje ? "h-full bg-danger" : "h-full bg-primary"}
+          style={{ width: `${Math.min(100, procento)}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        {presahuje
+          ? `Plán překračuje rozpočet o ${(cena - rozpocet).toFixed(0)} Kč – zkuste vyšší podíl slevových potravin.`
+          : `Plán se vejde do rozpočtu – rezerva ${(rozpocet - cena).toFixed(0)} Kč.`}
+      </p>
+    </Card>
   );
 }

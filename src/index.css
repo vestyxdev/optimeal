@@ -125,3 +125,40 @@ body {
 .om-tabulka-num {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- tisk (plán / nákupní seznam) ---------- */
+
+@media print {
+  /* schovat shell – tiskne se jen obsah */
+  aside,
+  header,
+  nav,
+  [data-sonner-toaster],
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .om-kontejner {
+    max-width: none;
+    padding: 0;
+  }
+
+  .om-karta {
+    border-color: #d4d4d4;
+    break-inside: avoid;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+}

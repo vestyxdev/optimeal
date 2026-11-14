@@ -6,7 +6,7 @@
  * Heslo se NEUKLÁDÁ – jde jen jako argument procesu.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -74,8 +74,16 @@ async function overeni() {
 }
 
 try {
-  await pustSoubor("supabase/migrations/0001_init.sql", "Migrace 0001 (schéma + RLS)");
+  // všechny migrace ve složce supabase/migrations, abecedně podle názvu
+  const migrace = readdirSync(resolve(SLOZKA, "supabase/migrations"))
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  for (const soubor of migrace) {
+    await pustSoubor(`supabase/migrations/${soubor}`, `Migrace ${soubor}`);
+  }
+  // seedy – idempotentní INSERT ON CONFLICT DO NOTHING
   await pustSoubor("supabase/seed.sql", "Seed (potraviny + ceny)");
+  await pustSoubor("supabase/seed_recepty.sql", "Seed (recepty)");
   await overeni();
   console.log("\n✅ Databáze je připravená.");
 } catch {

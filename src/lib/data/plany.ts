@@ -94,6 +94,53 @@ export async function nactiMePlany() {
   return data ?? [];
 }
 
+/** Nejnovější uložený plán včetně obsahu (dashboard). */
+export async function nactiPosledniPlan() {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient
+    .from("meal_plans")
+    .select("id, typ, cil_kalorie, data, vytvoreno")
+    .order("vytvoreno", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(`Plán se nenačetl: ${error.message}`);
+  if (!data) return null;
+  return data as {
+    id: string;
+    typ: "den" | "tyden" | "mealprep";
+    cil_kalorie: number;
+    data: { cile?: Cile; vysledek?: unknown };
+    vytvoreno: string;
+  };
+}
+
+/** Odhad úspory v uloženém plánu (rozdíl běžné vs. akční ceny). */
+export function usporaPlanu(vysledek: unknown): number {
+  if (typeof vysledek !== "object" || vysledek === null) return 0;
+  const v = vysledek as {
+    celkem?: { cena: number; cenaBezna: number };
+    tyden?: { cena: number; cenaBezna: number };
+    soucty?: { cena: number; cenaBezna: number };
+  };
+  const s = v.celkem ?? v.tyden ?? v.soucty;
+  if (!s) return 0;
+  return Math.max(0, Math.round((s.cenaBezna - s.cena) * 100) / 100);
+}
+
+/** Odhad ceny uloženého plánu (aktuální/slevová). */
+export function cenaPlanu(vysledek: unknown): number {
+  if (typeof vysledek !== "object" || vysledek === null) return 0;
+  const v = vysledek as {
+    celkem?: { cena: number };
+    tyden?: { cena: number };
+    soucty?: { cena: number };
+  };
+  return v.celkem?.cena ?? v.tyden?.cena ?? v.soucty?.cena ?? 0;
+}
+
 /** Detail jednoho plánu včetně JSONB obsahu. */
 export async function nactiPlan(id: string) {
   const klient = supabase;

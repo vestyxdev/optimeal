@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { supabaseNastaveno } from "@/lib/supabase";
 import { MotivPoskytovatel } from "@/lib/motiv";
@@ -10,15 +11,18 @@ import { Registrace } from "@/routes/Registrace";
 import { ObnoveniHesla } from "@/routes/ObnoveniHesla";
 import { NoveHeslo } from "@/routes/NoveHeslo";
 import { VyzadujePrihlaseni } from "@/components/layout/VyzadujePrihlaseni";
-import { Ucet } from "@/routes/Ucet";
-import { Nastaveni } from "@/routes/Nastaveni";
-import { Jidelnicek } from "@/routes/Jidelnicek";
-import { PlanyDetail } from "@/routes/PlanyDetail";
-import { Recepty } from "@/routes/Recepty";
-import { ReceptDetail } from "@/routes/ReceptDetail";
-import { ReceptEditace } from "@/routes/ReceptEditace";
-import { Mealprep } from "@/routes/Mealprep";
-import { Nakup } from "@/routes/Nakup";
+
+// těžké routy se načítají lazy – hlavní bundle zůstane malý
+const Ucet = lazy(() => import("@/routes/Ucet").then((m) => ({ default: m.Ucet })));
+const Nastaveni = lazy(() => import("@/routes/Nastaveni").then((m) => ({ default: m.Nastaveni })));
+const Jidelnicek = lazy(() => import("@/routes/Jidelnicek").then((m) => ({ default: m.Jidelnicek })));
+const PlanyDetail = lazy(() => import("@/routes/PlanyDetail").then((m) => ({ default: m.PlanyDetail })));
+const Recepty = lazy(() => import("@/routes/Recepty").then((m) => ({ default: m.Recepty })));
+const Potraviny = lazy(() => import("@/routes/Potraviny").then((m) => ({ default: m.Potraviny })));
+const ReceptDetail = lazy(() => import("@/routes/ReceptDetail").then((m) => ({ default: m.ReceptDetail })));
+const ReceptEditace = lazy(() => import("@/routes/ReceptEditace").then((m) => ({ default: m.ReceptEditace })));
+const Mealprep = lazy(() => import("@/routes/Mealprep").then((m) => ({ default: m.Mealprep })));
+const Nakup = lazy(() => import("@/routes/Nakup").then((m) => ({ default: m.Nakup })));
 
 export default function App() {
   // bez klíčů k Supabase produkt nespustí demo verzi – zobrazí přesný návod
@@ -29,6 +33,7 @@ export default function App() {
   return (
     <MotivPoskytovatel>
       <AuthPoskytovatel>
+        <Suspense fallback={<p className="p-6 text-sm text-muted">Načítám stránku…</p>}>
         <Routes>
           {/* samostatné stránky bez shellu */}
           <Route path="/prihlaseni" element={<Prihlaseni />} />
@@ -48,6 +53,7 @@ export default function App() {
               }
             />
             <Route path="/recepty" element={<Recepty />} />
+            <Route path="/potraviny" element={<Potraviny />} />
             <Route
               path="/recepty/novy"
               element={
@@ -96,6 +102,7 @@ export default function App() {
           {/* neznámá cesta → přehled */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </AuthPoskytovatel>
     </MotivPoskytovatel>
   );

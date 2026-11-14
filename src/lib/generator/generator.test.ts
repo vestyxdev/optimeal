@@ -4,6 +4,7 @@ import {
   kategoriePotraviny,
   naplanujJidlo,
   panelTik,
+  podilyProPocetJidel,
   sestavNakupniSeznam,
   skorePotraviny,
   vyberKandidata,
@@ -252,6 +253,39 @@ describe("vygenerujTydenniPlan", () => {
     for (const [id, gramy] of ocekavane) {
       expect(skutecne.get(id)).toBe(gramy);
     }
+  });
+});
+
+/* ============================================================
+ * POČET JÍDEL DENNĚ
+ * ============================================================ */
+
+describe("podilyProPocetJidel", () => {
+  it("výchozí 4 jídla odpovídají PODILY_JIDEL", () => {
+    expect(podilyProPocetJidel(4)).toEqual({
+      Snídaně: 0.25, Oběd: 0.35, Svačina: 0.15, Večeře: 0.25,
+    });
+  });
+
+  it("podíly se pro každý počet 2–8 sčítají na 1", () => {
+    for (let n = 2; n <= 8; n++) {
+      const podily = podilyProPocetJidel(n);
+      expect(Object.keys(podily).length).toBe(n);
+      const soucet = Object.values(podily).reduce((s, v) => s + v, 0);
+      expect(soucet).toBeCloseTo(1, 6);
+    }
+  });
+
+  it("mimo rozsah se sevře na 2–8", () => {
+    expect(Object.keys(podilyProPocetJidel(0)).length).toBe(2);
+    expect(Object.keys(podilyProPocetJidel(99)).length).toBe(8);
+  });
+
+  it("generátor respektuje počet jídel z profilu", () => {
+    const den3 = vygenerujJidelnicek(KATALOG, CILE, 3, 0.85, 3);
+    expect(Object.keys(den3.jidelnicek)).toEqual(["Snídaně", "Oběd", "Večeře"]);
+    const den6 = vygenerujJidelnicek(KATALOG, CILE, 3, 0.85, 6);
+    expect(Object.keys(den6.jidelnicek).length).toBe(6);
   });
 });
 

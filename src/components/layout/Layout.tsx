@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  Carrot,
   ChefHat,
   CookingPot,
   Leaf,
@@ -34,6 +35,7 @@ const SEKCE: Sekce[] = [
   { cesta: "/", nazev: "Přehled", ikona: Receipt, vListe: true },
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
   { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat, vListe: true },
+  { cesta: "/potraviny", nazev: "Potraviny", ikona: Carrot },
   { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot, vListe: true },
   { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket, vListe: true },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },

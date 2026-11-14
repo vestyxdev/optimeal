@@ -6,6 +6,7 @@ import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import {
   nactiAktivniCile,
@@ -88,6 +89,7 @@ export function Ucet() {
         cilTela: p.cilTela ?? undefined,
         teloTukProcento: p.teloTukProcento ?? null,
         tydennyRozpocetKc: p.tydennyRozpocetKc ?? null,
+        pocetJidelDenne: p.pocetJidelDenne,
       });
       // cíle z profilu: vždy přepočet + aktivace
       const c = nahledCilu(p);
@@ -273,6 +275,19 @@ export function Ucet() {
               placeholder="Např. 1200"
             />
           </div>
+          <div>
+            <Label htmlFor="pocetJidel">Jídel denně</Label>
+            <select
+              id="pocetJidel"
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg focus:outline-2 focus:outline-primary"
+              value={form.pocetJidelDenne}
+              onChange={(e) => uprav({ pocetJidelDenne: Number(e.target.value) })}
+            >
+              {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                <option key={n} value={n}>{n}× denně</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* náhled vypočtu */}
@@ -327,6 +342,57 @@ export function Ucet() {
           </p>
         </Card>
       )}
+
+      {/* nebezpečná zóna – smazání účtu (GDPR) */}
+      <SekceSmazaniUctu />
     </div>
+  );
+}
+
+/** Smazání účtu přes security-definer RPC – kaskáda uklidí všechna data. */
+function SekceSmazaniUctu() {
+  const { odhlasit } = useAuth();
+  const naviguj = useNavigate();
+  const [maze, setMaze] = useState(false);
+
+  async function smazatUcet() {
+    const klient = supabase;
+    if (!klient) return;
+    if (
+      !window.confirm(
+        "Opravdu chcete trvale smazat účet? Zmizí profil, cíle, plány, nákupní seznamy i vlastní recepty a potraviny. Akce je nevratná.",
+      )
+    ) {
+      return;
+    }
+    setMaze(true);
+    try {
+      const { error } = await klient.rpc("delete_own_account");
+      if (error) throw new Error(error.message);
+      await odhlasit();
+      toast.success("Účet byl trvale smazán.");
+      naviguj("/", { replace: true });
+    } catch (e) {
+      toast.error(`Účet se nepodařilo smazat: ${(e as Error).message}`);
+      setMaze(false);
+    }
+  }
+
+  return (
+    <Card className="border-danger/40">
+      <CardNadpis>Nebezpečná zóna</CardNadpis>
+      <p className="text-sm text-muted">
+        Smazání účtu je trvalé – odstraní profil, cíle, plány, seznamy a vlastní
+        recepty i potraviny.
+      </p>
+      <Button
+        varianta="danger"
+        className="mt-3"
+        onClick={() => void smazatUcet()}
+        disabled={maze}
+      >
+        {maze ? "Mažu účet…" : "Smazat účet"}
+      </Button>
+    </Card>
   );
 }

@@ -109,7 +109,7 @@ export interface NakupniPolozka {
  * KONSTANTY
  * ============================================================ */
 
-/** Podíly denních cílů na jednotlivá jídla */
+/** Podíly denních cílů na jednotlivá jídla (výchozí, 4 jídla) */
 export const PODILY_JIDEL = {
   Snídaně: 0.25,
   Oběd: 0.35,
@@ -118,6 +118,30 @@ export const PODILY_JIDEL = {
 } as const;
 
 export type NazevJidla = keyof typeof PODILY_JIDEL;
+
+/**
+ * Rozdělení dne na N jídel (2–8) podle profilu uživatele.
+ * Podíly vždy sčítají 1,0 a jídla jdou chronologicky.
+ */
+export function podilyProPocetJidel(pocetJidel: number): Record<string, number> {
+  const n = Math.max(2, Math.min(8, Math.round(pocetJidel)));
+  switch (n) {
+    case 2:
+      return { Oběd: 0.55, Večeře: 0.45 };
+    case 3:
+      return { Snídaně: 0.3, Oběd: 0.4, Večeře: 0.3 };
+    case 5:
+      return { Snídaně: 0.22, "Dopolední svačina": 0.08, Oběd: 0.3, "Odpolední svačina": 0.12, Večeře: 0.28 };
+    case 6:
+      return { Snídaně: 0.18, "Dopolední svačina": 0.08, Oběd: 0.27, "Odpolední svačina": 0.1, Večeře: 0.24, "Druhá večeře": 0.13 };
+    case 7:
+      return { Snídaně: 0.16, "Dopolední svačina": 0.07, Oběd: 0.25, "Odpolední svačina": 0.09, Večeře: 0.22, "Druhá večeře": 0.12, "Před spaním": 0.09 };
+    case 8:
+      return { Snídaně: 0.15, "Dopolední svačina": 0.07, Oběd: 0.23, "Odpolední svačina": 0.09, Večeře: 0.2, "Druhá večeře": 0.12, "Před spaním": 0.08, "Pozdní svačina": 0.06 };
+    default:
+      return { ...PODILY_JIDEL };
+  }
+}
 
 /** Bonus ve skóre pro potraviny, které jsou právě ve slevě */
 export const BONUS_SLEVY = 1.25;
@@ -360,6 +384,7 @@ export function vygenerujJidelnicek(
   cile: Cile,
   denniPosun: number | null = null,
   poolMin = 0.85,
+  pocetJidel = 4,
 ): DenVysledek {
   const kategorie = pripravKategorie(potraviny);
 
@@ -375,7 +400,8 @@ export function vygenerujJidelnicek(
   const pouziteId: string[] = [];
   let poradi = 0;
 
-  for (const [nazevJidla, podil] of Object.entries(PODILY_JIDEL) as [NazevJidla, number][]) {
+  const podily = podilyProPocetJidel(pocetJidel);
+  for (const [nazevJidla, podil] of Object.entries(podily)) {
     const jidla = naplanujJidlo(
       kategorie,
       poradi,
@@ -474,7 +500,11 @@ export interface TydenniPlan {
 }
 
 /** Týdenní plán = 7 dnů, každý s vlastní rotací (denniPosun = 1–7). */
-export function vygenerujTydenniPlan(potraviny: Potravina[], cile: Cile): TydenniPlan {
+export function vygenerujTydenniPlan(
+  potraviny: Potravina[],
+  cile: Cile,
+  pocetJidel = 4,
+): TydenniPlan {
   const dny: Record<number, DenVysledek> = {};
   const tyden: SouhrnJidlaBezJidel = {
     kalorie: 0,
@@ -486,7 +516,7 @@ export function vygenerujTydenniPlan(potraviny: Potravina[], cile: Cile): Tydenn
   };
 
   for (let den = 1; den <= 7; den++) {
-    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6);
+    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel);
     dny[den] = vysledek;
 
     tyden.kalorie += vysledek.celkem.kalorie;
