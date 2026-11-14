@@ -57,13 +57,14 @@ const DIETA_NAZVY: Record<string, string> = {
 
 const DAVKA_ZOBRAZENI = 100;
 
-/** Cena pro zobrazení: za balení, pokud známe hmotnost; jinak za 100 g. */
+/** Cena pro zobrazení: za balení, pokud známe hmotnost; vážené zboží za kg. */
 function cenaLabel(p: KatalogPotravina, cena: number): string {
   if (cena <= 0) return "—";
   if (p.baleniG && p.baleniG > 0) {
     return `~${Math.round((cena * p.baleniG) / 100)} Kč (${p.baleniG} g)`;
   }
-  return `${cena.toFixed(2)} Kč/100 g`;
+  // ceny jsou v DB za 100 g → ×10 = Kč/kg, česká konvence pro vážené zboží
+  return `${(cena * 10).toFixed(2).replace(".", ",")} Kč/kg`;
 }
 
 const KATEGORIE_IKONY: Record<string, typeof Apple> = {

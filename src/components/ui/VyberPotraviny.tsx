@@ -28,13 +28,14 @@ export interface PolozkaVyberu {
   baleniG?: number | null;
 }
 
-/** Cena pro zobrazení: za balení („~25 Kč · 400 g"), jinak za 100 g. */
+/** Cena pro zobrazení: za balení („~25 Kč · 400 g"), vážené zboží za kg. */
 function cenaLabel(p: PolozkaVyberu): string | null {
   if (p.aktualniCena <= 0) return null;
   if (p.baleniG && p.baleniG > 0) {
     return `~${Math.round((p.aktualniCena * p.baleniG) / 100)} Kč · ${p.baleniG} g`;
   }
-  return `${p.aktualniCena.toFixed(2)} Kč/100 g`;
+  // ceny jsou v DB za 100 g → ×10 = Kč/kg, česká konvence pro vážené zboží
+  return `${(p.aktualniCena * 10).toFixed(2).replace(".", ",")} Kč/kg`;
 }
 
 const norm = (s: string) =>
@@ -454,7 +455,7 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
           {p.aktualniCena > 0
             ? p.baleniG
               ? `~${Math.round((p.aktualniCena * p.baleniG) / 100)} Kč`
-              : `${p.aktualniCena.toFixed(2)} Kč`
+              : `${(p.aktualniCena * 10).toFixed(2).replace(".", ",")} Kč/kg`
             : "—"}
         </span>
         <span className="grid size-7 place-items-center rounded-full bg-primary text-primary-fg transition-transform group-hover:scale-110">
