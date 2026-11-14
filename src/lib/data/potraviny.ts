@@ -9,6 +9,7 @@ import type { Potravina } from "@/lib/generator/generator";
 export interface KatalogPotravina extends Potravina {
   vytvoril: string | null;
   zdroj: string;
+  obrazek: string | null;
 }
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
@@ -38,6 +39,7 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     zdroj: (r.zdroj_potraviny as string) ?? "manual",
     alergeny: (r.alergeny as string[]) ?? [],
     diety: (r.diety as string[]) ?? [],
+    obrazek: (r.obrazek ?? null) as string | null,
   }));
 }
 
@@ -86,24 +88,30 @@ export async function upravPotravinu(
     tuky: number;
     beznaCena: number;
     ean?: string | null;
+    obrazek?: string | null;
   },
 ): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { error } = await klient
-    .from("foods")
-    .update({
-      nazev: p.nazev.trim(),
-      kategorie: p.kategorie,
-      kalorie: p.kalorie,
-      bilkoviny: p.bilkoviny,
-      sacharidy: p.sacharidy,
-      tuky: p.tuky,
-      bezna_cena: p.beznaCena,
-      ean: p.ean ?? null,
-    })
-    .eq("id", id);
+  const payload: Record<string, unknown> = {
+    nazev: p.nazev.trim(),
+    kategorie: p.kategorie,
+    kalorie: p.kalorie,
+    bilkoviny: p.bilkoviny,
+    sacharidy: p.sacharidy,
+    tuky: p.tuky,
+    bezna_cena: p.beznaCena,
+    ean: p.ean ?? null,
+  };
+  if (p.obrazek !== undefined) payload.obrazek = p.obrazek;
+
+  let { error } = await klient.from("foods").update(payload).eq("id", id);
+  // Schéma bez migrace 0009 nezná sloupec obrazek – zkusit znovu bez něj.
+  if (error && payload.obrazek !== undefined && /obrazek|PGRST204/i.test(`${error.code} ${error.message}`)) {
+    delete payload.obrazek;
+    ({ error } = await klient.from("foods").update(payload).eq("id", id));
+  }
 
   if (error) {
     if (error.message.includes("duplicate") || error.code === "23505") {
@@ -138,6 +146,7 @@ export async function pridejPotravinu(p: {
   tuky: number;
   beznaCena: number;
   ean?: string | null;
+  obrazek?: string | null;
 }): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -148,23 +157,31 @@ export async function pridejPotravinu(p: {
   } = await klient.auth.getUser();
   if (authChyba || !user) throw new Error("Pro přidání potraviny se musíte přihlásit.");
 
-  const { data, error } = await klient
+  const payload: Record<string, unknown> = {
+    nazev: p.nazev.trim(),
+    kategorie: p.kategorie,
+    kalorie: p.kalorie,
+    bilkoviny: p.bilkoviny,
+    sacharidy: p.sacharidy,
+    tuky: p.tuky,
+    bezna_cena: p.beznaCena,
+    ean: p.ean ?? null,
+    zdroj: "uzivatel",
+    vytvoril: user.id,
+    schvaleno: true,
+  };
+  if (p.obrazek != null) payload.obrazek = p.obrazek;
+
+  let { data, error } = await klient
     .from("foods")
-    .insert({
-      nazev: p.nazev.trim(),
-      kategorie: p.kategorie,
-      kalorie: p.kalorie,
-      bilkoviny: p.bilkoviny,
-      sacharidy: p.sacharidy,
-      tuky: p.tuky,
-      bezna_cena: p.beznaCena,
-      ean: p.ean ?? null,
-      zdroj: "uzivatel",
-      vytvoril: user.id,
-      schvaleno: true,
-    })
+    .insert(payload)
     .select("id")
     .single();
+  // Schéma bez migrace 0009 nezná sloupec obrazek – zkusit znovu bez něj.
+  if (error && payload.obrazek !== undefined && /obrazek|PGRST204/i.test(`${error.code} ${error.message}`)) {
+    delete payload.obrazek;
+    ({ data, error } = await klient.from("foods").insert(payload).select("id").single());
+  }
 
   if (error) {
     if (error.message.includes("duplicate") || error.code === "23505") {
@@ -172,6 +189,7 @@ export async function pridejPotravinu(p: {
     }
     throw new Error(`Potravinu se nepodařilo uložit: ${error.message}`);
   }
+  if (!data) throw new Error("Potravina se uložila, ale server nevrátil id.");
   return data.id as string;
 }
 
@@ -194,11 +212,14 @@ export interface OffNalezenaPotravina {
   bilkoviny: number | null;
   sacharidy: number | null;
   tuky: number | null;
+  obrazek: string | null;
 }
 
 export interface OffProdukt {
   product_name?: string;
   product_name_cs?: string;
+  image_small_url?: string;
+  image_front_small_url?: string;
   nutriments?: Record<string, unknown>;
 }
 
@@ -228,6 +249,7 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
     bilkoviny: cisloOff(n.proteins_100g),
     sacharidy: cisloOff(n.carbohydrates_100g),
     tuky: cisloOff(n.fat_100g),
+    obrazek: (p.image_small_url ?? p.image_front_small_url ?? "").trim() || null,
   };
 }
 
@@ -290,7 +312,7 @@ export async function nactiOffPodleEan(
   const ean = normalizujEan(vstup);
   if (ean === null) throw new Error("Zadejte platný čárový kód (8–14 číslic).");
 
-  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,nutriments`;
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,image_small_url,image_front_small_url,nutriments`;
   const odpoved = await fetch(url, {
     headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
   });

@@ -258,6 +258,15 @@ function RadekPotraviny({
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
       <td className="px-4 py-2.5">
+        {p.obrazek && (
+          <img
+            src={p.obrazek}
+            alt=""
+            loading="lazy"
+            className="mr-2 inline-block size-8 rounded-md object-cover align-middle"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        )}
         <span className="font-medium">{p.nazev}</span>
         <span className="ml-2 inline-flex gap-1">
           {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
@@ -359,6 +368,8 @@ function FormNovePotraviny({
   const [ean, setEan] = useState("");
   const [skenovani, setSkenovani] = useState(false);
   const [offKandidati, setOffKandidati] = useState<OffNalezenaPotravina[]>([]);
+  // undefined = nebylo dohledáno (u editace ponechat stávající obrázek)
+  const [obrazek, setObrazek] = useState<string | null | undefined>(undefined);
 
   // Při editaci dotáhnout uložený EAN (v aktualni_ceny sloupec není).
   const detail = useQuery({
@@ -395,6 +406,7 @@ function FormNovePotraviny({
         tuky: cislo(f.tuky, "Tuky", 100),
         beznaCena: cislo(f.cena, "Cena", 1000),
         ean: normalizujEan(ean),
+        ...(obrazek !== undefined ? { obrazek } : {}),
       };
       if (editovana) {
         await upravPotravinu(editovana.id, hodnoty);
@@ -420,6 +432,7 @@ function FormNovePotraviny({
       sacharidy: nalezena.sacharidy?.toString() ?? pred.sacharidy,
       tuky: nalezena.tuky?.toString() ?? pred.tuky,
     }));
+    setObrazek(nalezena.obrazek);
     setOffKandidati([]);
     toast.success("Hodnoty doplněny z OpenFoodFacts – cenu doplňte ručně.");
   }
@@ -483,6 +496,7 @@ function FormNovePotraviny({
         sacharidy: nalezena.sacharidy?.toString() ?? pred.sacharidy,
         tuky: nalezena.tuky?.toString() ?? pred.tuky,
       }));
+      setObrazek(nalezena.obrazek);
       toast.success(`„${nalezena.nazev}" nalezen – kategorii a cenu doplňte ručně.`);
     } catch (e) {
       toast.error((e as Error).message);
@@ -592,6 +606,15 @@ function FormNovePotraviny({
                     onClick={() => aplikujOff(k)}
                     className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
                   >
+                    {k.obrazek && (
+                      <img
+                        src={k.obrazek}
+                        alt=""
+                        loading="lazy"
+                        className="size-8 shrink-0 rounded-md object-cover"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    )}
                     <span className="min-w-0 truncate font-medium">{k.nazev}</span>
                     <span className="shrink-0 text-xs tabular-nums text-muted">
                       {k.kalorie ?? "?"} kcal · B {k.bilkoviny ?? "?"} · S {k.sacharidy ?? "?"} · T {k.tuky ?? "?"}

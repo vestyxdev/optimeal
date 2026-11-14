@@ -7,6 +7,7 @@ describe("parsujOffProdukty", () => {
       {
         product_name: "Skyr natural",
         product_name_cs: "Skyr přírodní",
+        image_small_url: "https://images.off.org/skyr.jpg",
         nutriments: {
           "energy-kcal_100g": 63,
           proteins_100g: 11,
@@ -21,6 +22,7 @@ describe("parsujOffProdukty", () => {
       bilkoviny: 11,
       sacharidy: 4,
       tuky: 0.2,
+      obrazek: "https://images.off.org/skyr.jpg",
     });
   });
 
