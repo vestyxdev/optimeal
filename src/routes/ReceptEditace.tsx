@@ -16,6 +16,7 @@ import {
   upravRecept,
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { Skeleton } from "@/components/ui/Nacitani";
 import { cn } from "@/lib/cn";
 
 /**
@@ -138,7 +139,12 @@ export function ReceptEditace() {
   const potraviny = dotazPotraviny.data ?? [];
 
   if (editace && dotazRecept.isLoading) {
-    return <p className="text-sm text-muted">Načítám recept…</p>;
+    return (
+      <div className="space-y-3" aria-label="Načítám recept">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
   if (editace && (dotazRecept.isError || !dotazRecept.data)) {
     return (
@@ -227,7 +233,7 @@ export function ReceptEditace() {
                     <option value="">— potravina —</option>
                     {potraviny.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.nazev} ({p.aktualniCena.toFixed(2)} Kč/100 g{p.sleva ? " 🏷" : ""})
+                        {p.nazev} ({p.aktualniCena.toFixed(2)} Kč/100 g{p.sleva ? " – sleva" : ""})
                       </option>
                     ))}
                   </select>

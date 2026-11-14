@@ -12,6 +12,7 @@ import { ObnoveniHesla } from "@/routes/ObnoveniHesla";
 import { NoveHeslo } from "@/routes/NoveHeslo";
 import { VyzadujePrihlaseni } from "@/components/layout/VyzadujePrihlaseni";
 import { Nenalezeno } from "@/routes/Nenalezeno";
+import { Skeleton } from "@/components/ui/Nacitani";
 
 // těžké routy se načítají lazy – hlavní bundle zůstane malý
 const Ucet = lazy(() => import("@/routes/Ucet").then((m) => ({ default: m.Ucet })));
@@ -34,7 +35,15 @@ export default function App() {
   return (
     <MotivPoskytovatel>
       <AuthPoskytovatel>
-        <Suspense fallback={<p className="p-6 text-sm text-muted">Načítám stránku…</p>}>
+        <Suspense
+          fallback={
+            <div className="om-kontejner w-full space-y-3 py-6" aria-label="Načítám stránku">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          }
+        >
         <Routes>
           {/* samostatné stránky bez shellu */}
           <Route path="/prihlaseni" element={<Prihlaseni />} />

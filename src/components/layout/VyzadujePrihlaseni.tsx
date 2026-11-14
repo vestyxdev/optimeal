@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/Nacitani";
 
 /**
  * Ochrana rout – nepřihlášeného uživatele přesměruje na přihlášení
@@ -11,7 +12,12 @@ export function VyzadujePrihlaseni({ children }: { children: ReactNode }) {
   const lokalita = useLocation();
 
   if (nacitaSe) {
-    return <p className="text-sm text-muted">Načítám…</p>;
+    return (
+      <div className="space-y-3" aria-label="Načítám">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
   if (!uzivatel) {
     return (
