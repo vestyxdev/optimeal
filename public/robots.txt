@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /ucet
+Disallow: /nastaveni
+Disallow: /nakup
+Disallow: /mealprep
+Disallow: /plany/

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CalendarDays, Printer, Save, ShoppingBasket, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input, Label } from "@/components/ui/Input";
@@ -31,9 +32,24 @@ import {
  */
 
 function naCislo(hodnota: string, vychozi: number): number {
-  const n = Number(hodnota.replace(",", "."));
-  return Number.isFinite(n) ? n : vychozi;
+  const t = hodnota.trim();
+  if (t === "") return vychozi;
+  const n = Number(t.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : vychozi;
 }
+
+/** České názvy pro indikaci aktivních filtrů z profilu. */
+const DIETA_NAZVY: Record<string, string> = {
+  vegetariansky: "vegetariánská",
+  vegansky: "veganská",
+  bezlepkovy: "bezlepková",
+};
+const ALERGEN_NAZVY: Record<string, string> = {
+  lepek: "lepek", korisi: "korýši", vejce: "vejce", ryby: "ryby",
+  arasidy: "arašídy", soja: "sója", mleko: "mléko", orisky: "ořechy",
+  skorocel: "celer", horcice: "hořčice", sezam: "sezam",
+  sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
+};
 
 export function Jidelnicek() {
   const { uzivatel } = useAuth();
@@ -193,6 +209,18 @@ export function Jidelnicek() {
           </div>
         </div>
 
+        {filtr && (filtr.diety.length > 0 || filtr.alergeny.length > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            <span>Generátor respektuje vaše nastavení:</span>
+            {filtr.diety.map((d) => (
+              <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d} dieta</Badge>
+            ))}
+            {filtr.alergeny.map((a) => (
+              <Badge key={a} tono="accent">bez {ALERGEN_NAZVY[a] ?? a}</Badge>
+            ))}
+          </div>
+        )}
+
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button onClick={generuj} disabled={dotazPotraviny.isLoading}>
             {typ === "den" ? "Vygenerovat den" : "Vygenerovat týden"}
@@ -246,8 +274,15 @@ export function Jidelnicek() {
       {/* načítání / chyba katalogu */}
       {dotazPotraviny.isLoading && <Skeleton className="h-24" />}
       {dotazPotraviny.isError && (
-        <Card className="bg-danger-soft text-sm text-danger">
-          {(dotazPotraviny.error as Error).message}
+        <Card className="flex flex-wrap items-center justify-between gap-3 bg-danger-soft text-sm text-danger">
+          <span>{(dotazPotraviny.error as Error).message}</span>
+          <Button
+            varianta="outline"
+            velikost="sm"
+            onClick={() => void dotazPotraviny.refetch()}
+          >
+            Zkusit znovu
+          </Button>
         </Card>
       )}
 
