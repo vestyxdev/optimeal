@@ -49,7 +49,9 @@ export function Dialog({
         if (e.target === ref.current) naZavreni();
       }}
       className={cn(
-        "m-auto flex max-h-[85dvh] w-[min(92vw,26rem)] flex-col rounded-card border border-border bg-surface p-0 text-fg",
+        // pozor: nesmíme přepsat display (flex/grid by rozbily nativní
+        // `dialog:not([open]) { display: none }` – scroll řeší overflow-y
+        "m-auto w-[min(92vw,26rem)] max-h-[85dvh] overflow-y-auto rounded-card border border-border bg-surface p-0 text-fg",
         "shadow-xl backdrop:bg-black/40 backdrop:backdrop-blur-[2px]",
       )}
     >
