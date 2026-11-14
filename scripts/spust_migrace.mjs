@@ -2,8 +2,9 @@
  * spust_migrace.mjs – připojí se k Supabase Postgres a pustí
  * migrační + seed soubory v správném pořadí.
  *
- * Použití: node scripts/spust_migrace.mjs "<heslo-k-db>"
- * Heslo se NEUKLÁDÁ – jde jen jako argument procesu.
+ * Použití: node scripts/spust_migrace.mjs [heslo-k-db]
+ * Heslo: argument příkazové řádky, nebo SUPABASE_DB_PASSWORD
+ * v .env.local (gitignorované). Mimo repozitář se neukládá.
  *
  * Idempotentní: aplikované migrace se zapisují do public.om_migrace
  * a při dalším běhu se přeskakují. Migrace aplikované ještě před
@@ -18,11 +19,15 @@ import pg from "pg";
 
 const SLOZKA = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+try {
+  process.loadEnvFile(resolve(dirname(fileURLToPath(import.meta.url)), "..", ".env.local"));
+} catch { /* .env.local nemusí existovat – heslo pak musí přijít argumentem */ }
+
 const PROJECT_REF = process.env.SUPABASE_REF ?? "gduquvqofcohbjzzsicb";
-const HESLO = process.argv[2];
+const HESLO = process.argv[2] ?? process.env.SUPABASE_DB_PASSWORD;
 
 if (!HESLO) {
-  console.error("Pouzití: node scripts/spust_migrace.mjs \"<heslo>\"");
+  console.error("Pouzití: node scripts/spust_migrace.mjs \"<heslo>\" – nebo SUPABASE_DB_PASSWORD v .env.local");
   process.exit(1);
 }
 
