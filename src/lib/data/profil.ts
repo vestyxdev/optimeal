@@ -142,6 +142,12 @@ export async function ulozCile(c: Cile, zdroj: "auto" | "manual"): Promise<void>
   const { data: uzivatel } = await klient.auth.getUser();
   if (!uzivatel.user) throw new Error("Není přihlášen.");
 
+  // snapshot aktivních řádků pro případné vrácení zpět
+  const { data: aktivniPred } = await klient
+    .from("nutrition_goals")
+    .select("id")
+    .eq("aktivni", true);
+
   // deaktivace starých (RLS omezí na vlastní)
   const { error: errDeakt } = await klient
     .from("nutrition_goals")
@@ -158,5 +164,12 @@ export async function ulozCile(c: Cile, zdroj: "auto" | "manual"): Promise<void>
     zdroj,
     aktivni: true,
   });
-  if (error) throw new Error(`Cíle se neuložily: ${error.message}`);
+  if (error) {
+    // obnovit předchozí aktivní sadu, ať uživatel nezůstane bez cílů
+    const ids = (aktivniPred ?? []).map((r) => r.id as string);
+    if (ids.length > 0) {
+      await klient.from("nutrition_goals").update({ aktivni: true }).in("id", ids);
+    }
+    throw new Error(`Cíle se neuložily: ${error.message}`);
+  }
 }
