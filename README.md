@@ -93,14 +93,18 @@ Migrace:
 
 - **Produkce:** https://optimeal-woad.vercel.app (Vercel projekt `vertyx1/optimeal`,
   napojený na GitHub – každý push do `main` se automaticky nasadí).
-- **Vercel:** `vercel.json` rewrite `/ → /index.html` (v repu).
+- **Vercel:** `vercel.json` rewrite `/ → /index.html`, security hlavičky
+  (`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`)
+  a immutable cache na `/assets` (v repu).
 - **Netlify:** `public/_redirects` SPA fallback (v repu).
 - Env proměnné `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` nastavte v panelu
   hostingu – ne v repozitáři.
 - **Databáze:** Supabase projekt `gduquvqofcohbjzzsicb` (region eu-west-2);
-  migrace `supabase/migrations/0001`–`0009` + `seed.sql` aplikovány
-  (103 potravin, RLS, RPC `uloz_*`). Změny schématu:
-  `node scripts/spust_migrace.mjs "<db-heslo>"`.
+  migrace `supabase/migrations/0001`–`0009` + seedy aplikovány
+  (103 potravin – 66 s EAN, 77 s obrázkem – RLS, RPC `uloz_*`).
+  Změny schématu: `node scripts/spust_migrace.mjs "<db-heslo>"`
+  (idempotentní, sleduje `public.om_migrace`). Obohacení katalogu:
+  `dopln_obrazky.mjs`, `dopln_obrazky_ean.mjs`, `dopln_ean.mjs`.
 
 ## Scraper cen (ingest)
 
