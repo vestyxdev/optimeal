@@ -2,17 +2,25 @@
 
 **Jezte lépe. Šetřete peníze. Plánujte chytře.**
 
-Osobní jídelníček podle vašich cílů, mealprep na více dní a nákupní
-seznam s aktuálními slevami z českých obchodů – v jedné aplikaci.
+OptiMeal je webová aplikace pro chytré plánování jídelníčku. Z tělesných
+údajů a cíle uživatele spočítá denní nutriční cíle (TDEE, Mifflin–St Jeor),
+sestaví jídelníček z reálného katalogu potravin **s ohledem na aktuální
+slevy v českých supermarketech** a vytvoří nákupní seznam optimalizovaný
+podle ceny. Podporuje diety (vegetariánská, veganská, bezlepková),
+alergie (EU-14 alergenů) a vlastní recepty.
+
+Živá ukázka: **https://optimeal-woad.vercel.app**
 
 ## Stack
 
-- **Frontend:** React 19 + Vite + TypeScript (strict) + Tailwind CSS v4
-- **Backend/data:** Supabase (PostgreSQL + Auth + RLS)
+- **Frontend:** React 19 + Vite 8 + TypeScript (strict, `exactOptionalPropertyTypes`)
+- **UI:** Tailwind CSS 4 (vlastní design-tokeny, světlý/tmavý motiv), lucide-react, sonner
+- **Backend/data:** Supabase – PostgreSQL 15 + Row Level Security + GoTrue Auth + PostgREST
 - **State/form:** TanStack Query 5, React Router 7, React Hook Form + Zod
-- **Vizualizace:** Recharts (lazy chunk)
-- **Testy:** Vitest
-- **Data ingestion:** Python scraper (letáky/ceny) běžící přes GitHub Actions
+- **Vizualizace:** Recharts (lazy chunk – mimo hlavní bundle)
+- **Testy:** Vitest + Testing Library (133 testů)
+- **Data pipeline:** Python 3.12 scraper (Open Prices API) v GitHub Actions
+- **Hosting:** Vercel (auto-deploy z `main`)
 
 ## Vývoj
 
@@ -43,13 +51,31 @@ Jedním příkazem přes pooler (heslo se předává argumentem, neukládá se):
 node scripts/spust_migrace.mjs "<heslo-k-databazi>"
 ```
 
-Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0008)
+Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0009)
 a oba seedy (`seed.sql` potraviny + `seed_recepty.sql` recepty). Seedy jsou
-idempotentní – skript lze spustit opakovaně.
+idempotentní – skript lze spustit opakovaně; aplikované soubory se sledují
+v tabulce `public.om_migrace`.
 
 **Důležité pořadí:** migrace běží před seedy – naplňují-li migrace data,
 spustí se nad prázdnými tabulkami. Proto naplnění `alergeny`/`diety`
 žije na konci `seed.sql` (až po `INSERT`ech potravin), ne v migraci 0006.
+
+### Přehled schématu
+
+| Tabulka | Účel |
+|---|---|
+| `profiles` | tělesné údaje, cíl těla, dieta, alergie, rozpočet, počet jídel |
+| `nutrition_goals` | denní cíle (kcal + B/S/T); max 1 aktivní (partial unique index) |
+| `foods` | globální katalog: makra/100 g, cena/100 g, EAN, alergeny, diety, obrázek |
+| `retailers` + `price_observations` | obchody a neměnná historie cenových pozorování |
+| `aktualni_ceny` (view) | poslední cena na potravinu – sleva, pokud platí |
+| `meal_plans` | uložené plány (`den`/`tyden`/`mealprep`), obsah jako JSONB |
+| `shopping_lists` + `shopping_list_items` | nákupní seznamy; položka odkazuje na `foods` nebo je ruční |
+| `recipes` + `recipe_ingredients` | globální i uživatelské recepty (gramáž na porci) |
+| `om_migrace` | tracking aplikovaných migrací |
+
+Bezpečnost řeší výhradně **RLS politiky** – uživatel čte/píše jen vlastní
+záznamy; katalog a globální recepty jsou čitelné i anonymně.
 
 Migrace:
 
@@ -88,6 +114,49 @@ Migrace:
   počet jídel denně, týdenní rozpočet, smazání účtu (GDPR).
 - **Auth** – registrace, přihlášení, obnovení hesla + nové heslo,
   chráněné routy (`VyzadujePrihlaseni`), odhlášení.
+
+## Jak funguje generátor (sleva → jídelníček)
+
+Čisté funkce v `src/lib/generator/generator.ts`:
+
+1. **Cíle na jídla** – denní cíle se rozdělí podle fixních podílů
+   (Snídaně 25 %, Oběd 35 %, Svačina 15 %, Večeře 25 %; pro jiný
+   `pocet_jidel_denne` se podíly přepočítají).
+2. **Kategorie potravin** – každá potravina spadne podle dominujícího
+   makra (kcal z B/S/T) do `bilkovinova` / `sacharidova` / `tukova`.
+3. **Skóre výhodnosti** = gramy dominujícího makra za 1 Kč
+   (`hodnota / aktualniCena`). Potravina ve slevě dostane bonus **1,25×** –
+   generátor tak automaticky upřednostňuje akční zboží, ale jen pokud je
+   smysluplně výhodné (ne za každou cenu).
+4. **Sestavení jídla** – kotva = bílkovinová potravina (gramáž dle cíle
+   bílkovin), pak doplněk sacharidů (preferují se nízkoproteinové zdroje,
+   aby se „nepřeflakovaly" bílkoviny) a na závěr tuky, vždy v kalorickém
+   stropu jídla a s limitem ostatních maker.
+5. **Různorodost** – použité potraviny se v rámci dne neopakují;
+   rotace probíhá jen mezi cenově srovnatelnými kandidáty
+   (denní plán 85 %, týdenní 60 % skóre nejlepšího). Offset podle
+   dne v týdnu → **deterministický**, ale každý den jiný plán.
+6. **Filtr profilu** – před výběrem se katalog profiltruje na diety
+   (potravina musí vyhovovat všem) a alergeny (nesmí obsahovat žádný).
+7. **Výměna jídla** (`vymenJidlo`) – náhrada nesmí použít potraviny
+   jiných jídel ani původního jídla → garantovaně jiná kombinace
+   při zachování cílů i filtru; jinak vrací `null`.
+
+## Demo účty (prezentace)
+
+Produkce obsahuje 4 nasazené persony s realistickou historií
+(skript `scripts/seed_demo.mjs` – plány generuje skutečný algoritmus):
+
+| Účet | Heslo | Persona |
+|---|---|---|
+| `kaja@demo.optimeal.cz` | `OptiMeal2025!` | kulturista, 3500 kcal, 5 jídel/den |
+| `petra@demo.optimeal.cz` | `OptiMeal2025!` | hubnutí, 1750 kcal, 4 jídla |
+| `verca@demo.optimeal.cz` | `OptiMeal2025!` | **veganka + alergie na ořechy** (demo filtrů), vlastní recept |
+| `tonda@demo.optimeal.cz` | `OptiMeal2025!` | 3 jídla/den, alergie na ryby, 2 nákupní seznamy |
+
+Každý účet má profil s tělesnými údaji, aktivní nutriční cíle,
+2–3 uložené plány (denní i týdenní, datované do minulosti) a nákupní
+seznamy s částečně odškrtnutými položkami.
 
 ## Nasazení (SPA)
 
