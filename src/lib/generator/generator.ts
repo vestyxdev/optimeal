@@ -507,9 +507,15 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
           id: jidlo.id,
           nazev: jidlo.nazev,
           gramy: 0,
-          cenaZa100g: jidlo.gramy > 0 ? Math.round(((jidlo.cena * 100) / jidlo.gramy) * 100) / 100 : 0,
+          // potravina bez ceny (0 Kč) → null → UI ukáže „—", stejně jako mealprep
+          cenaZa100g:
+            jidlo.gramy > 0 && jidlo.cena > 0
+              ? Math.round(((jidlo.cena * 100) / jidlo.gramy) * 100) / 100
+              : null,
           cenaBeznaZa100g:
-            jidlo.gramy > 0 ? Math.round(((jidlo.cenaBezna * 100) / jidlo.gramy) * 100) / 100 : null,
+            jidlo.gramy > 0 && jidlo.cenaBezna > 0
+              ? Math.round(((jidlo.cenaBezna * 100) / jidlo.gramy) * 100) / 100
+              : null,
           obchod: jidlo.obchod,
           sleva: jidlo.sleva,
           cenaCelkem: 0,
@@ -524,11 +530,12 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
   const seznam: NakupniPolozka[] = [];
   for (const polozka of mapa.values()) {
     polozka.cenaCelkem = Math.round(((polozka.gramy * (polozka.cenaZa100g ?? 0)) / 100) * 100) / 100;
+    // úspora jen u ocejněných položek – bez aktuální ceny nelze ušetřit spočítat
     polozka.usetreno =
-      polozka.cenaBeznaZa100g !== null
+      polozka.cenaBeznaZa100g !== null && polozka.cenaZa100g !== null
         ? Math.max(
             0,
-            Math.round(((polozka.gramy * (polozka.cenaBeznaZa100g - (polozka.cenaZa100g ?? 0))) / 100) * 100) / 100,
+            Math.round(((polozka.gramy * (polozka.cenaBeznaZa100g - polozka.cenaZa100g)) / 100) * 100) / 100,
           )
         : 0;
     seznam.push(polozka);

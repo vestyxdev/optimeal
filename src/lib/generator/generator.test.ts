@@ -11,7 +11,9 @@ import {
   vyberKandidata,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
+  type Jidlo,
   type Potravina,
+  type SouhrnJidla,
 } from "./generator";
 
 /* ============================================================
@@ -399,5 +401,65 @@ describe("naplanujJidlo – strop ostatních maker", () => {
     const brambory = jidla.find((j) => j.id === "b1");
     expect(brambory).toBeDefined();
     expect(brambory!.sacharidy).toBeGreaterThan(20);
+  });
+});
+
+describe("sestavNakupniSeznam – matematika seznamu", () => {
+  const j = (
+    id: string,
+    nazev: string,
+    gramy: number,
+    cena: number,
+    cenaBezna: number,
+    obchod: string | null = null,
+  ): Jidlo => ({
+    id, nazev, gramy,
+    kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0,
+    cena, cenaBezna, obchod, sleva: cena < cenaBezna,
+  });
+
+  const den = (jidla: Jidlo[]): Record<string, SouhrnJidla> => ({
+    Snídaně: { jidla, kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 },
+  });
+
+  it("stejná potravina ve dvou jídlech se sloučí a sečte gramáž", () => {
+    const jidelnicek = {
+      Snídaně: { jidla: [j("1", "Ovesné vločky", 80, 8, 8)], kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 },
+      Svačina: { jidla: [j("1", "Ovesné vločky", 40, 4, 4)], kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 },
+    };
+    const seznam = sestavNakupniSeznam(jidelnicek);
+    expect(seznam).toHaveLength(1);
+    expect(seznam[0]!.gramy).toBe(120);
+    // 10 Kč/100 g → 12 Kč celkem
+    expect(seznam[0]!.cenaZa100g).toBe(10);
+    expect(seznam[0]!.cenaCelkem).toBe(12);
+  });
+
+  it("potravina bez ceny má cenaZa100g null (UI ukáže pomlčku), ne 0", () => {
+    const seznam = sestavNakupniSeznam(den([j("x", "Bylinky", 20, 0, 0)]));
+    expect(seznam[0]!.cenaZa100g).toBeNull();
+    expect(seznam[0]!.cenaCelkem).toBe(0);
+    expect(seznam[0]!.usetreno).toBe(0);
+  });
+
+  it("úspora ze slevy se počítá (běžná − akční) × gramy", () => {
+    // 200 g, akce 5 Kč/100 g, běžná 8 Kč/100 g → ušetřeno 6 Kč
+    const seznam = sestavNakupniSeznam(den([j("s", "Kuře", 200, 10, 16)]));
+    expect(seznam[0]!.cenaZa100g).toBe(5);
+    expect(seznam[0]!.cenaBeznaZa100g).toBe(8);
+    expect(seznam[0]!.usetreno).toBe(6);
+  });
+
+  it("při růstu ceny (dražší než běžná) úspora nikdy neklesne pod nulu", () => {
+    const seznam = sestavNakupniSeznam(den([j("d", "Dražší", 100, 12, 10)]));
+    expect(seznam[0]!.usetreno).toBe(0);
+  });
+
+  it("seznam se řadí od nejdražší položky", () => {
+    const seznam = sestavNakupniSeznam(
+      den([j("a", "Levná", 100, 2, 2), j("b", "Drahá", 100, 50, 50)]),
+    );
+    expect(seznam[0]!.id).toBe("b");
+    expect(seznam[1]!.id).toBe("a");
   });
 });
