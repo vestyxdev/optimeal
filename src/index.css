@@ -223,6 +223,27 @@ h2,
   );
 }
 
+/* obří vodotisk „Kč“ za obsahem hrdiny – podpis značky */
+.om-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.om-hero::after {
+  content: "Kč";
+  position: absolute;
+  right: -0.5rem;
+  bottom: -3.5rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11rem;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.07);
+  transform: rotate(-8deg);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* jediná nekonzumovaná animace – účtenka „vyleze“ při načtení hrdiny */
 @keyframes om-uctenka-in {
   from {

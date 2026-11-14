@@ -320,8 +320,8 @@ function Hero({
   vizual?: ReactNode;
 }) {
   return (
-    <div className="rounded-card bg-primary-hero px-6 py-10 text-white md:px-10 md:py-14">
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+    <div className="om-hero rounded-card bg-primary-hero px-6 py-10 text-white md:px-10 md:py-14">
+      <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
         <div className="min-w-0">
           <Badge tono="accent" className="mb-4">
             Chytrá strava pro Česko
