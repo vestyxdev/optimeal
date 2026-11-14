@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowLeft, ChefHat, Clock, Pencil, Printer, Tag, Trash2, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Button } from "@/components/ui/Button";
 import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
@@ -151,15 +152,7 @@ export function ReceptDetail() {
                     <tr key={s.foodId} className="border-b border-border last:border-0">
                       <td className="px-5 py-2 font-medium">
                         <span className="flex items-center gap-2">
-                          {s.obrazek && (
-                            <img
-                              src={s.obrazek}
-                              alt=""
-                              loading="lazy"
-                              className="size-7 shrink-0 rounded-md object-cover"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }}
-                            />
-                          )}
+                          <MiniaturaPotraviny obrazek={s.obrazek} velikost="size-7" />
                           <span>
                             {s.nazev}
                             {s.poznamka && <span className="ml-1 text-xs text-muted">({s.poznamka})</span>}

@@ -6,10 +6,11 @@ import type { Cile } from "@/lib/vyziva/cile";
  * Načítá se lazy – recharts nemá být v hlavním bundlu.
  */
 
+// Barvy z design tokenů – v tmavém motivu se automaticky zesvětlí.
 const BARVY = {
-  bilkoviny: "#2d6a4f",
-  sacharidy: "#7fae3e",
-  tuky: "#b45309",
+  bilkoviny: "var(--primary)",
+  sacharidy: "var(--accent)",
+  tuky: "var(--warning)",
 };
 
 export default function MakroGraf({ cile }: { cile: Cile }) {
@@ -38,7 +39,14 @@ export default function MakroGraf({ cile }: { cile: Cile }) {
         <Tooltip
           formatter={(hodnota) => [`${hodnota} kcal`, ""]}
           separator=""
-          contentStyle={{ fontSize: 12 }}
+          contentStyle={{
+            fontSize: 12,
+            backgroundColor: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            color: "var(--fg)",
+          }}
+          itemStyle={{ color: "var(--fg)" }}
         />
         <Legend
           formatter={(hodnota: string) => <span style={{ fontSize: 12 }}>{hodnota}</span>}

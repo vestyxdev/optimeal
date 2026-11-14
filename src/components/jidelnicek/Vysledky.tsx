@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { CalendarDays, PiggyBank, RefreshCw, ShoppingBasket } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import {
   sestavNakupniSeznam,
   type Cile,
@@ -64,15 +65,7 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
           {polozky.map((x) => (
             <tr key={x.id} className="border-b border-border last:border-0">
               <td className="px-5 py-2 font-medium">
-                {x.obrazek && (
-                  <img
-                    src={x.obrazek}
-                    alt=""
-                    loading="lazy"
-                    className="mr-2 inline-block size-7 rounded-md object-cover align-middle"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                )}
+                <MiniaturaPotraviny obrazek={x.obrazek} velikost="size-7" inline />
                 {x.nazev}
                 {x.sleva && <Badge tono="warning" className="ml-2">SLEVA</Badge>}
               </td>
@@ -134,15 +127,7 @@ function MrizkaJidel({
                   <li key={`${j.id}-${i}`} className="px-4 py-3">
                     <div className="flex justify-between gap-2 text-sm font-medium">
                       <span className="flex min-w-0 items-center gap-2">
-                        {j.obrazek && (
-                          <img
-                            src={j.obrazek}
-                            alt=""
-                            loading="lazy"
-                            className="size-8 shrink-0 rounded-md object-cover"
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
-                          />
-                        )}
+                        <MiniaturaPotraviny obrazek={j.obrazek} velikost="size-8" />
                         <span className="min-w-0">{j.nazev}</span>
                       </span>
                       <span className="tabular-nums">{Math.round(j.gramy)} g</span>

@@ -15,6 +15,7 @@ import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { useAuth } from "@/lib/auth";
 import {
+  filtrujPotraviny,
   sestavNakupniSeznam,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
@@ -154,13 +155,30 @@ export function Jidelnicek() {
       toast.error("Katalog potravin se nenačetl.");
       return;
     }
+    const filtrovane = filtrujPotraviny(potraviny, filtr);
+    if (filtrovane.length === 0) {
+      toast.error(
+        "Vaše diety a alergie vyloučily všechny potraviny z katalogu – zkombinovaný filtr je příliš přísný.",
+      );
+      return;
+    }
     setUlozenyPlanId(null);
     nastavNakupUlozen(false);
-    setVysledek(
+    const novy =
       typ === "den"
         ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel, filtr)
-        : vygenerujTydenniPlan(potraviny, cile, pocetJidel, filtr),
-    );
+        : vygenerujTydenniPlan(potraviny, cile, pocetJidel, filtr);
+    setVysledek(novy);
+    const kcal = "celkem" in novy ? novy.celkem.kalorie : novy.tyden.kalorie;
+    if (kcal === 0) {
+      toast.warning(
+        "Generátor nesestavil žádné jídlo – po vyfiltrování zbývá málo potravin nebo jsou cíle příliš nízké.",
+      );
+    } else if (filtrovane.length < 12) {
+      toast.info(
+        `Filtr propustil jen ${filtrovane.length} potravin – plán se bude opakovat.`,
+      );
+    }
   }
 
   function vymen(nazevJidla: string) {

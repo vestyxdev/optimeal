@@ -648,6 +648,7 @@ export function vymenJidlo(
 
   // všechna jídla včetně vyměňovaného → náhrada použije vždy jiné potraviny
   const pouziteId = Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => j.id));
+  const puvodnePouzite = new Set(pouziteId);
   const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
   const jidla = naplanujJidlo(
     kategorie,
@@ -660,7 +661,10 @@ export function vymenJidlo(
     null,
     poolMin,
   );
-  if (jidla.length === 0) return null;
+  // vyberKandidata padá zpět na použité potraviny, když je fond malý –
+  // u výměny to porušuje garanci „vždy jiné jídlo", takže takovou
+  // náhradu raději odmítneme (UI ukáže hlášku, že náhrada neexistuje).
+  if (jidla.length === 0 || jidla.some((j) => puvodnePouzite.has(j.id))) return null;
 
   const nova = souhrnJidla(jidla);
   const celkem = {

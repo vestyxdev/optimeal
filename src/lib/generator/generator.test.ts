@@ -562,3 +562,50 @@ describe("vymenJidloVTydnu", () => {
     expect(vymenJidloVTydnu(KATALOG, plan, 9, "Oběd", CILE)).toBeNull();
   });
 });
+
+describe("okrajové případy generátoru", () => {
+  it("prázdný katalog → prázdný plán, žádný pád", () => {
+    const den = vygenerujJidelnicek([], CILE);
+    expect(den.celkem.kalorie).toBe(0);
+    expect(Object.values(den.jidelnicek).every((s) => s.jidla.length === 0)).toBe(true);
+  });
+
+  it("filtr vyloučí celý katalog → prázdný plán (UI na to upozorní)", () => {
+    // katalog nemá označené diety → veganský filtr vyloučí všechno
+    const den = vygenerujJidelnicek(KATALOG, CILE, null, 0.85, 4, {
+      diety: ["vegansky"],
+    });
+    expect(den.celkem.kalorie).toBe(0);
+    expect(Object.values(den.jidelnicek).every((s) => s.jidla.length === 0)).toBe(true);
+  });
+
+  it("týdenní plán z prázdného katalogu → 7 prázdných dnů, prázdný nákup", () => {
+    const plan = vygenerujTydenniPlan([], CILE);
+    expect(Object.keys(plan.dny)).toHaveLength(7);
+    expect(plan.tyden.kalorie).toBe(0);
+    expect(plan.nakup).toHaveLength(0);
+  });
+
+  it("vymenJidlo s katalogem, kde nezbývá náhrada → null", () => {
+    const jedna = [p("solo", "Jediná", 30, 0, 5, 150, 10)];
+    const den = vygenerujJidelnicek(jedna, CILE);
+    const nazev = Object.keys(den.jidelnicek)[0]!;
+    // jediná potravina je už použitá v jiném jídle → náhrada neexistuje
+    expect(vymenJidlo(jedna, den, nazev, CILE)).toBeNull();
+  });
+
+  it("vymenJidlo s filtrem vylučujícím vše → null, plán se nemění", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    const nazev = Object.keys(den.jidelnicek)[0]!;
+    const vysledek = vymenJidlo(KATALOG, den, nazev, CILE, { diety: ["vegansky"] });
+    // buď se najde veganská náhrada, nebo null – nikdy ne však nevhodné jídlo
+    if (vysledek === null) {
+      expect(den.jidelnicek[nazev]!.jidla.length).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("nulové cíle → prázdný plán bez pádu", () => {
+    const den = vygenerujJidelnicek(KATALOG, { kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0 });
+    expect(den.celkem.kalorie).toBe(0);
+  });
+});

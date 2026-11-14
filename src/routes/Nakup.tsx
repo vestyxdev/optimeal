@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Printer, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Button } from "@/components/ui/Button";
 import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
@@ -159,15 +160,7 @@ export function Nakup() {
                   className="size-4 accent-primary"
                   aria-label={`Označit ${p.nazev} jako koupené`}
                 />
-                {p.obrazek && (
-                  <img
-                    src={p.obrazek}
-                    alt=""
-                    loading="lazy"
-                    className="size-8 shrink-0 rounded-md object-cover"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                )}
+                <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" />
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
                   {p.vlastni && <Badge tono="neutral" className="ml-2">ruční</Badge>}

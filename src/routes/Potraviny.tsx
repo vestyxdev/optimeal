@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Button } from "@/components/ui/Button";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { PotvrdDialog } from "@/components/ui/Dialog";
@@ -74,9 +75,9 @@ function PasekMakro({ p }: { p: Pick<KatalogPotravina, "bilkoviny" | "sacharidy"
   return (
     <span className="mt-1 flex items-center gap-1.5" title={`Podíl energie – B ${podil(kcalB)} %, S ${podil(kcalS)} %, T ${podil(kcalT)} %`}>
       <span aria-hidden className="flex h-1 w-20 overflow-hidden rounded-full bg-surface-2">
-        <span style={{ width: `${podil(kcalB)}%`, backgroundColor: "#2d6a4f" }} />
-        <span style={{ width: `${podil(kcalS)}%`, backgroundColor: "#7fae3e" }} />
-        <span style={{ width: `${podil(kcalT)}%`, backgroundColor: "#b45309" }} />
+        <span style={{ width: `${podil(kcalB)}%`, backgroundColor: "var(--primary)" }} />
+        <span style={{ width: `${podil(kcalS)}%`, backgroundColor: "var(--accent)" }} />
+        <span style={{ width: `${podil(kcalT)}%`, backgroundColor: "var(--warning)" }} />
       </span>
       <span className="sr-only">
         Podíl energie: bílkoviny {podil(kcalB)} %, sacharidy {podil(kcalS)} %, tuky {podil(kcalT)} %.
@@ -339,15 +340,7 @@ function RadekPotraviny({
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
       <td className="px-4 py-2.5">
-        {p.obrazek && (
-          <img
-            src={p.obrazek}
-            alt=""
-            loading="lazy"
-            className="mr-2 inline-block size-8 rounded-md object-cover align-middle"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
-        )}
+        <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" inline />
         <span className="font-medium">{p.nazev}</span>
         <span className="ml-2 inline-flex gap-1">
           {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
@@ -409,19 +402,7 @@ function KartaPotraviny({
   return (
     <Card className="p-3">
       <div className="flex items-start gap-3">
-        {p.obrazek ? (
-          <img
-            src={p.obrazek}
-            alt=""
-            loading="lazy"
-            className="size-12 shrink-0 rounded-lg object-cover"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-          />
-        ) : (
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
-            <Ikona className="size-5" aria-hidden />
-          </span>
-        )}
+        <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-12" ikona={Ikona} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 font-medium leading-snug">{p.nazev}</p>
@@ -729,15 +710,7 @@ function FormNovePotraviny({
                     onClick={() => aplikujOff(k)}
                     className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
                   >
-                    {k.obrazek && (
-                      <img
-                        src={k.obrazek}
-                        alt=""
-                        loading="lazy"
-                        className="size-8 shrink-0 rounded-md object-cover"
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
-                      />
-                    )}
+                    <MiniaturaPotraviny obrazek={k.obrazek} velikost="size-8" />
                     <span className="min-w-0 truncate font-medium">{k.nazev}</span>
                     <span className="shrink-0 text-xs tabular-nums text-muted">
                       {k.kalorie ?? "?"} kcal · B {k.bilkoviny ?? "?"} · S {k.sacharidy ?? "?"} · T {k.tuky ?? "?"}
