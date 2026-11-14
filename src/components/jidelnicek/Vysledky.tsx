@@ -7,6 +7,7 @@ import {
   type Cile,
   type DenVysledek,
   type NakupniPolozka,
+  type SouhrnJidla,
   type TydenniPlan,
 } from "@/lib/generator/generator";
 
@@ -97,28 +98,17 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
   );
 }
 
-export function DenniVysledek({
-  den,
-  cile,
-  naVymenu,
+/** Mřížka karet jídel – sdílená pro denní plán i rozpis dne v týdenním plánu. */
+function MrizkaJidel({
+  jidelnicek,
+  naVymenuJidla,
 }: {
-  den: DenVysledek;
-  cile: Cile;
-  naVymenu?: ((nazevJidla: string) => void) | undefined;
+  jidelnicek: Record<string, SouhrnJidla>;
+  naVymenuJidla?: ((nazevJidla: string) => void) | undefined;
 }) {
-  const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
-
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metrika nazev="Kalorie" hodnota={Math.round(den.celkem.kalorie)} cilyJednotka={`z ${cile.kalorie} kcal`} />
-        <Metrika nazev="Bílkoviny" hodnota={den.celkem.bilkoviny} cilyJednotka={`z ${cile.bilkoviny} g`} />
-        <Metrika nazev="Sacharidy" hodnota={den.celkem.sacharidy} cilyJednotka={`z ${cile.sacharidy} g`} />
-        <Metrika nazev="Tuky" hodnota={den.celkem.tuky} cilyJednotka={`z ${cile.tuky} g`} />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {Object.entries(den.jidelnicek).map(([nazevJidla, souhrn]) => (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {Object.entries(jidelnicek).map(([nazevJidla, souhrn]) => (
           <Card key={nazevJidla} className="p-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="font-semibold">{nazevJidla}</span>
@@ -172,14 +162,46 @@ export function DenniVysledek({
             </div>
           </Card>
         ))}
+    </div>
+  );
+}
+
+export function DenniVysledek({
+  den,
+  cile,
+  naVymenu,
+}: {
+  den: DenVysledek;
+  cile: Cile;
+  naVymenu?: ((nazevJidla: string) => void) | undefined;
+}) {
+  const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Metrika nazev="Kalorie" hodnota={Math.round(den.celkem.kalorie)} cilyJednotka={`z ${cile.kalorie} kcal`} />
+        <Metrika nazev="Bílkoviny" hodnota={den.celkem.bilkoviny} cilyJednotka={`z ${cile.bilkoviny} g`} />
+        <Metrika nazev="Sacharidy" hodnota={den.celkem.sacharidy} cilyJednotka={`z ${cile.sacharidy} g`} />
+        <Metrika nazev="Tuky" hodnota={den.celkem.tuky} cilyJednotka={`z ${cile.tuky} g`} />
       </div>
+
+      <MrizkaJidel jidelnicek={den.jidelnicek} naVymenuJidla={naVymenu} />
 
       <KartaNakupu polozky={nakup} soucetPopisek="Celkem za den" />
     </div>
   );
 }
 
-export function TydennyVysledek({ plan, cile }: { plan: TydenniPlan; cile: Cile }) {
+export function TydennyVysledek({
+  plan,
+  cile,
+  naVymenu,
+}: {
+  plan: TydenniPlan;
+  cile: Cile;
+  naVymenu?: ((denIndex: number, nazevJidla: string) => void) | undefined;
+}) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -192,30 +214,33 @@ export function TydennyVysledek({ plan, cile }: { plan: TydenniPlan; cile: Cile 
       <Card className="p-0">
         <div className="border-b border-border px-5 py-4">
           <CardNadpis className="mb-0 flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" /> Týdenní souhrn
+            <CalendarDays className="size-5 text-primary" /> Rozpis dnů
           </CardNadpis>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted">
-                <th className="px-5 py-2 font-medium">Den</th>
-                <th className="px-2 py-2 text-right font-medium">Kalorie</th>
-                <th className="px-2 py-2 text-right font-medium">Bílkoviny</th>
-                <th className="px-2 py-2 text-right font-medium">Cena</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(plan.dny).map(([den, vysledek]) => (
-                <tr key={den} className="border-b border-border last:border-0">
-                  <td className="px-5 py-2 font-medium">{DENY[Number(den)] ?? den}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{Math.round(vysledek.celkem.kalorie)} kcal</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{vysledek.celkem.bilkoviny} g</td>
-                  <td className="px-5 py-2 text-right tabular-nums">{vysledek.celkem.cena.toFixed(2)} Kč</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-border">
+          {Object.entries(plan.dny).map(([den, vysledek]) => (
+            <details key={den} className="group">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-muted transition-transform group-open:rotate-90" />
+                  {DENY[Number(den)] ?? den}
+                </span>
+                <span className="flex items-center gap-3 text-xs font-normal text-muted tabular-nums">
+                  <span>{Math.round(vysledek.celkem.kalorie)} kcal</span>
+                  <span>B {vysledek.celkem.bilkoviny} g</span>
+                  <span className="hidden sm:inline">{vysledek.celkem.cena.toFixed(2)} Kč</span>
+                </span>
+              </summary>
+              <div className="px-4 pb-4">
+                <MrizkaJidel
+                  jidelnicek={vysledek.jidelnicek}
+                  naVymenuJidla={
+                    naVymenu ? (nazevJidla) => naVymenu(Number(den), nazevJidla) : undefined
+                  }
+                />
+              </div>
+            </details>
+          ))}
         </div>
       </Card>
 

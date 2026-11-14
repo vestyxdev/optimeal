@@ -8,6 +8,7 @@ import {
   podilyProPocetJidel,
   sestavNakupniSeznam,
   vymenJidlo,
+  vymenJidloVTydnu,
   skorePotraviny,
   vytvorJidlo,
   vyberKandidata,
@@ -541,5 +542,23 @@ describe("vymenJidlo", () => {
       const id = vysledek.jidelnicek[nazev]!.jidla.map((j) => j.id);
       expect(id.some((i) => ["1", "2", "3", "4"].includes(i))).toBe(false);
     }
+  });
+});
+
+describe("vymenJidloVTydnu", () => {
+  it("vymění jídlo v daném dni a přepočítá týden i nákup", () => {
+    const plan = vygenerujTydenniPlan(KATALOG, CILE);
+    const novy = vymenJidloVTydnu(KATALOG, plan, 3, "Oběd", CILE);
+    expect(novy).not.toBeNull();
+    expect(novy!.dny[3]).not.toEqual(plan.dny[3]);
+    expect(novy!.dny[1]).toEqual(plan.dny[1]);
+    const kcal = Object.values(novy!.dny).reduce((a, d) => a + d.celkem.kalorie, 0);
+    expect(novy!.tyden.kalorie).toBe(kcal);
+    expect(novy!.nakup.length).toBeGreaterThan(0);
+  });
+
+  it("vrátí null pro neexistující den", () => {
+    const plan = vygenerujTydenniPlan(KATALOG, CILE);
+    expect(vymenJidloVTydnu(KATALOG, plan, 9, "Oběd", CILE)).toBeNull();
   });
 });
