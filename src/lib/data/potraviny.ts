@@ -10,6 +10,7 @@ export interface KatalogPotravina extends Potravina {
   vytvoril: string | null;
   zdroj: string;
   obrazek: string | null;
+  ean: string | null;
 }
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
@@ -40,6 +41,7 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     alergeny: (r.alergeny as string[]) ?? [],
     diety: (r.diety as string[]) ?? [],
     obrazek: (r.obrazek ?? null) as string | null,
+    ean: (r.ean ?? null) as string | null,
   }));
 }
 

@@ -105,6 +105,24 @@ const PRAZDNY_FORM: FormPotravina = {
   cena: "",
 };
 
+/** Filtrace katalogu: text hledá v názvu, čistě číselný dotaz i v EAN. */
+export function filtrujKatalog(
+  potraviny: KatalogPotravina[],
+  dotaz: string,
+  kategorie: string,
+): KatalogPotravina[] {
+  const dot = dotaz.trim().toLowerCase();
+  const jeEan = /^\d{4,14}$/.test(dot.replace(/[\s-]/g, ""));
+  const eanDotaz = dot.replace(/[\s-]/g, "");
+  return potraviny.filter(
+    (p) =>
+      (kategorie === "vse" || p.kategorie === kategorie) &&
+      (dot === "" ||
+        p.nazev.toLowerCase().includes(dot) ||
+        (jeEan && p.ean !== null && p.ean.includes(eanDotaz))),
+  );
+}
+
 export function Potraviny() {
   const { uzivatel } = useAuth();
   const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
@@ -119,14 +137,10 @@ export function Potraviny() {
   };
 
   const potraviny = dotaz.data ?? [];
-  const filtrovane = useMemo(() => {
-    const dot = hledat.trim().toLowerCase();
-    return potraviny.filter(
-      (p) =>
-        (kategorie === "vse" || p.kategorie === kategorie) &&
-        (dot === "" || p.nazev.toLowerCase().includes(dot)),
-    );
-  }, [potraviny, hledat, kategorie]);
+  const filtrovane = useMemo(
+    () => filtrujKatalog(potraviny, hledat, kategorie),
+    [potraviny, hledat, kategorie],
+  );
 
   return (
     <div className="space-y-6">
@@ -162,7 +176,7 @@ export function Potraviny() {
           <Input
             value={hledat}
             onChange={(e) => setHledat(e.target.value)}
-            placeholder="Hledat potravinu…"
+            placeholder="Hledat potravinu nebo čárový kód…"
             className="pl-9"
           />
         </div>
