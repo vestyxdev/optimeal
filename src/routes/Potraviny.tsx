@@ -55,6 +55,8 @@ const DIETA_NAZVY: Record<string, string> = {
   vegetariansky: "veg", vegansky: "vegan", bezlepkovy: "bez lepku",
 };
 
+const DAVKA_ZOBRAZENI = 100;
+
 const KATEGORIE_IKONY: Record<string, typeof Apple> = {
   maso_ryby: Beef,
   mlecne_vyrobky: Milk,
@@ -142,6 +144,12 @@ export function Potraviny() {
     () => filtrujKatalog(potraviny, hledat, kategorie),
     [potraviny, hledat, kategorie],
   );
+  // velký katalog se vykresluje po dávkách – tisíce DOM uzlů naráz
+  // by zabily mobil; filtr resetuje limit na první dávku
+  const [limitZobrazeni, setLimitZobrazeni] = useState(DAVKA_ZOBRAZENI);
+  useEffect(() => setLimitZobrazeni(DAVKA_ZOBRAZENI), [hledat, kategorie]);
+  const zobrazeno = filtrovane.slice(0, limitZobrazeni);
+  const zbyva = filtrovane.length - zobrazeno.length;
 
   return (
     <div className="space-y-6">
@@ -151,7 +159,7 @@ export function Potraviny() {
           <p className="mt-1 text-sm text-muted">
             {dotaz.isLoading
               ? "Načítám…"
-              : `${potraviny.length} ${sklonuj(potraviny.length, "potravina", "potraviny", "potravin")} s aktuálními cenami. Generátor je používá automaticky.`}
+              : `${potraviny.length.toLocaleString("cs-CZ")} ${sklonuj(potraviny.length, "potravina", "potraviny", "potravin")} v katalogu. Generátor je používá automaticky.`}
           </p>
         </div>
         {uzivatel && !formZobrazen && (
@@ -205,7 +213,7 @@ export function Potraviny() {
             <Card key={i}><Skeleton className="h-16 w-full" /></Card>
           ))}
         {!dotaz.isLoading &&
-          filtrovane.map((p) => (
+          zobrazeno.map((p) => (
             <KartaPotraviny
               key={p.id}
               p={p}
@@ -248,7 +256,7 @@ export function Potraviny() {
                   </td>
                 </tr>
               ))}
-            {filtrovane.map((p) => (
+            {zobrazeno.map((p) => (
               <RadekPotraviny
                 key={p.id}
                 p={p}
@@ -270,6 +278,14 @@ export function Potraviny() {
           </tbody>
         </table>
       </div>
+
+      {zbyva > 0 && (
+        <div className="flex justify-center">
+          <Button varianta="outline" onClick={() => setLimitZobrazeni((l) => l + DAVKA_ZOBRAZENI)}>
+            Zobrazit další – zbývá {zbyva.toLocaleString("cs-CZ")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -372,7 +388,7 @@ function RadekPotraviny({
       <td className="px-4 py-2.5 text-right tabular-nums">{p.sacharidy}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.tuky}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
-        {p.aktualniCena.toFixed(2)} Kč
+        {p.aktualniCena > 0 ? `${p.aktualniCena.toFixed(2)} Kč` : "—"}
         {p.sleva && p.beznaCena > p.aktualniCena && (
           <span className="ml-1 text-xs text-muted line-through">{p.beznaCena.toFixed(2)}</span>
         )}
@@ -432,7 +448,7 @@ function KartaPotraviny({
               {p.kalorie} kcal · B {p.bilkoviny} · S {p.sacharidy} · T {p.tuky}
             </span>
             <span className="tabular-nums font-semibold">
-              {p.aktualniCena.toFixed(2)} Kč
+              {p.aktualniCena > 0 ? `${p.aktualniCena.toFixed(2)} Kč` : "—"}
               {p.sleva && p.beznaCena > p.aktualniCena && (
                 <span className="ml-1 text-xs font-normal text-muted line-through">
                   {p.beznaCena.toFixed(2)}

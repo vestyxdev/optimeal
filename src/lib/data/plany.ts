@@ -1,5 +1,6 @@
 import type { Cile, Potravina } from "@/lib/generator/generator";
 import { supabase } from "@/lib/supabase";
+import { nactiVse } from "@/lib/data/strankovani";
 
 /**
  * Načtení potravin s AKTUÁLNÍMI cenami z view `aktualni_ceny`
@@ -27,14 +28,14 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { data, error } = await klient
-    .from("aktualni_ceny")
-    .select("*")
-    .order("nazev");
+  const data = await nactiVse<RadkaAktualniCeny>(() =>
+    klient
+      .from("aktualni_ceny")
+      .select("*")
+      .order("nazev"),
+  );
 
-  if (error) throw new Error(`Nepodařilo se načíst katalog: ${error.message}`);
-
-  return (data as RadkaAktualniCeny[]).map((r) => ({
+  return data.map((r) => ({
     id: r.food_id,
     nazev: r.nazev,
     kategorie: r.kategorie,

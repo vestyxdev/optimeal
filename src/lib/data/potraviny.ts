@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { nactiVse } from "@/lib/data/strankovani";
 import type { Potravina } from "@/lib/generator/generator";
 
 /**
@@ -17,14 +18,14 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { data, error } = await klient
-    .from("aktualni_ceny")
-    .select("*")
-    .order("nazev");
+  const data = await nactiVse<Record<string, unknown>>(() =>
+    klient
+      .from("aktualni_ceny")
+      .select("*")
+      .order("nazev"),
+  );
 
-  if (error) throw new Error(`Katalog se nenačetl: ${error.message}`);
-
-  return (data as Record<string, unknown>[]).map((r) => ({
+  return data.map((r) => ({
     id: r.food_id as string,
     nazev: r.nazev as string,
     kategorie: r.kategorie as string,
