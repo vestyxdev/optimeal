@@ -18,10 +18,11 @@ alter table public.meal_plans
   alter column cil_sacharidy type integer,
   alter column cil_tuky type integer;
 
-alter table public.meal_plans drop constraint meal_plans_cil_kalorie_check;
-alter table public.meal_plans drop constraint meal_plans_cil_bilkoviny_check;
-alter table public.meal_plans drop constraint meal_plans_cil_sacharidy_check;
-alter table public.meal_plans drop constraint meal_plans_cil_tuky_check;
+alter table public.meal_plans drop constraint if exists meal_plans_cil_kalorie_check;
+alter table public.meal_plans drop constraint if exists meal_plans_cil_bilkoviny_check;
+alter table public.meal_plans drop constraint if exists meal_plans_cil_sacharidy_check;
+alter table public.meal_plans drop constraint if exists meal_plans_cil_tuky_check;
+alter table public.meal_plans drop constraint if exists meal_plans_cile_check;
 
 alter table public.meal_plans
   add constraint meal_plans_cile_check check (
