@@ -6,6 +6,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useTitulek } from "@/lib/titulky";
+import { AuthShell } from "@/components/layout/AuthShell";
 
 /**
  * Nastavení nového hesla – cíl odkazu z obnovovacího e-mailu.
@@ -58,7 +59,7 @@ export function NoveHeslo() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
+    <AuthShell>
       <h1 className="text-2xl font-extrabold tracking-tight">Nové heslo</h1>
 
       {nacitaSe ? (
@@ -114,6 +115,6 @@ export function NoveHeslo() {
           </p>
         </div>
       )}
-    </div>
+    </AuthShell>
   );
 }

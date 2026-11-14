@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useTitulek } from "@/lib/titulky";
+import { AuthShell } from "@/components/layout/AuthShell";
 
 /** Přihlášení e-mailem a heslem (Supabase Auth). */
 export function Prihlaseni() {
@@ -38,7 +39,7 @@ export function Prihlaseni() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
+    <AuthShell>
       <h1 className="text-2xl font-extrabold tracking-tight">Přihlášení</h1>
       <p className="mt-1 text-sm text-muted">Vítejte zpět – pokračujte ve svém plánu.</p>
 
@@ -91,6 +92,6 @@ export function Prihlaseni() {
           Zaregistrujte se
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useTitulek } from "@/lib/titulky";
+import { AuthShell } from "@/components/layout/AuthShell";
 
 /** Registrace e-mailem a heslem (Supabase Auth). */
 export function Registrace() {
@@ -46,7 +47,7 @@ export function Registrace() {
 
   if (cekaNaEmail) {
     return (
-      <div className="mx-auto max-w-sm">
+      <AuthShell>
         <h1 className="text-2xl font-extrabold tracking-tight">Potvrďte e-mail</h1>
         <p className="mt-4 rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
           Účet pro <strong>{email.trim()}</strong> je vytvořený. Poslali jsme vám
@@ -58,12 +59,12 @@ export function Registrace() {
             Přihlaste se
           </Link>
         </p>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-sm">
+    <AuthShell>
       <h1 className="text-2xl font-extrabold tracking-tight">Vytvořit účet</h1>
       <p className="mt-1 text-sm text-muted">Začněte jíst lépe a šetřit – za minutku jste v tom.</p>
 
@@ -121,6 +122,6 @@ export function Registrace() {
           Přihlaste se
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

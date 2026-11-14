@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { useTitulek } from "@/lib/titulky";
+import { AuthShell } from "@/components/layout/AuthShell";
 
 /** Obnovení hesla – odešle e-mail s odkazem na nastavení nového hesla. */
 export function ObnoveniHesla() {
@@ -28,7 +29,7 @@ export function ObnoveniHesla() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
+    <AuthShell>
       <h1 className="text-2xl font-extrabold tracking-tight">Obnovení hesla</h1>
       <p className="mt-1 text-sm text-muted">
         Zadejte e-mail účtu – pošleme vám odkaz na nastavení nového hesla.
@@ -78,6 +79,6 @@ export function ObnoveniHesla() {
           </Link>
         </p>
       )}
-    </div>
+    </AuthShell>
   );
 }
