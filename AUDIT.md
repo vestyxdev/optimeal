@@ -131,3 +131,6 @@ All P0-P3 items above are now implemented and verified live against the producti
 - Tests: 63 -> 80 (Dialog + route-guard component tests, spocitejRecept/alergenyReceptu recipe math).
 - Data-layer integrity: compensating actions for every multi-step write (shopping list, recipe create/update, nutrition goals) — snapshot+restore on update, parent delete on child-insert failure. Note: true atomicity needs a Postgres RPC transaction.
 - Bugs found in the deep review: spocitejRecept dominant category depended on price availability; OFF lookup treated kJ energy_100g as kcal (~4.2x overestimate); ulozCile could leave zero active goals. All fixed with tests.
+- Atomicity: migration 0008 adds SECURITY INVOKER RPCs (uloz_recept/uprav_recept/uloz_nakupni_seznam/uloz_cile) running multi-step writes in one transaction. Frontend calls RPC first, falls back to compensated PostgREST on PGRST202 (verified live: test user recipe insert/ingredient/cascade-delete works under RLS).
+- Mealprep: ingredients without a current price now stay on the shopping list (cenaZa100g null, UI dash) instead of silently disappearing. NakupniPolozka.cenaZa100g widened to nullable, matching the DB column.
+- A11y: Vice sheet traps Tab focus inside, restores focus to the trigger on close, aria-haspopup. Jidelnicek save buttons lock after success (no duplicate plans/lists).
