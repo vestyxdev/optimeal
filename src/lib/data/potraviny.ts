@@ -107,29 +107,19 @@ export interface OffNalezenaPotravina {
   tuky: number | null;
 }
 
-export async function hledejOpenFoodFacts(
-  dotaz: string,
-): Promise<OffNalezenaPotravina | null> {
-  const url =
-    "https://world.openfoodfacts.org/cgi/search.pl" +
-    `?search_terms=${encodeURIComponent(dotaz)}` +
-    "&search_simple=1&action=process&json=1&page_size=5&lc=cs";
+export interface OffProdukt {
+  product_name?: string;
+  product_name_cs?: string;
+  nutriments?: Record<string, unknown>;
+}
 
-  const odpoved = await fetch(url, {
-    headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
-  });
-  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
-
-  const json = (await odpoved.json()) as {
-    products?: {
-      product_name?: string;
-      product_name_cs?: string;
-      nutriments?: Record<string, unknown>;
-    }[];
-  };
-
-  // první produkt, který má kompletní nutrienty za 100 g
-  for (const p of json.products ?? []) {
+/**
+ * Z JSON odpovědi OFF vybere první produkt s kompletními nutrienty.
+ * energy-kcal_100g je kcal; energy_100g je kJ → převádí se ÷4,184.
+ * Čistá funkce – testovatelná bez sítě.
+ */
+export function parsujOffProdukty(produkty: OffProdukt[]): OffNalezenaPotravina | null {
+  for (const p of produkty) {
     const n = p.nutriments;
     if (!n) continue;
     // energy-kcal_100g je kcal; energy_100g je kJ → převést (1 kcal = 4,184 kJ)
@@ -156,4 +146,21 @@ export async function hledejOpenFoodFacts(
     };
   }
   return null;
+}
+
+export async function hledejOpenFoodFacts(
+  dotaz: string,
+): Promise<OffNalezenaPotravina | null> {
+  const url =
+    "https://world.openfoodfacts.org/cgi/search.pl" +
+    `?search_terms=${encodeURIComponent(dotaz)}` +
+    "&search_simple=1&action=process&json=1&page_size=5&lc=cs";
+
+  const odpoved = await fetch(url, {
+    headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
+  });
+  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
+
+  const json = (await odpoved.json()) as { products?: OffProdukt[] };
+  return parsujOffProdukty(json.products ?? []);
 }
