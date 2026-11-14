@@ -128,3 +128,6 @@ All P0-P3 items above are now implemented and verified live against the producti
 - Accessibility: focus-visible outline, prefers-reduced-motion honored globally; native <dialog> gives focus trap + Escape.
 - Scraper resilience: Open Prices pages retried 3x with exponential backoff; a dead page is skipped instead of aborting the ingest; dedupe via unique (food_id, retailer_id, pozorovano_at) + ignore-duplicates.
 - Tests: 42 -> 63 (macro-cap regressions, pure plan helpers usporaPlanu/cenaPlanu).
+- Tests: 63 -> 80 (Dialog + route-guard component tests, spocitejRecept/alergenyReceptu recipe math).
+- Data-layer integrity: compensating actions for every multi-step write (shopping list, recipe create/update, nutrition goals) — snapshot+restore on update, parent delete on child-insert failure. Note: true atomicity needs a Postgres RPC transaction.
+- Bugs found in the deep review: spocitejRecept dominant category depended on price availability; OFF lookup treated kJ energy_100g as kcal (~4.2x overestimate); ulozCile could leave zero active goals. All fixed with tests.
