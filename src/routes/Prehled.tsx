@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -82,6 +82,7 @@ function VerejnyPrehled() {
         titulek="Jezte lépe. Šetřete peníze. Plánujte chytře."
         podtitul="Osobní jídelníček podle vašich cílů, mealprep na více dní a nákupní
           seznam s aktuálními slevami z českých obchodů – vše v jedné aplikaci."
+        vizual={<UctenkaUkazka />}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -150,6 +151,13 @@ function PrihlasenyPrehled() {
       <Hero
         titulek={jmeno ? `Vítejte zpět, ${jmeno}` : "Vítejte zpět v OptiMeal"}
         podtitul="Váš přehled: denní cíl, poslední plán, úspory ze slev a nákupní seznamy – vše živě z účtu."
+        vizual={
+          uspora > 0 ? (
+            <span className="om-cenovka hidden rotate-6 text-sm md:inline-flex">
+              sleva −{uspora.toFixed(0)} Kč
+            </span>
+          ) : undefined
+        }
       />
 
       {/* rychlé akce */}
@@ -298,16 +306,78 @@ function PrihlasenyPrehled() {
   );
 }
 
-function Hero({ titulek, podtitul }: { titulek: string; podtitul: string }) {
+/**
+ * Hrdina přehledu – zelená tabule s nadpisem v displejovém písmu;
+ * volitelný vizuál napravo (ukázková účtenka / cedulka s úsporou).
+ */
+function Hero({
+  titulek,
+  podtitul,
+  vizual,
+}: {
+  titulek: string;
+  podtitul: string;
+  vizual?: ReactNode;
+}) {
   return (
-    <div className="rounded-card bg-primary-strong px-6 py-10 text-primary-fg md:px-10 md:py-14">
-      <Badge tono="accent" className="mb-4 bg-accent text-accent-fg">
-        Chytrá strava pro Česko
-      </Badge>
-      <h1 className="max-w-2xl text-3xl font-extrabold leading-tight tracking-tight md:text-4xl">
-        {titulek}
-      </h1>
-      <p className="mt-3 max-w-xl text-sm opacity-80 md:text-base">{podtitul}</p>
+    <div className="rounded-card bg-primary-hero px-6 py-10 text-white md:px-10 md:py-14">
+      <div className="flex items-center justify-between gap-10">
+        <div className="min-w-0">
+          <Badge tono="accent" className="mb-4">
+            Chytrá strava pro Česko
+          </Badge>
+          <h1 className="max-w-2xl text-3xl font-extrabold leading-tight tracking-tight md:text-4xl">
+            {titulek}
+          </h1>
+          <p className="mt-3 max-w-xl text-sm opacity-80 md:text-base">{podtitul}</p>
+        </div>
+        {vizual}
+      </div>
+    </div>
+  );
+}
+
+const UKAZKA_UCTENKY = [
+  { jidlo: "Snídaně", nazev: "Ovesná kaše, banán", cena: "12" },
+  { jidlo: "Oběd", nazev: "Kuřecí prsa, rýže", cena: "39" },
+  { jidlo: "Svačina", nazev: "Jogurt, müsli", cena: "14" },
+  { jidlo: "Večeře", nazev: "Čočková polévka", cena: "21" },
+] as const;
+
+/** Papírová účtenka s ukázkou naceněného denního plánu (hero vizuál). */
+function UctenkaUkazka() {
+  return (
+    <div
+      className="relative hidden shrink-0 drop-shadow-xl lg:block"
+      aria-hidden="true"
+    >
+      <div className="om-uctenka w-60 px-4 pb-7 pt-4 text-[11px] leading-relaxed">
+        <div className="text-center font-bold tracking-wide">OPTIMEAL</div>
+        <div className="text-center text-[10px] opacity-70">
+          jídelníček na dnes
+        </div>
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        {UKAZKA_UCTENKY.map((r) => (
+          <div key={r.jidlo} className="flex justify-between gap-2">
+            <span className="truncate">
+              {r.jidlo} · {r.nazev}
+            </span>
+            <span className="shrink-0 tabular-nums">{r.cena} Kč</span>
+          </div>
+        ))}
+        <div className="my-2 border-t border-dashed border-[#c9c9bd]" />
+        <div className="flex justify-between font-bold">
+          <span>CELKEM</span>
+          <span className="tabular-nums">86 Kč</span>
+        </div>
+        <div className="flex justify-between font-bold">
+          <span>VYUŽITÉ SLEVY</span>
+          <span className="tabular-nums">−19 Kč</span>
+        </div>
+      </div>
+      <span className="om-cenovka absolute -right-3 -top-3 rotate-6 text-xs">
+        AKCE
+      </span>
     </div>
   );
 }

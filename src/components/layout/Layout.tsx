@@ -109,7 +109,7 @@ export function Layout() {
           <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-fg">
             <Leaf className="size-5" />
           </span>
-          <span className="text-lg font-extrabold tracking-tight">OptiMeal</span>
+          <span className="om-display text-lg font-extrabold tracking-tight">OptiMeal</span>
         </div>
         <nav className="flex-1 space-y-0.5 px-3">
           {SEKCE.map((s) => odkazSekce(s, false))}
@@ -149,7 +149,7 @@ export function Layout() {
             <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-fg">
               <Leaf className="size-4" />
             </span>
-            <span className="text-base font-extrabold">OptiMeal</span>
+            <span className="om-display text-base font-extrabold">OptiMeal</span>
           </div>
           {uzivatel ? (
             <Button

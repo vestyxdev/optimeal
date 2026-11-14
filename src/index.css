@@ -1,8 +1,9 @@
 /*
  * OptiMeal – design systém
  * ---------------------------------------------------------------
- * Identita: hluboká lesní zeleň (primár), tlumená limetka (akcent),
- * teplá off-white pozadí, bílé plochy, uhlí typografie.
+ * Identita „cenovka“: tržní zeleň (primár), žlutá slevové cedulky
+ * (akcent), papírově bílé pozadí, bílé plochy, displejová Bricolage
+ * Grotesque pro nadpisy a Inter pro text.
  * Světlý i tmavý motiv přes CSS proměnné – utility v Tailwindu
  * (bg-surface, text-fg, …) se mapují na tyto tokeny.
  */
@@ -23,13 +24,14 @@
   --muted: #6f6a61;
 
   /* značka */
-  --primary: #2d6a4f;
-  --primary-strong: #1b4332;
-  --primary-soft: #e7f0ea;
+  --primary: #1b7a44;
+  --primary-strong: #0f4d2c;
+  --primary-soft: #e2f2e6;
   --primary-fg: #ffffff;
-  --accent: #7fae3e;
-  --accent-soft: #f0f5e3;
-  --accent-fg: #2a3315;
+  --primary-hero: #0f4d2c;
+  --accent: #ffc81f;
+  --accent-soft: #fff3c4;
+  --accent-fg: #3a2e00;
 
   /* sémantické */
   --ok: #15803d;
@@ -49,13 +51,14 @@
   --fg: #ebe9e1;
   --muted: #9a958a;
 
-  --primary: #5aa179;
-  --primary-strong: #2d6a4f;
-  --primary-soft: #1c2b21;
-  --primary-fg: #0c120d;
-  --accent: #a4cd5c;
-  --accent-soft: #232a15;
-  --accent-fg: #dceec4;
+  --primary: #5bbf7e;
+  --primary-strong: #1b7a44;
+  --primary-soft: #1c3023;
+  --primary-fg: #0a120c;
+  --primary-hero: #123d22;
+  --accent: #ffd23f;
+  --accent-soft: #332d0d;
+  --accent-fg: #ffefa8;
 
   --ok: #4ade80;
   --ok-soft: #14291b;
@@ -77,6 +80,7 @@
   --color-primary-strong: var(--primary-strong);
   --color-primary-soft: var(--primary-soft);
   --color-primary-fg: var(--primary-fg);
+  --color-primary-hero: var(--primary-hero);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-fg: var(--accent-fg);
@@ -89,6 +93,7 @@
   --color-danger-soft: var(--danger-soft);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   --radius-card: 0.875rem;
   --radius-pill: 999px;
@@ -105,6 +110,13 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   min-height: 100dvh;
+}
+
+/* displejová tvář značky – nadpisy a logotyp */
+h1,
+h2,
+.om-display {
+  font-family: var(--font-display);
 }
 
 /* viditelný fokus pro klávesnici – myš focus necháváme na hover */
@@ -143,6 +155,85 @@ body {
 /* soustředění čísel v tabulkách */
 .om-tabulka-num {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- „cenovka“ – vizuální identita ---------- */
+
+/* žlutá slevová cedulka se špičkou a děrovaným očkem */
+.om-cenovka {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem 0.55rem 1.5rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 800;
+  clip-path: polygon(1rem 0, 100% 0, 100% 100%, 1rem 100%, 0 50%);
+}
+
+/* očko cedulky – dírka po zavěšení */
+.om-cenovka::before {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: var(--primary-hero);
+}
+
+/* účtenka – papírový objekt, vždy světlý (i v dark modu je papír bílý) */
+.om-uctenka {
+  background: #fdfdf9;
+  color: #21261f;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  /* natržený spodní okraj po zoubkách */
+  --zub: 0.9rem;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--zub)),
+    95% 100%,
+    90% calc(100% - var(--zub)),
+    85% 100%,
+    80% calc(100% - var(--zub)),
+    75% 100%,
+    70% calc(100% - var(--zub)),
+    65% 100%,
+    60% calc(100% - var(--zub)),
+    55% 100%,
+    50% calc(100% - var(--zub)),
+    45% 100%,
+    40% calc(100% - var(--zub)),
+    35% 100%,
+    30% calc(100% - var(--zub)),
+    25% 100%,
+    20% calc(100% - var(--zub)),
+    15% 100%,
+    10% calc(100% - var(--zub)),
+    5% 100%,
+    0 calc(100% - var(--zub))
+  );
+}
+
+/* jediná nekonzumovaná animace – účtenka „vyleze“ při načtení hrdiny */
+@keyframes om-uctenka-in {
+  from {
+    opacity: 0;
+    transform: rotate(1deg) translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-1.5deg) translateY(0);
+  }
+}
+
+.om-uctenka {
+  animation: om-uctenka-in 0.55s cubic-bezier(0.2, 0.9, 0.35, 1.15) both;
 }
 
 /* ---------- tisk (plán / nákupní seznam) ---------- */
