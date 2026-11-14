@@ -228,7 +228,7 @@ export function ReceptEditace() {
           {errors.suroviny?.message && <Chyba text={errors.suroviny.message} />}
           <ul className="space-y-3">
             {fields.map((pole, i) => (
-              <li key={pole.id} className="grid grid-cols-[1fr_88px_1fr_36px] items-start gap-2">
+              <li key={pole.id} className="grid grid-cols-[1fr_88px_36px] items-start gap-2 sm:grid-cols-[1fr_88px_1fr_36px]">
                 <div>
                   <select
                     aria-label={`Surovina ${i + 1} – potravina`}
@@ -261,17 +261,19 @@ export function ReceptEditace() {
                     <Chyba text={errors.suroviny[i]?.gramyNaPorce?.message} />
                   )}
                 </div>
-                <Input
-                  placeholder="pozn. (volitelné)"
-                  aria-label={`Surovina ${i + 1} – poznámka`}
-                  {...register(`suroviny.${i}.poznamka`)}
-                />
+                <div className="col-span-3 sm:col-span-1">
+                  <Input
+                    placeholder="pozn. (volitelné)"
+                    aria-label={`Surovina ${i + 1} – poznámka`}
+                    {...register(`suroviny.${i}.poznamka`)}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => remove(i)}
                   disabled={fields.length <= 1}
                   aria-label={`Odebrat surovinu ${i + 1}`}
-                  className="grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30"
+                  className="col-start-3 row-start-1 grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30 sm:col-start-4"
                   title="Odebrat surovinu"
                 >
                   <Trash2 className="size-4" />

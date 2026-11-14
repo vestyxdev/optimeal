@@ -62,7 +62,7 @@ export function ObnoveniHesla() {
           </div>
 
           {chyba && (
-            <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{chyba}</p>
+            <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{chyba}</p>
           )}
 
           <Button type="submit" className="w-full" disabled={odesilam}>

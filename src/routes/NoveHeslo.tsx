@@ -94,7 +94,7 @@ export function NoveHeslo() {
             </div>
 
             {chyba && (
-              <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{chyba}</p>
+              <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{chyba}</p>
             )}
 
             <Button type="submit" className="w-full" disabled={odesilam}>
@@ -104,7 +104,7 @@ export function NoveHeslo() {
         </>
       ) : (
         <div className="mt-6 space-y-4">
-          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
             Odkaz je neplatný nebo už vypršel. Požádejte o nový.
           </p>
           <p className="text-sm text-muted">
