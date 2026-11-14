@@ -146,3 +146,16 @@ All P0-P3 items above are now implemented and verified live against the producti
 - Migration 0009: foods.obrazek column + ean/obrazek in aktualni_ceny view; writes degrade gracefully pre-migration (PGRST retry without the column).
 - Catalog data: seed-v2 adds 82 Czech staples (104 foods total) across all categories with baseline prices and full allergen/diet metadata.
 - Tests: 105 -> 110 (EAN normalization, multi-candidate OFF parse, image parsing).
+
+
+## Fáze 56–75 – katalog, čárové kódy, obrázky, výměna jídel
+
+- **Čárové kódy**: normalizace EAN-8/12/13/14, OFF Product API v2, nativní BarcodeDetector (bez závislostí, fallback na ruční zadání), lokální lookup před OFF; ean persistován na foods a vystaven v aktualni_ceny (migrace 0009).
+- **Katalog**: 22 → 101 seed potravin (alergeny/diety/ceny), kontrola integrity (žádné duplicity, neplatné kategorie ani anomálie kcal). Filtr hledá i v EAN (číselný dotaz = naskenovaný kód).
+- **OFF vyhledávání**: výběr z až 8 kandidátů místo slepého prvního výsledku; parsujOffProduktyVice + kJ→kcal regrese pokrytá testy.
+- **CRUD vlastních potravin**: editace přes existující RLS politiku (UI dosud chybělo), vč. uloženého EAN.
+- **Obrázky**: foods.obrazek (migrace 0009), OFF thumbnaily v pickeru, katalogu, jídlech i nákupních seznamech; JSONB plány si je nesou dál. Graceful degradation před deployem 0009.
+- **Scraper**: při shodě jménem doplní foods.ean z Open Prices → příští match EAN-first, katalog se sám obohacuje.
+- **Výměna jídla**: vymenJidlo/vymenJidloVTydnu – náhrada nepoužívá potraviny ostatních jídel ani vyměňovaného (garance změny), respektuje cíle i dietní/alergenový filtr, přepočítá denní/týdenní součty i nákup.
+- **Týdenní plán UI**: rozpis dnů – rozbalovací sekce se sdílenou MrizkaJidel (dříve jen holá tabulka součtů, jídla nešla vidět).
+- **Responzivita/tisk**: mobilní karty katalogu místo scrollovací tabulky; miniatury se netisknou.
