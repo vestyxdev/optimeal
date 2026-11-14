@@ -132,6 +132,7 @@ export function Nakup() {
                   checked={p.koupeno}
                   onChange={(e) => mutaceKoupeno.mutate({ id: p.id, koupeno: e.target.checked })}
                   className="size-4 accent-primary"
+                  aria-label={`Označit ${p.nazev} jako koupené`}
                 />
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
