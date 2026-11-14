@@ -134,6 +134,7 @@ export interface NakupniPolozka {
   cenaBeznaZa100g: number | null;
   obchod: string | null;
   sleva: boolean;
+  obrazek?: string | null;
   cenaCelkem: number;
   usetreno: number;
 }
@@ -523,6 +524,7 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
               : null,
           obchod: jidlo.obchod,
           sleva: jidlo.sleva,
+          obrazek: jidlo.obrazek ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         };

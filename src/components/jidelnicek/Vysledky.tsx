@@ -63,6 +63,15 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
           {polozky.map((x) => (
             <tr key={x.id} className="border-b border-border last:border-0">
               <td className="px-5 py-2 font-medium">
+                {x.obrazek && (
+                  <img
+                    src={x.obrazek}
+                    alt=""
+                    loading="lazy"
+                    className="mr-2 inline-block size-7 rounded-md object-cover align-middle"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                )}
                 {x.nazev}
                 {x.sleva && <Badge tono="warning" className="ml-2">SLEVA</Badge>}
               </td>

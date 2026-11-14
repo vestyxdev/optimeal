@@ -115,6 +115,7 @@ export function sestavMealprep(
           cenaBeznaZa100g: p.beznaCena > 0 ? p.beznaCena : null,
           obchod: p.aktualniCena > 0 ? p.obchod : null,
           sleva: p.aktualniCena > 0 && p.sleva,
+          obrazek: p.obrazek ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         });

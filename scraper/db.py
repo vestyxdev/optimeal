@@ -65,8 +65,32 @@ class SupabaseWriter:
         log.warning("Retailer '%s' se nepodařilo založit: %s", nazev, r.text[:200])
         return None
 
+    def _dopln_ean(self, food_id: str, ean: str) -> None:
+        """Doplní chybějící EAN na potravinu – best-effort, chyby jen logujeme."""
+        try:
+            r = requests.patch(
+                f"{self.url}/rest/v1/foods",
+                headers={**self._hlavicky, "Prefer": "return=minimal"},
+                params={"id": f"eq.{food_id}"},
+                json={"ean": ean},
+                timeout=30,
+            )
+            if r.ok:
+                for p in self._potraviny or []:
+                    if p["id"] == food_id:
+                        p["ean"] = ean
+                log.info("Potravině %s doplněn EAN %s", food_id, ean)
+            else:
+                log.warning("Doplnění EAN na %s selhalo: %s", food_id, r.text[:200])
+        except requests.RequestException as e:
+            log.warning("Doplnění EAN na %s selhalo: %s", food_id, e)
+
     def _food_id(self, ean: str | None, nazev_produktu: str) -> str | None:
-        """Napáruje záznam na foods.id – nejdřív EAN, pak normalizovaný název."""
+        """Napáruje záznam na foods.id – nejdřív EAN, pak normalizovaný název.
+
+        Při shodě jménem se známým EANem se chybějící foods.ean doplní,
+        takže příště matchuje EAN (přesnější než jméno).
+        """
         potraviny = self.nacti_potraviny()
         if ean:
             for p in potraviny:
@@ -76,6 +100,8 @@ class SupabaseWriter:
             cil = normalizuj_nazev(nazev_produktu)
             for p in potraviny:
                 if normalizuj_nazev(p["nazev"]) == cil:
+                    if ean and not p.get("ean"):
+                        self._dopln_ean(p["id"], ean)
                     return p["id"]
         return None
 

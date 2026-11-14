@@ -12,6 +12,42 @@ from scraper.normalizace import (
     obchod_z_location,
 )
 from scraper import open_prices
+from scraper.db import SupabaseWriter
+
+
+class TestFoodId(unittest.TestCase):
+    """Párování cenových záznamů na potraviny – EAN má přednost, jméno doplňuje EAN."""
+
+    def _writer(self, potraviny: list[dict]) -> SupabaseWriter:
+        w = SupabaseWriter(url="http://test", klic="k")
+        w._potraviny = potraviny
+        return w
+
+    def test_ean_match_prednostne(self):
+        w = self._writer([{"id": "f1", "nazev": "Jogurt", "ean": "8590001"}])
+        self.assertEqual(w._food_id("8590001", "Cokoliv jiného"), "f1")
+
+    def test_shoda_jmenem_doplni_ean(self):
+        w = self._writer([{"id": "f1", "nazev": "Jogurt bílý", "ean": None}])
+        with patch("scraper.db.requests.patch") as mock_patch:
+            mock_patch.return_value = MagicMock(ok=True)
+            fid = w._food_id("8590002", "Jogurt Bily")
+        self.assertEqual(fid, "f1")
+        mock_patch.assert_called_once()
+        self.assertEqual(w._potraviny[0]["ean"], "8590002")
+
+    def test_shoda_jmenem_s_eanem_netepatchuje(self):
+        w = self._writer([{"id": "f1", "nazev": "Jogurt", "ean": "111"}])
+        with patch("scraper.db.requests.patch") as mock_patch:
+            fid = w._food_id("999", "Jogurt")
+        self.assertEqual(fid, "f1")
+        mock_patch.assert_not_called()
+
+    def test_bez_shody_zadny_patch(self):
+        w = self._writer([{"id": "f1", "nazev": "Jogurt", "ean": "5"}])
+        with patch("scraper.db.requests.patch") as mock_patch:
+            self.assertIsNone(w._food_id(None, "Chleba"))
+        mock_patch.assert_not_called()
 
 
 class TestNormalizaceNazvu(unittest.TestCase):
