@@ -48,6 +48,8 @@ export interface Potravina {
   alergeny?: string[];
   /** vhodné pro diety (vegetariansky, vegansky, bezlepkovy) */
   diety?: string[];
+  /** URL náhledu z OpenFoodFacts (migrace 0009) */
+  obrazek?: string | null;
 }
 
 /** Profilový filtr jídelníčku – diety a alergie uživatele. */
@@ -89,6 +91,8 @@ export interface Jidlo {
   cenaBezna: number;
   obchod: string | null;
   sleva: boolean;
+  /** URL náhledu potraviny (z OpenFoodFacts), pokud existuje */
+  obrazek?: string | null;
 }
 
 export interface SouhrnJidla {
@@ -279,6 +283,7 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     cenaBezna: Math.round(p.beznaCena * k * 100) / 100,
     obchod: p.sleva ? p.obchod : null,
     sleva: p.sleva,
+    obrazek: p.obrazek ?? null,
   };
 }
 

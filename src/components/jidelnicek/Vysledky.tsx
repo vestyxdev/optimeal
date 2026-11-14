@@ -114,7 +114,18 @@ export function DenniVysledek({ den, cile }: { den: DenVysledek; cile: Cile }) {
                 {souhrn.jidla.map((j, i) => (
                   <li key={`${j.id}-${i}`} className="px-4 py-3">
                     <div className="flex justify-between gap-2 text-sm font-medium">
-                      <span>{j.nazev}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        {j.obrazek && (
+                          <img
+                            src={j.obrazek}
+                            alt=""
+                            loading="lazy"
+                            className="size-8 shrink-0 rounded-md object-cover"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                        )}
+                        <span className="min-w-0">{j.nazev}</span>
+                      </span>
                       <span className="tabular-nums">{Math.round(j.gramy)} g</span>
                     </div>
                     <div className="mt-1 flex justify-between gap-2 text-xs text-muted">

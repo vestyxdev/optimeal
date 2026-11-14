@@ -48,6 +48,7 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
     sleva: Boolean(r.sleva),
     alergeny: (r as { alergeny?: string[] }).alergeny ?? [],
     diety: (r as { diety?: string[] }).diety ?? [],
+    obrazek: (r as { obrazek?: string | null }).obrazek ?? null,
   }));
 }
 
