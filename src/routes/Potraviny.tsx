@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Carrot, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
+import {
+  Apple, Beef, Carrot, Cookie, Milk, Package, Plus, ScanBarcode, Search,
+  Sparkles, Trash2, Wheat, X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,8 +14,10 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { sklonuj } from "@/lib/sklonovani";
+import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
   hledejOpenFoodFacts,
+  nactiOffPodleEan,
   nactiKatalogPotravin,
   pridejPotravinu,
   smazPotravinu,
@@ -43,6 +48,37 @@ const ALERGEN_NAZVY: Record<string, string> = {
 const DIETA_NAZVY: Record<string, string> = {
   vegetariansky: "veg", vegansky: "vegan", bezlepkovy: "bez lepku",
 };
+
+const KATEGORIE_IKONY: Record<string, typeof Apple> = {
+  maso_ryby: Beef,
+  mlecne_vyrobky: Milk,
+  ovoce_zelenina: Apple,
+  peckoviny_obily: Wheat,
+  suchary_testoviny: Cookie,
+  ostatni: Package,
+};
+
+/** Podíl energie z B/S/T – vizuální pásek jako v kalorických tabulkách. */
+function PasekMakro({ p }: { p: Pick<KatalogPotravina, "bilkoviny" | "sacharidy" | "tuky"> }) {
+  const kcalB = p.bilkoviny * 4;
+  const kcalS = p.sacharidy * 4;
+  const kcalT = p.tuky * 9;
+  const celkem = kcalB + kcalS + kcalT;
+  if (celkem <= 0) return null;
+  const podil = (v: number) => Math.round((v / celkem) * 100);
+  return (
+    <span className="mt-1 flex items-center gap-1.5" title={`Podíl energie – B ${podil(kcalB)} %, S ${podil(kcalS)} %, T ${podil(kcalT)} %`}>
+      <span aria-hidden className="flex h-1 w-20 overflow-hidden rounded-full bg-surface-2">
+        <span style={{ width: `${podil(kcalB)}%`, backgroundColor: "#2d6a4f" }} />
+        <span style={{ width: `${podil(kcalS)}%`, backgroundColor: "#7fae3e" }} />
+        <span style={{ width: `${podil(kcalT)}%`, backgroundColor: "#b45309" }} />
+      </span>
+      <span className="sr-only">
+        Podíl energie: bílkoviny {podil(kcalB)} %, sacharidy {podil(kcalS)} %, tuky {podil(kcalT)} %.
+      </span>
+    </span>
+  );
+}
 
 interface FormPotravina {
   nazev: string;
@@ -214,8 +250,19 @@ function RadekPotraviny({
             alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
           </span>
         )}
+        <PasekMakro p={p} />
       </td>
-      <td className="px-4 py-2.5 text-muted">{KATEGORIE[p.kategorie ?? "ostatni"] ?? p.kategorie}</td>
+      <td className="px-4 py-2.5 text-muted">
+        {(() => {
+          const Ikona = KATEGORIE_IKONY[p.kategorie ?? "ostatni"] ?? Package;
+          return (
+            <span className="inline-flex items-center gap-1.5">
+              <Ikona className="size-3.5 shrink-0" aria-hidden />
+              {KATEGORIE[p.kategorie ?? "ostatni"] ?? p.kategorie}
+            </span>
+          );
+        })()}
+      </td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.bilkoviny}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.sacharidy}</td>
@@ -261,6 +308,8 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
   const klient = useQueryClient();
   const [f, setF] = useState<FormPotravina>(PRAZDNY_FORM);
   const [hledaOff, setHledaOff] = useState(false);
+  const [ean, setEan] = useState("");
+  const [skenovani, setSkenovani] = useState(false);
   const uprav = (klic: keyof FormPotravina, hodnota: string) =>
     setF((pred) => ({ ...pred, [klic]: hodnota }));
 
@@ -325,6 +374,35 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
     }
   }
 
+  async function dohledatEan(kod?: string) {
+    const vstup = (kod ?? ean).trim();
+    if (vstup === "") {
+      toast.error("Zadejte čárový kód produktu.");
+      return;
+    }
+    setHledaOff(true);
+    try {
+      const nalezena = await nactiOffPodleEan(vstup);
+      if (!nalezena) {
+        toast.info("Produkt s tímto kódem v OpenFoodFacts není – vyplňte ručně.");
+        return;
+      }
+      setF((pred) => ({
+        ...pred,
+        nazev: nalezena.nazev,
+        kalorie: nalezena.kalorie?.toString() ?? pred.kalorie,
+        bilkoviny: nalezena.bilkoviny?.toString() ?? pred.bilkoviny,
+        sacharidy: nalezena.sacharidy?.toString() ?? pred.sacharidy,
+        tuky: nalezena.tuky?.toString() ?? pred.tuky,
+      }));
+      toast.success(`„${nalezena.nazev}" nalezen – kategorii a cenu doplňte ručně.`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setHledaOff(false);
+    }
+  }
+
   return (
     <Card>
       <div className="flex items-center justify-between">
@@ -341,6 +419,55 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
       <p className="mt-1 text-xs text-muted">
         Hodnoty vždy za 100 g – stejně jako zbytek katalogu, aby šly porovnat.
       </p>
+
+      {skenovani ? (
+        <SkenovaniEan
+          naKod={(kod) => {
+            setEan(kod);
+            setSkenovani(false);
+            void dohledatEan(kod);
+          }}
+          naZavreni={() => setSkenovani(false)}
+        />
+      ) : (
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <div className="min-w-40 flex-1">
+            <Label htmlFor="pEan">Čárový kód (EAN)</Label>
+            <Input
+              id="pEan"
+              inputMode="numeric"
+              value={ean}
+              onChange={(e) => setEan(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void dohledatEan();
+                }
+              }}
+              placeholder="Např. 8591234567890"
+            />
+          </div>
+          <Button
+            type="button"
+            varianta="outline"
+            onClick={() => void dohledatEan()}
+            disabled={hledaOff}
+          >
+            <Search className="size-4" /> Najít podle kódu
+          </Button>
+          {podporujeSkenovaniKodu() && (
+            <Button
+              type="button"
+              varianta="outline"
+              onClick={() => setSkenovani(true)}
+              disabled={hledaOff}
+              title="Naskenovat čárový kód kamerou"
+            >
+              <ScanBarcode className="size-4" /> Skenovat kamerou
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">

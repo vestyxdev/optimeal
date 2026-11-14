@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsujOffProdukty } from "@/lib/data/potraviny";
+import { normalizujEan, parsujOffProdukty } from "@/lib/data/potraviny";
 
 describe("parsujOffProdukty", () => {
   it("preferuje energy-kcal_100g a český název", () => {
@@ -72,5 +72,26 @@ describe("parsujOffProdukty", () => {
 
   it("prázdný seznam produktů → null", () => {
     expect(parsujOffProdukty([])).toBeNull();
+  });
+});
+
+describe("normalizujEan", () => {
+  it("akceptuje EAN-13, EAN-8 a UPC-A (12 číslic)", () => {
+    expect(normalizujEan("8590123456789")).toBe("8590123456789");
+    expect(normalizujEan("12345678")).toBe("12345678");
+    expect(normalizujEan("012345678905")).toBe("012345678905");
+  });
+
+  it("odstraní mezery a pomlčky z opsaného kódu", () => {
+    expect(normalizujEan("859 0123 456 789")).toBe("8590123456789");
+    expect(normalizujEan("859-0123-456-789")).toBe("8590123456789");
+  });
+
+  it("odmítá nečíselné znaky a špatné délky", () => {
+    expect(normalizujEan("abc")).toBeNull();
+    expect(normalizujEan("12345")).toBeNull();
+    expect(normalizujEan("123456789012345")).toBeNull();
+    expect(normalizujEan("")).toBeNull();
+    expect(normalizujEan("859012345678a")).toBeNull();
   });
 });

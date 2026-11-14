@@ -164,3 +164,30 @@ export async function hledejOpenFoodFacts(
   const json = (await odpoved.json()) as { products?: OffProdukt[] };
   return parsujOffProdukty(json.products ?? []);
 }
+
+/** Normalizuje čárový kód (EAN/UPC): jen číslice, délka 8/12/13/14. Jinak null. */
+export function normalizujEan(vstup: string): string | null {
+  const ean = vstup.replace(/[\s-]/g, "");
+  return /^\d{8}$|^\d{12,14}$/.test(ean) ? ean : null;
+}
+
+/**
+ * Dohledá produkt v OpenFoodFacts podle čárového kódu (EAN/UPC).
+ * Product API vrací jeden produkt – status 0 = nenalezen.
+ */
+export async function nactiOffPodleEan(
+  vstup: string,
+): Promise<OffNalezenaPotravina | null> {
+  const ean = normalizujEan(vstup);
+  if (ean === null) throw new Error("Zadejte platný čárový kód (8–14 číslic).");
+
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,nutriments`;
+  const odpoved = await fetch(url, {
+    headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
+  });
+  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
+
+  const json = (await odpoved.json()) as { status?: number; product?: OffProdukt };
+  if (json.status !== 1 || !json.product) return null;
+  return parsujOffProdukty([json.product]);
+}
