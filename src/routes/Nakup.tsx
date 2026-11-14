@@ -159,6 +159,15 @@ export function Nakup() {
                   className="size-4 accent-primary"
                   aria-label={`Označit ${p.nazev} jako koupené`}
                 />
+                {p.obrazek && (
+                  <img
+                    src={p.obrazek}
+                    alt=""
+                    loading="lazy"
+                    className="size-8 shrink-0 rounded-md object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                )}
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
                   {p.vlastni && <Badge tono="neutral" className="ml-2">ruční</Badge>}

@@ -22,6 +22,7 @@ export interface PolozkaNakupu {
   koupeno: boolean;
   vlastni: boolean;
   kategorie: string;
+  obrazek?: string | null;
 }
 
 /** Načte seznamy přihlášeného uživatele (novější první). */
@@ -107,9 +108,17 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
 
   const { data, error } = await klient
     .from("shopping_list_items")
-    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie")
+    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, potravina:foods(obrazek)")
     .eq("list_id", idSeznamu)
     .order("id");
+  // před migrací 0009 foods.obrazek neexistuje → fallback bez joinu
+  if (error && /obrazek/i.test(error.message)) {
+    ({ data, error } = await klient
+      .from("shopping_list_items")
+      .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie")
+      .eq("list_id", idSeznamu)
+      .order("id"));
+  }
   if (error) throw new Error(`Položky se nenačetly: ${error.message}`);
   return (data ?? []).map((p) => ({
     id: p.id,
@@ -120,6 +129,7 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
     jeSleva: p.je_sleva,
     koupeno: p.koupeno,
     vlastni: p.vlastni,
+    obrazek: (p.potravina?.obrazek ?? null) as string | null,
     kategorie: p.kategorie,
   }));
 }
