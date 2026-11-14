@@ -45,9 +45,10 @@ export function Recepty() {
       </div>
 
       {/* filtry kategorií */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtr podle kategorie">
         <button
           onClick={() => setKategorie(null)}
+          aria-pressed={kategorie === null}
           className={
             kategorie === null
               ? "rounded-pill bg-primary px-3 py-1.5 text-sm font-medium text-primary-fg"
@@ -60,6 +61,7 @@ export function Recepty() {
           <button
             key={k}
             onClick={() => setKategorie(k)}
+            aria-pressed={kategorie === k}
             className={
               kategorie === k
                 ? "rounded-pill bg-primary px-3 py-1.5 text-sm font-medium text-primary-fg"
@@ -72,8 +74,15 @@ export function Recepty() {
       </div>
 
       {dotazRecepty.isError && (
-        <Card className="bg-danger-soft text-sm text-danger">
-          {(dotazRecepty.error as Error).message}
+        <Card className="flex flex-wrap items-center justify-between gap-3 bg-danger-soft text-sm text-danger">
+          <span>{(dotazRecepty.error as Error).message}</span>
+          <Button
+            varianta="outline"
+            velikost="sm"
+            onClick={() => void dotazRecepty.refetch()}
+          >
+            Zkusit znovu
+          </Button>
         </Card>
       )}
       {!dotazRecepty.isLoading && filtrovane.length === 0 && (

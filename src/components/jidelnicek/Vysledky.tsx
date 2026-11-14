@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { CalendarDays, PiggyBank, ShoppingBasket } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -88,7 +89,7 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
 }
 
 export function DenniVysledek({ den, cile }: { den: DenVysledek; cile: Cile }) {
-  const nakup = sestavNakupniSeznam(den.jidelnicek);
+  const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
 
   return (
     <div className="space-y-5">
@@ -167,7 +168,7 @@ export function TydennyVysledek({ plan, cile }: { plan: TydenniPlan; cile: Cile 
             <tbody>
               {Object.entries(plan.dny).map(([den, vysledek]) => (
                 <tr key={den} className="border-b border-border last:border-0">
-                  <td className="px-5 py-2 font-medium">{DENY[Number(den)]}</td>
+                  <td className="px-5 py-2 font-medium">{DENY[Number(den)] ?? den}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{Math.round(vysledek.celkem.kalorie)} kcal</td>
                   <td className="px-2 py-2 text-right tabular-nums">{vysledek.celkem.bilkoviny} g</td>
                   <td className="px-5 py-2 text-right tabular-nums">{vysledek.celkem.cena.toFixed(2)} Kč</td>
