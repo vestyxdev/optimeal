@@ -43,7 +43,7 @@ Jedním příkazem přes pooler (heslo se předává argumentem, neukládá se):
 node scripts/spust_migrace.mjs "<heslo-k-databazi>"
 ```
 
-Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0007)
+Skript postupně pustí **všechny migrace** z `supabase/migrations/` (0001–0008)
 a oba seedy (`seed.sql` potraviny + `seed_recepty.sql` recepty). Seedy jsou
 idempotentní – skript lze spustit opakovaně.
 
@@ -62,6 +62,7 @@ Migrace:
 | `0005_katalog_potravin_view.sql` | `aktualni_ceny` doplní `vytvoril`/`zdroj_potraviny` |
 | `0006_alergeny_a_diety.sql` | sloupce `foods.alergeny`/`diety` (jen schéma – data plní `seed.sql`) |
 | `0007_katalog_anon_a_rpc_grants.sql` | SELECT na `foods` i pro anonyma (join v receptech), ostražitější granty RPC |
+| `0008_atomicke_zapisy.sql` | RPC `uloz_recept`/`uprav_recept`/`uloz_nakupni_seznam`/`uloz_cile` – vícekrokové zápisy atomicky v transakci (SECURITY INVOKER, RLS platí) |
 
 ## Funkce
 

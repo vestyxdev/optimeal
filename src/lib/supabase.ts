@@ -27,3 +27,12 @@ export const supabase: SupabaseClient | null = supabaseNastaveno
       },
     })
   : null;
+
+/**
+ * Pozná „RPC funkce není nasazená" (PGRST202) – data vrstva pak
+ * spadne na kompenzovaný zápis přes PostgREST.
+ */
+export function rpcChybi(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  return err.code === "PGRST202" || /could not find the function|schema cache/i.test(err.message ?? "");
+}

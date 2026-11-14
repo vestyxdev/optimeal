@@ -1,5 +1,5 @@
 import type { Potravina } from "@/lib/generator/generator";
-import { supabase } from "@/lib/supabase";
+import { rpcChybi, supabase } from "@/lib/supabase";
 
 /**
  * Recepty – globální (seed/kurátor) i vlastní. Ceny a výživové
@@ -129,6 +129,24 @@ export async function ulozRecept(recept: {
   const { data: uzivatel } = await klient.auth.getUser();
   if (!uzivatel.user) throw new Error("Není přihlášen.");
 
+  // atomická RPC (migrace 0008) – jeden transakční zápis
+  const { data: rpcId, error: errRpc } = await klient.rpc("uloz_recept", {
+    p_nazev: recept.nazev,
+    p_popis: recept.popis ?? null,
+    p_kategorie: recept.kategorie,
+    p_porce: recept.porce,
+    p_cas_minuty: recept.casMinuty ?? null,
+    p_postup: recept.postup,
+    p_suroviny: recept.suroviny.map((s) => ({
+      food_id: s.foodId,
+      gramy_na_porce: s.gramyNaPorce,
+      poznamka: s.poznamka ?? null,
+    })),
+  });
+  if (!errRpc) return rpcId as string;
+  if (!rpcChybi(errRpc)) throw new Error(`Recept se neuložil: ${errRpc.message}`);
+  // funkce není nasazená → kompenzovaný PostgREST zápis
+
   const { data, error } = await klient
     .from("recipes")
     .insert({
@@ -181,6 +199,25 @@ export async function upravRecept(
 ): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
+
+  // atomická RPC (migrace 0008) – hlavička + náhrada surovin v transakci
+  const { error: errRpc } = await klient.rpc("uprav_recept", {
+    p_id: id,
+    p_nazev: recept.nazev,
+    p_popis: recept.popis ?? null,
+    p_kategorie: recept.kategorie,
+    p_porce: recept.porce,
+    p_cas_minuty: recept.casMinuty ?? null,
+    p_postup: recept.postup,
+    p_suroviny: recept.suroviny.map((s) => ({
+      food_id: s.foodId,
+      gramy_na_porce: s.gramyNaPorce,
+      poznamka: s.poznamka ?? null,
+    })),
+  });
+  if (!errRpc) return;
+  if (!rpcChybi(errRpc)) throw new Error(`Recept se neuložil: ${errRpc.message}`);
+  // funkce není nasazená → kompenzovaný PostgREST zápis
 
   const { error } = await klient
     .from("recipes")

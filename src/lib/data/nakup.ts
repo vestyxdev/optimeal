@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { rpcChybi, supabase } from "@/lib/supabase";
 
 /**
  * Nákupní seznamy – ukládání a správa (shopping_lists + items).
@@ -49,6 +49,24 @@ export async function ulozNakupniSeznam(
 
   const { data: uzivatel } = await klient.auth.getUser();
   if (!uzivatel.user) throw new Error("Není přihlášen.");
+
+  // atomická RPC (migrace 0008) – seznam + položky v transakci
+  const { data: rpcId, error: errRpc } = await klient.rpc("uloz_nakupni_seznam", {
+    p_nazev: nazev,
+    p_plan_id: planId ?? null,
+    p_polozky: polozky.map((p) => ({
+      food_id: p.foodId ?? null,
+      nazev: p.nazev,
+      gramy: p.gramy,
+      cena_za_100g: p.cenaZa100g,
+      obchod: p.obchod,
+      je_sleva: p.jeSleva,
+      kategorie: p.kategorie ?? "ostatni",
+    })),
+  });
+  if (!errRpc) return rpcId as string;
+  if (!rpcChybi(errRpc)) throw new Error(`Seznam se neuložil: ${errRpc.message}`);
+  // funkce není nasazená → kompenzovaný PostgREST zápis
 
   const { data: seznam, error } = await klient
     .from("shopping_lists")

@@ -1,5 +1,5 @@
 import type { Aktivita, Cile, CilTela, Pohlavi } from "@/lib/vyziva/cile";
-import { supabase } from "@/lib/supabase";
+import { rpcChybi, supabase } from "@/lib/supabase";
 
 /**
  * Profil uživatele + aktivní výživové cíle (RLS chrání vlastní řádky).
@@ -141,6 +141,18 @@ export async function ulozCile(c: Cile, zdroj: "auto" | "manual"): Promise<void>
 
   const { data: uzivatel } = await klient.auth.getUser();
   if (!uzivatel.user) throw new Error("Není přihlášen.");
+
+  // atomická RPC (migrace 0008) – deaktivace + vložení v transakci
+  const { error: errRpc } = await klient.rpc("uloz_cile", {
+    p_kalorie: Math.round(c.kalorie),
+    p_bilkoviny: Math.round(c.bilkoviny),
+    p_sacharidy: Math.round(c.sacharidy),
+    p_tuky: Math.round(c.tuky),
+    p_zdroj: zdroj,
+  });
+  if (!errRpc) return;
+  if (!rpcChybi(errRpc)) throw new Error(`Cíle se neuložily: ${errRpc.message}`);
+  // funkce není nasazená → kompenzovaný PostgREST zápis
 
   // snapshot aktivních řádků pro případné vrácení zpět
   const { data: aktivniPred } = await klient
