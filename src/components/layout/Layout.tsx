@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Carrot,
   ChefHat,
   CookingPot,
+  Ellipsis,
   Leaf,
   Moon,
   Receipt,
@@ -27,7 +29,7 @@ interface Sekce {
   cesta: string;
   nazev: string;
   ikona: typeof Leaf;
-  /** v mobilní spodní liště */
+  /** v mobilní spodní liště (primární položky) */
   vListe?: boolean;
 }
 
@@ -35,17 +37,22 @@ const SEKCE: Sekce[] = [
   { cesta: "/", nazev: "Přehled", ikona: Receipt, vListe: true },
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
   { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat, vListe: true },
-  { cesta: "/potraviny", nazev: "Potraviny", ikona: Carrot },
-  { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot, vListe: true },
   { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket, vListe: true },
-  { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },
+  // ostatní sekce jsou na mobilu v nabídce „Více“ – spodní lišta má jen 4+1 slotů
+  { cesta: "/potraviny", nazev: "Potraviny", ikona: Carrot },
+  { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot },
+  { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound },
   { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings },
 ];
+
+/** Sekce schované na mobilu do menu „Více“ (pořadí zachovává SEKCE). */
+const SEKCE_VICE = SEKCE.filter((s) => !s.vListe);
 
 export function Layout() {
   const { uzivatel, odhlasit } = useAuth();
   const { motiv, nastavMotiv } = useMotiv();
   const naviguj = useNavigate();
+  const [viceOtevrene, nastavViceOtevrene] = useState(false);
 
   const odkazSekce = (s: Sekce, mobilni: boolean) => (
     <NavLink
@@ -142,9 +149,81 @@ export function Layout() {
       </div>
 
       {/* ---- mobil: spodní navigace ---- */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden"
+        aria-label="Hlavní navigace"
+      >
         {SEKCE.filter((s) => s.vListe).map((s) => odkazSekce(s, true))}
+        <button
+          type="button"
+          onClick={() => nastavViceOtevrene(true)}
+          aria-expanded={viceOtevrene}
+          aria-label="Další sekce – Potraviny, Mealprep, Můj účet, Nastavení"
+          className="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-muted"
+        >
+          <Ellipsis className="size-5" />
+          Více
+        </button>
       </nav>
+
+      {/* ---- mobil: nabídka „Více“ ---- */}
+      {viceOtevrene && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 md:hidden"
+          onClick={() => nastavViceOtevrene(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") nastavViceOtevrene(false);
+          }}
+          role="presentation"
+        >
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface p-4 pb-6 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Další sekce"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+            <nav className="space-y-0.5" aria-label="Další sekce">
+              {SEKCE_VICE.map((s) => (
+                <NavLink
+                  key={s.cesta}
+                  to={s.cesta}
+                  onClick={() => nastavViceOtevrene(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                      isActive ? "bg-primary-soft text-primary" : "text-fg hover:bg-surface-2",
+                    )
+                  }
+                >
+                  <s.ikona className="size-4.5" />
+                  {s.nazev}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="mt-3 space-y-2 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => nastavMotiv(motiv === "dark" ? "light" : "dark")}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-fg hover:bg-surface-2"
+              >
+                {motiv === "dark" ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}
+                {motiv === "dark" ? "Světlý motiv" : "Tmavý motiv"}
+              </button>
+              {uzivatel && (
+                <Button
+                  varianta="outline"
+                  className="w-full"
+                  onClick={() => void odhlasit()}
+                >
+                  Odhlásit se ({uzivatel.email})
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
