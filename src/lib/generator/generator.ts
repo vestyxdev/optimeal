@@ -304,13 +304,20 @@ export function naplanujJidlo(
   const jidla: Jidlo[] = [];
   const zbyva = { b: Math.max(cilB, 0), s: Math.max(cilS, 0), t: Math.max(cilT, 0), k: Math.max(cilK, 0) };
 
-  /** gramace podle požadovaného makra + kalorického stropu */
+  /** gramace podle požadovaného makra + kalorického stropu +
+   * strop ostatních maker (vysokotučná kotva nesmí vyčerpat tukový rozpočet) */
   const gramace = (p: Kandidat, makro: "bilkoviny" | "sacharidy" | "tuky", cilNaMakro: number, min: number, max: number): number => {
     const hodnotaNaGram = Math.max(p[makro], 0.5) / 100;
     const gramyPodleMakra = Math.round(cilNaMakro / hodnotaNaGram);
     const kcalNaGram = Math.max(p.kalorie, 1) / 100;
     const gramyPodleKcal = Math.floor(zbyva.k / kcalNaGram);
-    return Math.max(min, Math.min(Math.min(gramyPodleMakra, gramyPodleKcal), max));
+    // 30 % rezerva nad zbývající rozpočet ostatních maker – samotná potravina
+    // nemůže překročit jídelní rámec o víc. Strop platí jen u potravin,
+    // které jsou v daném makru významné (≥ 3 g/100 g) – brambory s 0,1 g tuku
+    // nesmí být omezené vyčerpaným tukovým rozpočtem.
+    const stropTuk = p.tuky >= 3 ? Math.floor((Math.max(zbyva.t, 0) * 1.3) / (p.tuky / 100)) : Number.MAX_SAFE_INTEGER;
+    const stropSach = p.sacharidy >= 3 ? Math.floor((Math.max(zbyva.s, 0) * 1.3) / (p.sacharidy / 100)) : Number.MAX_SAFE_INTEGER;
+    return Math.max(min, Math.min(Math.min(gramyPodleMakra, gramyPodleKcal, stropTuk, stropSach), max));
   };
 
   const pridej = (p: Potravina, gramy: number) => {

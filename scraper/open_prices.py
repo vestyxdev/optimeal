@@ -21,20 +21,44 @@ HLAVICKA = {"User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)"
 log = logging.getLogger("scraper.open_prices")
 
 
+POKUSY = 3  # transientní chyby (5xx, timeout) zkusíme znovu s backoffem
+
+
+def _stahni_stranku(stranka: int) -> dict | None:
+    """Stáhne jednu stránku API s retry; po vyčerpání pokusů vrátí None.
+
+    Nepropaguje výjimku – jedna vadná stránka nesmí shodit celý ingest.
+    """
+    for pokus in range(1, POKUSY + 1):
+        try:
+            odpoved = requests.get(
+                API,
+                params={"size": 100, "page": stranka},
+                headers=HLAVICKA,
+                timeout=30,
+            )
+            odpoved.raise_for_status()
+            return odpoved.json()
+        except requests.RequestException as e:
+            cekani = 2**pokus
+            log.warning(
+                "Stránka %d: pokus %d/%d selhal (%s), čekám %d s",
+                stranka, pokus, POKUSY, e.__class__.__name__, cekani,
+            )
+            time.sleep(cekani)
+    log.error("Stránka %d se nepodařila stáhnout – přeskakuji", stranka)
+    return None
+
+
 def stahni_ceny_cz(max_stranek: int = 10, kurz_eur: float = 25.5) -> Iterator[dict]:
     """Iteruje normalizované záznamy pro české obchody.
 
     Každá položka: {ean, nazev_produktu, obchod, cena_za_100g, je_sleva, datum}
     """
     for stranka in range(1, max_stranek + 1):
-        odpoved = requests.get(
-            API,
-            params={"size": 100, "page": stranka},
-            headers=HLAVICKA,
-            timeout=30,
-        )
-        odpoved.raise_for_status()
-        data = odpoved.json()
+        data = _stahni_stranku(stranka)
+        if data is None:
+            continue
         polozky = data.get("items") or []
         if not polozky:
             break
