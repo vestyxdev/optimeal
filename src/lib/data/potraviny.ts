@@ -132,7 +132,14 @@ export async function hledejOpenFoodFacts(
   for (const p of json.products ?? []) {
     const n = p.nutriments;
     if (!n) continue;
-    const kcal = Number(n["energy-kcal_100g"] ?? n.energy_100g);
+    // energy-kcal_100g je kcal; energy_100g je kJ → převést (1 kcal = 4,184 kJ)
+    const kcalRaw = n["energy-kcal_100g"];
+    const kcal =
+      kcalRaw != null
+        ? Number(kcalRaw)
+        : n.energy_100g != null
+          ? Number(n.energy_100g) / 4.184
+          : NaN;
     if (!Number.isFinite(kcal) || kcal <= 0) continue;
     const nazev = (p.product_name_cs ?? p.product_name ?? "").trim();
     if (!nazev) continue;
