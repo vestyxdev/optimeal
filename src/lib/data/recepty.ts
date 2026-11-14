@@ -21,6 +21,7 @@ export interface Surovina {
   gramyNaPorce: number;
   poznamka: string | null;
   alergeny?: string[];
+  obrazek?: string | null;
 }
 
 export interface Recept {
@@ -51,7 +52,7 @@ interface RadkaReceptu {
     food_id: string;
     gramy_na_porce: number;
     poznamka: string | null;
-    potravina: { nazev: string; alergeny?: string[] } | null;
+    potravina: { nazev: string; alergeny?: string[]; obrazek?: string | null } | null;
   }[];
 }
 
@@ -74,6 +75,7 @@ function naRecept(r: RadkaReceptu): Recept {
         gramyNaPorce: Number(s.gramy_na_porce),
         poznamka: s.poznamka,
         alergeny: s.potravina?.alergeny ?? [],
+        obrazek: s.potravina?.obrazek ?? null,
       })),
   };
 }
@@ -83,19 +85,32 @@ export function alergenyReceptu(recept: Recept): string[] {
   return [...new Set(recept.suroviny.flatMap((s) => s.alergeny ?? []))];
 }
 
+/** Select receptů vč. miniatur surovin; před migrací 0009 fallback bez obrazku. */
+const RECEPT_SELECT =
+  "id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny, obrazek))";
+const RECEPT_SELECT_BEZ_OBRAZKU = RECEPT_SELECT.replace(", obrazek)", ")");
+
+/** Spustí dotaz; když DB ještě nemá foods.obrazek, zkusí select bez něj. */
+async function sObrazky<T>(
+  f: (select: string) => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+  popisek: string,
+): Promise<T | null> {
+  let { data, error } = await f(RECEPT_SELECT);
+  if (error && /obrazek/i.test(error.message)) ({ data, error } = await f(RECEPT_SELECT_BEZ_OBRAZKU));
+  if (error) throw new Error(popisek + error.message);
+  return data;
+}
+
 /** Načte globální + vlastní recepty s surovinami (jeden dotaz). */
 export async function nactiRecepty(): Promise<Recept[]> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { data, error } = await klient
-    .from("recipes")
-    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny))")
-    .order("kategorie")
-    .order("nazev");
-
-  if (error) throw new Error(`Recepty se nenačetly: ${error.message}`);
-  return (data as unknown as RadkaReceptu[]).map(naRecept);
+  const data = await sObrazky(
+    (sel) => klient.from("recipes").select(sel).order("kategorie").order("nazev"),
+    "Recepty se nenačetly: ",
+  );
+  return ((data ?? []) as unknown as RadkaReceptu[]).map(naRecept);
 }
 
 /** Detail jednoho receptu. */
@@ -103,13 +118,10 @@ export async function nactiRecept(id: string): Promise<Recept> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const { data, error } = await klient
-    .from("recipes")
-    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny))")
-    .eq("id", id)
-    .single();
-
-  if (error) throw new Error(`Recept se nenačetl: ${error.message}`);
+  const data = await sObrazky(
+    (sel) => klient.from("recipes").select(sel).eq("id", id).single(),
+    "Recept se nenačetl: ",
+  );
   return naRecept(data as unknown as RadkaReceptu);
 }
 

@@ -150,8 +150,21 @@ export function ReceptDetail() {
                   return (
                     <tr key={s.foodId} className="border-b border-border last:border-0">
                       <td className="px-5 py-2 font-medium">
-                        {s.nazev}
-                        {s.poznamka && <span className="ml-1 text-xs text-muted">({s.poznamka})</span>}
+                        <span className="flex items-center gap-2">
+                          {s.obrazek && (
+                            <img
+                              src={s.obrazek}
+                              alt=""
+                              loading="lazy"
+                              className="size-7 shrink-0 rounded-md object-cover"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                          )}
+                          <span>
+                            {s.nazev}
+                            {s.poznamka && <span className="ml-1 text-xs text-muted">({s.poznamka})</span>}
+                          </span>
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-right tabular-nums">{Math.round(s.gramyNaPorce)} g</td>
                       <td className="px-2 py-2 text-right tabular-nums text-muted">{Math.round(celkemG)} g</td>
