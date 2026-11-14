@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BONUS_SLEVY,
+  filtrujPotraviny,
   kategoriePotraviny,
   naplanujJidlo,
   panelTik,
@@ -286,6 +287,58 @@ describe("podilyProPocetJidel", () => {
     expect(Object.keys(den3.jidelnicek)).toEqual(["Snídaně", "Oběd", "Večeře"]);
     const den6 = vygenerujJidelnicek(KATALOG, CILE, 3, 0.85, 6);
     expect(Object.keys(den6.jidelnicek).length).toBe(6);
+  });
+});
+
+/* ============================================================
+ * FILTR DIET A ALERGENŮ
+ * ============================================================ */
+
+describe("filtrujPotraviny", () => {
+  const katalog = [
+    { ...p("v1", "Quinoa", 14, 57, 6, 368, 22), diety: ["vegansky", "vegetariansky", "bezlepkovy"], alergeny: [] as string[] },
+    { ...p("v2", "Mléko", 3.3, 4.8, 3.6, 64, 2.5), diety: ["vegetariansky"], alergeny: ["mleko"] },
+    { ...p("v3", "Losos", 20, 0, 13, 208, 32), diety: [] as string[], alergeny: ["ryby"] },
+    { ...p("v4", "Brambory", 2, 17, 0.1, 77, 2) },
+  ];
+
+  it("prázdný filtr nechává celý katalog", () => {
+    expect(filtrujPotraviny(katalog, null)).toHaveLength(4);
+    expect(filtrujPotraviny(katalog, { diety: [], alergeny: [] })).toHaveLength(4);
+  });
+
+  it("dieta vyžaduje příslušnou značku", () => {
+    const vys = filtrujPotraviny(katalog, { diety: ["vegansky"] });
+    expect(vys.map((p) => p.id)).toEqual(["v1"]);
+  });
+
+  it("alergie vyloučí potraviny s alergenem", () => {
+    const vys = filtrujPotraviny(katalog, { alergeny: ["mleko", "ryby"] });
+    expect(vys.map((p) => p.id)).toEqual(["v1", "v4"]);
+  });
+
+  it("kombinace dieta + alergie platí současně", () => {
+    const vys = filtrujPotraviny(katalog, {
+      diety: ["vegetariansky"],
+      alergeny: ["mleko"],
+    });
+    expect(vys.map((p) => p.id)).toEqual(["v1"]);
+  });
+
+  it("generátor s filtrem nepoužije vyloučené potraviny", () => {
+    const katalogSMetadaty = KATALOG.map((p, i) => ({
+      ...p,
+      ...(i < 2 ? { diety: ["vegansky"] } : {}),
+      ...(i >= 2 ? { alergeny: ["mleko"] } : {}),
+    }));
+    const den = vygenerujJidelnicek(katalogSMetadaty, CILE, 1, 0.6, 4, {
+      alergeny: ["mleko"],
+    });
+    const ids = Object.values(den.jidelnicek).flatMap((j) => j.jidla.map((x) => x.id));
+    for (const id of ids) {
+      const p = katalogSMetadaty.find((k) => k.id === id);
+      expect(p?.alergeny ?? []).not.toContain("mleko");
+    }
   });
 });
 

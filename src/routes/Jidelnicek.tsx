@@ -71,6 +71,9 @@ export function Jidelnicek() {
   });
   const pocetJidel = dotazProfil.data?.pocetJidelDenne ?? 4;
   const rozpocet = dotazProfil.data?.tydennyRozpocetKc ?? null;
+  const filtr = dotazProfil.data
+    ? { diety: dotazProfil.data.dieta, alergeny: dotazProfil.data.alergie }
+    : null;
 
   const mutaceUlozit = useMutation({
     mutationFn: () => ulozPlan({ typ, cile, vysledek }),
@@ -131,8 +134,8 @@ export function Jidelnicek() {
     setUlozenyPlanId(null);
     setVysledek(
       typ === "den"
-        ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel)
-        : vygenerujTydenniPlan(potraviny, cile, pocetJidel),
+        ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel, filtr)
+        : vygenerujTydenniPlan(potraviny, cile, pocetJidel, filtr),
     );
   }
 

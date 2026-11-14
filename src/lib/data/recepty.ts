@@ -20,6 +20,7 @@ export interface Surovina {
   nazev: string;
   gramyNaPorce: number;
   poznamka: string | null;
+  alergeny?: string[];
 }
 
 export interface Recept {
@@ -50,7 +51,7 @@ interface RadkaReceptu {
     food_id: string;
     gramy_na_porce: number;
     poznamka: string | null;
-    potravina: { nazev: string } | null;
+    potravina: { nazev: string; alergeny?: string[] } | null;
   }[];
 }
 
@@ -72,8 +73,14 @@ function naRecept(r: RadkaReceptu): Recept {
         nazev: s.potravina?.nazev ?? "",
         gramyNaPorce: Number(s.gramy_na_porce),
         poznamka: s.poznamka,
+        alergeny: s.potravina?.alergeny ?? [],
       })),
   };
+}
+
+/** Sjednocení alergenů všech surovin receptu (pro zobrazení/badge). */
+export function alergenyReceptu(recept: Recept): string[] {
+  return [...new Set(recept.suroviny.flatMap((s) => s.alergeny ?? []))];
 }
 
 /** Načte globální + vlastní recepty s surovinami (jeden dotaz). */
@@ -83,7 +90,7 @@ export async function nactiRecepty(): Promise<Recept[]> {
 
   const { data, error } = await klient
     .from("recipes")
-    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
+    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny))")
     .order("kategorie")
     .order("nazev");
 
@@ -98,7 +105,7 @@ export async function nactiRecept(id: string): Promise<Recept> {
 
   const { data, error } = await klient
     .from("recipes")
-    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
+    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny))")
     .eq("id", id)
     .single();
 

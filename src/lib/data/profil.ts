@@ -81,6 +81,8 @@ export async function ulozProfil(zmeny: {
   teloTukProcento?: number | null | undefined;
   tydennyRozpocetKc?: number | null | undefined;
   pocetJidelDenne?: number | undefined;
+  dieta?: string[] | undefined;
+  alergie?: string[] | undefined;
 }): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -101,6 +103,8 @@ export async function ulozProfil(zmeny: {
       ...(zmeny.teloTukProcento !== undefined ? { telo_tuk_procento: zmeny.teloTukProcento } : {}),
       ...(zmeny.tydennyRozpocetKc !== undefined ? { tydenny_rozpocet_kc: zmeny.tydennyRozpocetKc } : {}),
       ...(zmeny.pocetJidelDenne !== undefined ? { pocet_jidel_denne: zmeny.pocetJidelDenne } : {}),
+      ...(zmeny.dieta !== undefined ? { dieta: zmeny.dieta } : {}),
+      ...(zmeny.alergie !== undefined ? { alergie: zmeny.alergie } : {}),
       upraveno: new Date().toISOString(),
     })
     .eq("id", uzivatel.user.id);

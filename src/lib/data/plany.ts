@@ -46,6 +46,8 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
     aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
     obchod: r.sleva ? r.obchod : null,
     sleva: Boolean(r.sleva),
+    alergeny: (r as { alergeny?: string[] }).alergeny ?? [],
+    diety: (r as { diety?: string[] }).diety ?? [],
   }));
 }
 

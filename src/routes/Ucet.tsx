@@ -40,6 +40,53 @@ function naCislo(h: string, vychozi: number): number {
   return Number.isFinite(n) ? n : vychozi;
 }
 
+/** Dostupné diety (klíče odpovídají foods.diety). */
+const DIETA_VOLBY: [string, string][] = [
+  ["vegetariansky", "Vegetariánská"],
+  ["vegansky", "Veganská"],
+  ["bezlepkovy", "Bezlepková"],
+];
+
+/** Alergeny EU-14 (klíče odpovídají foods.alergeny). */
+const ALERGENY_VOLBY: [string, string][] = [
+  ["lepek", "Lepek"],
+  ["korisi", "Korýši"],
+  ["vejce", "Vejce"],
+  ["ryby", "Ryby"],
+  ["arasidy", "Arašídy"],
+  ["soja", "Sója"],
+  ["mleko", "Mléko"],
+  ["orisky", "Ořechy"],
+  ["skorocel", "Celer"],
+  ["horcice", "Hořčice"],
+  ["sezam", "Sezam"],
+  ["sulfit", "Oxid siřičitý"],
+  ["lupina", "Lupina"],
+  ["vodnany", "Měkkýši"],
+];
+
+function CheckVolba({
+  popisek,
+  zaskrtnuto,
+  onZmena,
+}: {
+  popisek: string;
+  zaskrtnuto: boolean;
+  onZmena: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+      <input
+        type="checkbox"
+        checked={zaskrtnuto}
+        onChange={(e) => onZmena(e.target.checked)}
+        className="size-4 accent-primary"
+      />
+      {popisek}
+    </label>
+  );
+}
+
 /** Náhled cíle vypočteného z aktuálních vstupů. */
 function nahledCilu(p: Profil): CileVyziva | null {
   if (
@@ -90,6 +137,8 @@ export function Ucet() {
         teloTukProcento: p.teloTukProcento ?? null,
         tydennyRozpocetKc: p.tydennyRozpocetKc ?? null,
         pocetJidelDenne: p.pocetJidelDenne,
+        dieta: p.dieta,
+        alergie: p.alergie,
       });
       // cíle z profilu: vždy přepočet + aktivace
       const c = nahledCilu(p);
@@ -287,6 +336,54 @@ export function Ucet() {
                 <option key={n} value={n}>{n}× denně</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* diety a alergie – generátor jimi filtruje katalog */}
+        <div className="mt-5 space-y-4 border-t border-border pt-5">
+          <div>
+            <Label>Dieta</Label>
+            <p className="mb-2 text-xs text-muted">
+              Generátor použije jen potraviny vyhovující všem vybraným dietám.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {DIETA_VOLBY.map(([klic, nazev]) => (
+                <CheckVolba
+                  key={klic}
+                  popisek={nazev}
+                  zaskrtnuto={form.dieta.includes(klic)}
+                  onZmena={(v) =>
+                    uprav({
+                      dieta: v
+                        ? [...form.dieta, klic]
+                        : form.dieta.filter((d) => d !== klic),
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Alergie</Label>
+            <p className="mb-2 text-xs text-muted">
+              Potraviny s těmito alergény se v jídelníčku neobjeví.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {ALERGENY_VOLBY.map(([klic, nazev]) => (
+                <CheckVolba
+                  key={klic}
+                  popisek={nazev}
+                  zaskrtnuto={form.alergie.includes(klic)}
+                  onZmena={(v) =>
+                    uprav({
+                      alergie: v
+                        ? [...form.alergie, klic]
+                        : form.alergie.filter((a) => a !== klic),
+                    })
+                  }
+                />
+              ))}
+            </div>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
-import { nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 
 /**
@@ -68,6 +68,9 @@ export function ReceptDetail() {
             <span>{recept?.porce ?? "—"} × porce</span>
             {recept?.casMinuty != null && <span>⏱ {recept.casMinuty} min</span>}
             <span>zdroj: {recept?.zdroj}</span>
+            {recept && alergenyReceptu(recept).length > 0 && (
+              <span>alergeny: {alergenyReceptu(recept).join(", ")}</span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">

@@ -36,6 +36,8 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     sleva: Boolean(r.sleva),
     vytvoril: (r.vytvoril ?? null) as string | null,
     zdroj: (r.zdroj_potraviny as string) ?? "manual",
+    alergeny: (r.alergeny as string[]) ?? [],
+    diety: (r.diety as string[]) ?? [],
   }));
 }
 

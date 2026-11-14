@@ -44,6 +44,35 @@ export interface Potravina {
   sleva: boolean;
   /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
   kategorie?: string;
+  /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) */
+  alergeny?: string[];
+  /** vhodné pro diety (vegetariansky, vegansky, bezlepkovy) */
+  diety?: string[];
+}
+
+/** Profilový filtr jídelníčku – diety a alergie uživatele. */
+export interface FiltrPotraviny {
+  diety?: string[];
+  alergeny?: string[];
+}
+
+/**
+ * Odfiltruje katalog podle profilu: potravina musí vyhovovat VŠEM
+ * dietám a nesmí obsahovat ŽÁDNÝ z uvedených alergenů.
+ * Prázdný filtr = celý katalog (běžný jedlík).
+ */
+export function filtrujPotraviny(
+  potraviny: Potravina[],
+  filtr?: FiltrPotraviny | null,
+): Potravina[] {
+  const diety = filtr?.diety ?? [];
+  const alergeny = filtr?.alergeny ?? [];
+  if (diety.length === 0 && alergeny.length === 0) return potraviny;
+  return potraviny.filter(
+    (p) =>
+      diety.every((d) => (p.diety ?? []).includes(d)) &&
+      alergeny.every((a) => !(p.alergeny ?? []).includes(a)),
+  );
 }
 
 export interface Jidlo {
@@ -385,8 +414,9 @@ export function vygenerujJidelnicek(
   denniPosun: number | null = null,
   poolMin = 0.85,
   pocetJidel = 4,
+  filtr: FiltrPotraviny | null = null,
 ): DenVysledek {
-  const kategorie = pripravKategorie(potraviny);
+  const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
 
   const jidelnicek: Record<string, SouhrnJidla> = {};
   const celkem: SouhrnJidlaBezJidel = {
@@ -504,6 +534,7 @@ export function vygenerujTydenniPlan(
   potraviny: Potravina[],
   cile: Cile,
   pocetJidel = 4,
+  filtr: FiltrPotraviny | null = null,
 ): TydenniPlan {
   const dny: Record<number, DenVysledek> = {};
   const tyden: SouhrnJidlaBezJidel = {
@@ -516,7 +547,7 @@ export function vygenerujTydenniPlan(
   };
 
   for (let den = 1; den <= 7; den++) {
-    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel);
+    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel, filtr);
     dny[den] = vysledek;
 
     tyden.kalorie += vysledek.celkem.kalorie;

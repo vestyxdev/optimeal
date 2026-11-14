@@ -29,6 +29,17 @@ const KATEGORIE: Record<string, string> = {
   ostatni: "Ostatní",
 };
 
+const ALERGEN_NAZVY: Record<string, string> = {
+  lepek: "lepek", korisi: "korýši", vejce: "vejce", ryby: "ryby",
+  arasidy: "arašídy", soja: "sója", mleko: "mléko", orisky: "ořechy",
+  skorocel: "celer", horcice: "hořčice", sezam: "sezam",
+  sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
+};
+
+const DIETA_NAZVY: Record<string, string> = {
+  vegetariansky: "veg", vegansky: "vegan", bezlepkovy: "bez lepku",
+};
+
 interface FormPotravina {
   nazev: string;
   kategorie: string;
@@ -168,7 +179,7 @@ function RadekPotraviny({
     onSuccess: () => {
       toast.success(`„${p.nazev}" odstraněna z katalogu.`);
       klient.invalidateQueries({ queryKey: ["katalog_potravin"] });
-      klient.invalidateQueries({ queryKey: ["potraviny_se_slevami"] });
+      klient.invalidateQueries({ queryKey: ["aktualni_ceny"] });
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -180,7 +191,15 @@ function RadekPotraviny({
         <span className="ml-2 inline-flex gap-1">
           {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
           {vlastni && <Badge tono="primary">Vlastní</Badge>}
+          {(p.diety ?? []).map((d) => (
+            <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
+          ))}
         </span>
+        {(p.alergeny ?? []).length > 0 && (
+          <span className="block text-xs text-muted">
+            alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+          </span>
+        )}
       </td>
       <td className="px-4 py-2.5 text-muted">{KATEGORIE[p.kategorie ?? "ostatni"] ?? p.kategorie}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie}</td>
@@ -244,7 +263,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
     onSuccess: () => {
       toast.success("Potravina byla přidána do katalogu.");
       klient.invalidateQueries({ queryKey: ["katalog_potravin"] });
-      klient.invalidateQueries({ queryKey: ["potraviny_se_slevami"] });
+      klient.invalidateQueries({ queryKey: ["aktualni_ceny"] });
       naZavreni();
     },
     onError: (e) => toast.error((e as Error).message),
