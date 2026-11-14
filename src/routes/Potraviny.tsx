@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Apple, Beef, Carrot, Cookie, Milk, Package, Plus, ScanBarcode, Search,
+  Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
   Sparkles, Trash2, Wheat, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,8 +21,10 @@ import {
   nactiOffPodleEan,
   normalizujEan,
   nactiKatalogPotravin,
+  nactiPotravinu,
   pridejPotravinu,
   smazPotravinu,
+  upravPotravinu,
   type KatalogPotravina,
   type OffNalezenaPotravina,
 } from "@/lib/data/potraviny";
@@ -109,6 +111,12 @@ export function Potraviny() {
   const [hledat, setHledat] = useState("");
   const [kategorie, setKategorie] = useState<string>("vse");
   const [formZobrazen, setFormZobrazen] = useState(false);
+  const [editovana, setEditovana] = useState<KatalogPotravina | null>(null);
+
+  const zavriForm = () => {
+    setFormZobrazen(false);
+    setEditovana(null);
+  };
 
   const potraviny = dotaz.data ?? [];
   const filtrovane = useMemo(() => {
@@ -139,7 +147,7 @@ export function Potraviny() {
       </div>
 
       {formZobrazen && uzivatel && (
-        <FormNovePotraviny naZavreni={() => setFormZobrazen(false)} />
+        <FormNovePotraviny naZavreni={zavriForm} editovana={editovana} />
       )}
       {!uzivatel && (
         <p className="text-xs text-muted">
@@ -200,7 +208,15 @@ export function Potraviny() {
                 </tr>
               ))}
             {filtrovane.map((p) => (
-              <RadekPotraviny key={p.id} p={p} uzivatelId={uzivatel?.id ?? null} />
+              <RadekPotraviny
+                key={p.id}
+                p={p}
+                uzivatelId={uzivatel?.id ?? null}
+                naUpravu={() => {
+                  setEditovana(p);
+                  setFormZobrazen(true);
+                }}
+              />
             ))}
             {!dotaz.isLoading && filtrovane.length === 0 && (
               <tr>
@@ -220,9 +236,11 @@ export function Potraviny() {
 function RadekPotraviny({
   p,
   uzivatelId,
+  naUpravu,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
+  naUpravu: () => void;
 }) {
   const klient = useQueryClient();
   const [potvrdit, setPotvrdit] = useState(false);
@@ -282,6 +300,15 @@ function RadekPotraviny({
             <>
             <button
               type="button"
+              onClick={naUpravu}
+              className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground"
+              title="Upravit vlastní potravinu"
+              aria-label={`Upravit ${p.nazev}`}
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
               onClick={() => setPotvrdit(true)}
               className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
               title="Smazat vlastní potravinu"
@@ -306,19 +333,47 @@ function RadekPotraviny({
   );
 }
 
-/** Formulář nové potraviny s dohledáním hodnot v OpenFoodFacts. */
-function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
+/** Formulář potraviny (nová i editace vlastní) s dohledáním hodnot v OpenFoodFacts. */
+function FormNovePotraviny({
+  naZavreni,
+  editovana,
+}: {
+  naZavreni: () => void;
+  editovana?: KatalogPotravina | null;
+}) {
   const klient = useQueryClient();
-  const [f, setF] = useState<FormPotravina>(PRAZDNY_FORM);
+  const [f, setF] = useState<FormPotravina>(() =>
+    editovana
+      ? {
+          nazev: editovana.nazev,
+          kategorie: editovana.kategorie ?? "ostatni",
+          kalorie: String(editovana.kalorie),
+          bilkoviny: String(editovana.bilkoviny),
+          sacharidy: String(editovana.sacharidy),
+          tuky: String(editovana.tuky),
+          cena: String(editovana.beznaCena),
+        }
+      : PRAZDNY_FORM,
+  );
   const [hledaOff, setHledaOff] = useState(false);
   const [ean, setEan] = useState("");
   const [skenovani, setSkenovani] = useState(false);
   const [offKandidati, setOffKandidati] = useState<OffNalezenaPotravina[]>([]);
+
+  // Při editaci dotáhnout uložený EAN (v aktualni_ceny sloupec není).
+  const detail = useQuery({
+    queryKey: ["potravina_detail", editovana?.id],
+    queryFn: () => nactiPotravinu(editovana!.id),
+    enabled: editovana != null,
+  });
+  useEffect(() => {
+    if (detail.data?.ean) setEan(detail.data.ean);
+  }, [detail.data]);
   const uprav = (klic: keyof FormPotravina, hodnota: string) =>
     setF((pred) => ({ ...pred, [klic]: hodnota }));
 
   const mutaceUloz = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const cislo = (v: string, nazev: string, max: number) => {
         const t = v.trim();
         if (t === "") throw new Error(`${nazev}: vyplňte číslo (0 lze zadat explicitně).`);
@@ -331,7 +386,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
       if (f.nazev.trim().length < 2) throw new Error("Název musí mít aspoň 2 znaky.");
       const kalorie = cislo(f.kalorie, "Kalorie", 1500);
       if (kalorie <= 0) throw new Error("Kalorie musí být větší než 0 – potravina bez energie by rozbila generátor.");
-      return pridejPotravinu({
+      const hodnoty = {
         nazev: f.nazev,
         kategorie: f.kategorie,
         kalorie,
@@ -340,10 +395,15 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
         tuky: cislo(f.tuky, "Tuky", 100),
         beznaCena: cislo(f.cena, "Cena", 1000),
         ean: normalizujEan(ean),
-      });
+      };
+      if (editovana) {
+        await upravPotravinu(editovana.id, hodnoty);
+        return;
+      }
+      await pridejPotravinu(hodnoty);
     },
     onSuccess: () => {
-      toast.success("Potravina byla přidána do katalogu.");
+      toast.success(editovana ? "Potravina byla upravena." : "Potravina byla přidána do katalogu.");
       klient.invalidateQueries({ queryKey: ["katalog_potravin"] });
       klient.invalidateQueries({ queryKey: ["aktualni_ceny"] });
       naZavreni();
@@ -402,6 +462,10 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
     setHledaOff(true);
     try {
       const lokalni = await hledejPodleEanLokalne(kodNorm);
+      if (lokalni && lokalni.id === editovana?.id) {
+        toast.info("Tento kód už máte u potraviny uložený.");
+        return;
+      }
       if (lokalni) {
         toast.info(`„${lokalni.nazev}" už v katalogu pod tímto kódem existuje.`);
         return;
@@ -430,7 +494,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <CardNadpis>Nová potravina</CardNadpis>
+        <CardNadpis>{editovana ? "Upravit potravinu" : "Nová potravina"}</CardNadpis>
         <button
           type="button"
           onClick={naZavreni}
@@ -577,7 +641,7 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
       <div className="mt-4 flex justify-end gap-2">
         <Button varianta="outline" onClick={naZavreni}>Zrušit</Button>
         <Button onClick={() => mutaceUloz.mutate()} disabled={mutaceUloz.isPending}>
-          {mutaceUloz.isPending ? "Ukládám…" : "Přidat do katalogu"}
+          {mutaceUloz.isPending ? "Ukládám…" : editovana ? "Uložit změny" : "Přidat do katalogu"}
         </Button>
       </div>
     </Card>

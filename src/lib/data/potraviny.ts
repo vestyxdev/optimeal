@@ -41,6 +41,78 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   }));
 }
 
+/** Detail jedné potraviny přímo z foods – pro editační formulář (obsahuje i ean). */
+export async function nactiPotravinu(id: string): Promise<{
+  id: string;
+  nazev: string;
+  kategorie: string;
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  beznaCena: number;
+  ean: string | null;
+}> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { data, error } = await klient
+    .from("foods")
+    .select("id, nazev, kategorie, kalorie, bilkoviny, sacharidy, tuky, bezna_cena, ean")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(`Potravinu se nepodařilo načíst: ${error.message}`);
+  return {
+    id: data.id as string,
+    nazev: data.nazev as string,
+    kategorie: data.kategorie as string,
+    kalorie: Number(data.kalorie),
+    bilkoviny: Number(data.bilkoviny),
+    sacharidy: Number(data.sacharidy),
+    tuky: Number(data.tuky),
+    beznaCena: Number(data.bezna_cena),
+    ean: (data.ean ?? null) as string | null,
+  };
+}
+
+/** Upraví vlastní potravinu (RLS dovolí jen autor – zdroj='uzivatel'). */
+export async function upravPotravinu(
+  id: string,
+  p: {
+    nazev: string;
+    kategorie: string;
+    kalorie: number;
+    bilkoviny: number;
+    sacharidy: number;
+    tuky: number;
+    beznaCena: number;
+    ean?: string | null;
+  },
+): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { error } = await klient
+    .from("foods")
+    .update({
+      nazev: p.nazev.trim(),
+      kategorie: p.kategorie,
+      kalorie: p.kalorie,
+      bilkoviny: p.bilkoviny,
+      sacharidy: p.sacharidy,
+      tuky: p.tuky,
+      bezna_cena: p.beznaCena,
+      ean: p.ean ?? null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    if (error.message.includes("duplicate") || error.code === "23505") {
+      throw new Error("Potravina s tímto názvem už v katalogu existuje.");
+    }
+    throw new Error(`Potravinu se nepodařilo upravit: ${error.message}`);
+  }
+}
+
 /** Najde potravinu v katalogu podle uloženého čárového kódu (lokální hit před OFF). */
 export async function hledejPodleEanLokalne(
   ean: string,
