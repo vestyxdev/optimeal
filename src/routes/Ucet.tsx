@@ -39,8 +39,10 @@ const CIL_TELA_NAZVY: Record<string, string> = {
 };
 
 function naCislo(h: string, vychozi: number): number {
-  const n = Number(h.replace(",", "."));
-  return Number.isFinite(n) ? n : vychozi;
+  const t = h.trim();
+  if (t === "") return vychozi;
+  const n = Number(t.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : vychozi;
 }
 
 /** Dostupné diety (klíče odpovídají foods.diety). */
@@ -90,22 +92,25 @@ function CheckVolba({
   );
 }
 
-/** Náhled cíle vypočteného z aktuálních vstupů. */
+/** Náhled cíle vypočteného z aktuálních vstupů (vrací null, když vstupy nedávají smysl). */
 function nahledCilu(p: Profil): CileVyziva | null {
+  const ok = (n: number | null, min: number, max: number) =>
+    n !== null && n >= min && n <= max;
   if (
-    p.vahaKg == null ||
-    p.vyskaCm == null ||
-    p.vekRoku == null ||
+    !ok(p.vahaKg, 20, 400) ||
+    !ok(p.vyskaCm, 80, 250) ||
+    !ok(p.vekRoku, 10, 120) ||
     p.pohlavi == null ||
     p.aktivita == null ||
     p.cilTela == null
   ) {
     return null;
   }
+  // ok() výše zaručilo non-null v rozumném rozsahu
   return spocitejCile({
-    vahaKg: p.vahaKg,
-    vyskaCm: p.vyskaCm,
-    vekRoku: p.vekRoku,
+    vahaKg: p.vahaKg!,
+    vyskaCm: p.vyskaCm!,
+    vekRoku: p.vekRoku!,
     pohlavi: p.pohlavi,
     aktivita: p.aktivita,
     cilTela: p.cilTela,
@@ -131,12 +136,12 @@ export function Ucet() {
     mutationFn: async (p: Profil) => {
       await ulozProfil({
         jmeno: p.jmeno ?? "",
-        vahaKg: p.vahaKg ?? undefined,
-        vyskaCm: p.vyskaCm ?? undefined,
-        vekRoku: p.vekRoku ?? undefined,
-        pohlavi: p.pohlavi ?? undefined,
-        aktivita: p.aktivita ?? undefined,
-        cilTela: p.cilTela ?? undefined,
+        vahaKg: p.vahaKg,
+        vyskaCm: p.vyskaCm,
+        vekRoku: p.vekRoku,
+        pohlavi: p.pohlavi,
+        aktivita: p.aktivita,
+        cilTela: p.cilTela,
         teloTukProcento: p.teloTukProcento ?? null,
         tydennyRozpocetKc: p.tydennyRozpocetKc ?? null,
         pocetJidelDenne: p.pocetJidelDenne,
@@ -202,7 +207,7 @@ export function Ucet() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Můj účet</h1>
         <p className="mt-1 text-sm text-muted">
-          Ztělesných údajů spočítáme denní cíl (kalorie + makra), který používá
+          Z tělesných údajů spočítáme denní cíl (kalorie + makra), který používá
           generátor jídelníčku.
         </p>
       </div>
@@ -387,6 +392,12 @@ export function Ucet() {
         </div>
 
         {/* náhled vypočtu */}
+        {nahled === null && (
+          <p className="mt-4 text-xs text-muted">
+            Denní cíl se spočítá po vyplnění všech tělesných údajů (váha, výška,
+            věk, pohlaví, aktivita, cíl). Ostatní pole uložit lze i bez nich.
+          </p>
+        )}
         {nahled && (
           <div className="mt-4 rounded-card border border-border bg-surface-2 p-4 text-sm">
             <div className="font-semibold">Vypočtený denní cíl</div>
@@ -403,7 +414,7 @@ export function Ucet() {
         <div className="mt-4">
           <Button
             onClick={() => mutaceUlozit.mutate(form)}
-            disabled={mutaceUlozit.isPending || nahled === null}
+            disabled={mutaceUlozit.isPending}
           >
             {mutaceUlozit.isPending ? "Ukládám…" : "Uložit profil a cíle"}
           </Button>

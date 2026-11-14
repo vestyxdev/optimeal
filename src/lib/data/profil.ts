@@ -69,15 +69,15 @@ export async function nactiProfil(): Promise<Profil | null> {
   return naProfil(data as RadkaProfilu);
 }
 
-/** Uložení tělesných údajů a preferencí. */
+/** Uložení tělesných údajů a preferencí. null = vymazat hodnotu, undefined = neměnit. */
 export async function ulozProfil(zmeny: {
   jmeno?: string | undefined;
-  vahaKg?: number | undefined;
-  vyskaCm?: number | undefined;
-  vekRoku?: number | undefined;
-  pohlavi?: Pohlavi | undefined;
-  aktivita?: Aktivita | undefined;
-  cilTela?: CilTela | undefined;
+  vahaKg?: number | null | undefined;
+  vyskaCm?: number | null | undefined;
+  vekRoku?: number | null | undefined;
+  pohlavi?: Pohlavi | null | undefined;
+  aktivita?: Aktivita | null | undefined;
+  cilTela?: CilTela | null | undefined;
   teloTukProcento?: number | null | undefined;
   tydennyRozpocetKc?: number | null | undefined;
   pocetJidelDenne?: number | undefined;

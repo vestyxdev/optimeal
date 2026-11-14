@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase, supabaseNastaveno } from "./supabase";
 
 /**
@@ -40,6 +41,7 @@ const AuthKontext = createContext<AuthStav>({
 export function AuthPoskytovatel({ children }: { children: ReactNode }) {
   const [uzivatel, setUzivatel] = useState<Uzivatel | null>(null);
   const [nacitaSe, setNacitaSe] = useState(supabaseNastaveno);
+  const klient = useQueryClient();
 
   useEffect(() => {
     if (!supabase) return;
@@ -59,16 +61,22 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
 
     const { data: odber } = supabase.auth.onAuthStateChange(
       (_udalost, session) => {
-        setUzivatel(
-          session?.user
-            ? { id: session.user.id, email: session.user.email ?? "" }
-            : null,
-        );
+        const novy: Uzivatel | null = session?.user
+          ? { id: session.user.id, email: session.user.email ?? "" }
+          : null;
+        setUzivatel((pred) => {
+          // odhlášení nebo přepnutí účtu → zahodit cache dat předchozího
+          // uživatele, jinak by se cizí plány/seznamy mohly bleskově ukázat
+          if (pred !== null && pred.id !== (novy?.id ?? null)) {
+            klient.clear();
+          }
+          return novy;
+        });
       },
     );
 
     return () => odber.subscription.unsubscribe();
-  }, []);
+  }, [klient]);
 
   const hodnoty: AuthStav = {
     uzivatel,
