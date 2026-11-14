@@ -155,5 +155,38 @@ class TestStahniCenyCz(unittest.TestCase):
         self.assertEqual(list(open_prices.stahni_ceny_cz(max_stranek=2, kurz_eur=25)), [])
 
 
+CNB_KURZOVNI_LISTEK = """\
+14.11.2026 #220
+země|měna|množství|kód|kurz
+Austrálie|dolar|1|AUD|16,352
+EMU|euro|1|EUR|24,485
+USA|dolar|1|USD|23,192
+"""
+
+
+class TestKurzEurCnb(unittest.TestCase):
+    """Kurz EUR/CZK z ČNB – parse nebo výchozí 25.5."""
+
+    @patch("scraper.open_prices.requests.get")
+    def test_emu_radek_se_prevede(self, mock_get):
+        mock_get.return_value = MagicMock(text=CNB_KURZOVNI_LISTEK)
+        self.assertEqual(open_prices.kurz_eur_cnb(), 24.485)
+
+    @patch("scraper.open_prices.requests.get")
+    def test_chybejici_emu_vychozi(self, mock_get):
+        mock_get.return_value = MagicMock(text="země|měna\nUSA|dolar|1|USD|23,1\n")
+        self.assertEqual(open_prices.kurz_eur_cnb(), 25.5)
+
+    @patch("scraper.open_prices.requests.get")
+    def test_chyba_site_vychozi(self, mock_get):
+        mock_get.side_effect = requests.ConnectionError()
+        self.assertEqual(open_prices.kurz_eur_cnb(), 25.5)
+
+    @patch("scraper.open_prices.requests.get")
+    def test_poskozeny_radek_vychozi(self, mock_get):
+        mock_get.return_value = MagicMock(text="EMU|euro|1|EUR|neplatné\n")
+        self.assertEqual(open_prices.kurz_eur_cnb(), 25.5)
+
+
 if __name__ == "__main__":
     unittest.main()
