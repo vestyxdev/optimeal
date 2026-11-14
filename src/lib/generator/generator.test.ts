@@ -8,6 +8,7 @@ import {
   podilyProPocetJidel,
   sestavNakupniSeznam,
   skorePotraviny,
+  vytvorJidlo,
   vyberKandidata,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
@@ -461,5 +462,30 @@ describe("sestavNakupniSeznam – matematika seznamu", () => {
     );
     expect(seznam[0]!.id).toBe("b");
     expect(seznam[1]!.id).toBe("a");
+  });
+});
+
+describe("obrazek – propagace z katalogu do plánu a seznamu", () => {
+  const S_OBRAZKEM: Potravina = {
+    ...p("o1", "Skyr", 11, 4, 0.2, 63, 9),
+    obrazek: "https://images.off.org/skyr.jpg",
+  };
+
+  it("vytvorJidlo přenese obrazek z potraviny", () => {
+    const jidlo = vytvorJidlo(S_OBRAZKEM, 150);
+    expect(jidlo.obrazek).toBe("https://images.off.org/skyr.jpg");
+  });
+
+  it("vytvorJidlo bez obrazku dá null", () => {
+    const jidlo = vytvorJidlo(p("b1", "Bez obrázku", 10, 10, 10, 300, 5), 100);
+    expect(jidlo.obrazek).toBeNull();
+  });
+
+  it("sestavNakupniSeznam přenese obrazek do položky seznamu", () => {
+    const jidlo = vytvorJidlo(S_OBRAZKEM, 150);
+    const seznam = sestavNakupniSeznam({
+      Snídaně: { jidla: [jidlo], kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 },
+    });
+    expect(seznam[0]!.obrazek).toBe("https://images.off.org/skyr.jpg");
   });
 });

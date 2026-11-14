@@ -183,8 +183,34 @@ export function Potraviny() {
         <Card className="text-sm text-danger">{(dotaz.error as Error).message}</Card>
       )}
 
-      {/* tabulka */}
-      <div className="overflow-x-auto rounded-card border border-border">
+      {/* karty – mobil */}
+      <div className="space-y-3 md:hidden">
+        {dotaz.isLoading &&
+          Array.from({ length: 3 }, (_, i) => (
+            <Card key={i}><Skeleton className="h-16 w-full" /></Card>
+          ))}
+        {!dotaz.isLoading &&
+          filtrovane.map((p) => (
+            <KartaPotraviny
+              key={p.id}
+              p={p}
+              uzivatelId={uzivatel?.id ?? null}
+              naUpravu={() => {
+                setEditovana(p);
+                setFormZobrazen(true);
+              }}
+            />
+          ))}
+        {!dotaz.isLoading && filtrovane.length === 0 && (
+          <Card className="py-8 text-center text-muted">
+            <Carrot className="mx-auto mb-2 size-6" />
+            Nic tu není – zkuste jiný dotaz nebo kategorii.
+          </Card>
+        )}
+      </div>
+
+      {/* tabulka – desktop */}
+      <div className="hidden overflow-x-auto rounded-card border border-border md:block">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
@@ -233,18 +259,16 @@ export function Potraviny() {
   );
 }
 
-function RadekPotraviny({
+/** Akce vlastní potraviny (upravit/smazat) – sdílené pro řádek i kartu. */
+function AkcePotraviny({
   p,
-  uzivatelId,
   naUpravu,
 }: {
   p: KatalogPotravina;
-  uzivatelId: string | null;
   naUpravu: () => void;
 }) {
   const klient = useQueryClient();
   const [potvrdit, setPotvrdit] = useState(false);
-  const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const mutaceSmaz = useMutation({
     mutationFn: () => smazPotravinu(p.id),
     onSuccess: () => {
@@ -254,6 +278,49 @@ function RadekPotraviny({
     },
     onError: (e) => toast.error((e as Error).message),
   });
+  return (
+    <>
+      <button
+        type="button"
+        onClick={naUpravu}
+        className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground"
+        title="Upravit vlastní potravinu"
+        aria-label={`Upravit ${p.nazev}`}
+      >
+        <Pencil className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setPotvrdit(true)}
+        className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
+        title="Smazat vlastní potravinu"
+        aria-label={`Smazat ${p.nazev}`}
+      >
+        <Trash2 className="size-4" />
+      </button>
+      <PotvrdDialog
+        otevren={potvrdit}
+        naZavreni={() => setPotvrdit(false)}
+        naPotvrzeni={() => mutaceSmaz.mutate()}
+        nadpis="Smazat potravinu"
+        text={<>Opravdu smazat „{p.nazev}" z katalogu? Zmizí z vašeho seznamu i z generátoru.</>}
+        potvrdit="Smazat"
+        destruktivni
+      />
+    </>
+  );
+}
+
+function RadekPotraviny({
+  p,
+  uzivatelId,
+  naUpravu,
+}: {
+  p: KatalogPotravina;
+  uzivatelId: string | null;
+  naUpravu: () => void;
+}) {
+  const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
 
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
@@ -305,40 +372,82 @@ function RadekPotraviny({
       </td>
       {uzivatelId !== null && (
         <td className="px-4 py-2.5 text-right">
-          {vlastni && (
-            <>
-            <button
-              type="button"
-              onClick={naUpravu}
-              className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground"
-              title="Upravit vlastní potravinu"
-              aria-label={`Upravit ${p.nazev}`}
-            >
-              <Pencil className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPotvrdit(true)}
-              className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
-              title="Smazat vlastní potravinu"
-              aria-label={`Smazat ${p.nazev}`}
-            >
-              <Trash2 className="size-4" />
-            </button>
-            <PotvrdDialog
-              otevren={potvrdit}
-              naZavreni={() => setPotvrdit(false)}
-              naPotvrzeni={() => mutaceSmaz.mutate()}
-              nadpis="Smazat potravinu"
-              text={<>Opravdu smazat „{p.nazev}" z katalogu? Zmizí z vašeho seznamu i z generátoru.</>}
-              potvrdit="Smazat"
-              destruktivni
-            />
-            </>
-          )}
+          {vlastni && <AkcePotraviny p={p} naUpravu={naUpravu} />}
         </td>
       )}
     </tr>
+  );
+}
+
+/** Karta potraviny pro mobil – stejné informace jako řádek tabulky. */
+function KartaPotraviny({
+  p,
+  uzivatelId,
+  naUpravu,
+}: {
+  p: KatalogPotravina;
+  uzivatelId: string | null;
+  naUpravu: () => void;
+}) {
+  const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
+  const Ikona = KATEGORIE_IKONY[p.kategorie ?? "ostatni"] ?? Package;
+
+  return (
+    <Card className="p-3">
+      <div className="flex items-start gap-3">
+        {p.obrazek ? (
+          <img
+            src={p.obrazek}
+            alt=""
+            loading="lazy"
+            className="size-12 shrink-0 rounded-lg object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        ) : (
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+            <Ikona className="size-5" aria-hidden />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 font-medium leading-snug">{p.nazev}</p>
+            {vlastni && (
+              <span className="flex shrink-0">
+                <AkcePotraviny p={p} naUpravu={naUpravu} />
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
+            <Ikona className="size-3" aria-hidden />
+            {KATEGORIE[p.kategorie ?? "ostatni"] ?? p.kategorie}
+            {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
+            {vlastni && <Badge tono="primary">Vlastní</Badge>}
+            {(p.diety ?? []).map((d) => (
+              <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
+            ))}
+          </p>
+          {(p.alergeny ?? []).length > 0 && (
+            <p className="mt-0.5 text-xs text-muted">
+              alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+            </p>
+          )}
+          <PasekMakro p={p} />
+          <div className="mt-2 flex items-baseline justify-between text-sm">
+            <span className="tabular-nums text-muted">
+              {p.kalorie} kcal · B {p.bilkoviny} · S {p.sacharidy} · T {p.tuky}
+            </span>
+            <span className="tabular-nums font-semibold">
+              {p.aktualniCena.toFixed(2)} Kč
+              {p.sleva && p.beznaCena > p.aktualniCena && (
+                <span className="ml-1 text-xs font-normal text-muted line-through">
+                  {p.beznaCena.toFixed(2)}
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
