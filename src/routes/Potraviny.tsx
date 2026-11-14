@@ -57,6 +57,15 @@ const DIETA_NAZVY: Record<string, string> = {
 
 const DAVKA_ZOBRAZENI = 100;
 
+/** Cena pro zobrazení: za balení, pokud známe hmotnost; jinak za 100 g. */
+function cenaLabel(p: KatalogPotravina, cena: number): string {
+  if (cena <= 0) return "—";
+  if (p.baleniG && p.baleniG > 0) {
+    return `~${Math.round((cena * p.baleniG) / 100)} Kč (${p.baleniG} g)`;
+  }
+  return `${cena.toFixed(2)} Kč/100 g`;
+}
+
 const KATEGORIE_IKONY: Record<string, typeof Apple> = {
   maso_ryby: Beef,
   mlecne_vyrobky: Milk,
@@ -388,9 +397,9 @@ function RadekPotraviny({
       <td className="px-4 py-2.5 text-right tabular-nums">{p.sacharidy}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{p.tuky}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
-        {p.aktualniCena > 0 ? `${p.aktualniCena.toFixed(2)} Kč` : "—"}
+        {cenaLabel(p, p.aktualniCena)}
         {p.sleva && p.beznaCena > p.aktualniCena && (
-          <span className="ml-1 text-xs text-muted line-through">{p.beznaCena.toFixed(2)}</span>
+          <span className="ml-1 text-xs text-muted line-through">{cenaLabel(p, p.beznaCena)}</span>
         )}
       </td>
       {uzivatelId !== null && (
@@ -448,10 +457,10 @@ function KartaPotraviny({
               {p.kalorie} kcal · B {p.bilkoviny} · S {p.sacharidy} · T {p.tuky}
             </span>
             <span className="tabular-nums font-semibold">
-              {p.aktualniCena > 0 ? `${p.aktualniCena.toFixed(2)} Kč` : "—"}
+              {cenaLabel(p, p.aktualniCena)}
               {p.sleva && p.beznaCena > p.aktualniCena && (
                 <span className="ml-1 text-xs font-normal text-muted line-through">
-                  {p.beznaCena.toFixed(2)}
+                  {cenaLabel(p, p.beznaCena)}
                 </span>
               )}
             </span>

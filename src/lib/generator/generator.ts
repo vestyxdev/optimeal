@@ -50,6 +50,8 @@ export interface Potravina {
   diety?: string[];
   /** URL náhledu z OpenFoodFacts (migrace 0009) */
   obrazek?: string | null;
+  /** hmotnost/obsah balení v g (migrace 0012) – pro cenu za balení */
+  baleniG?: number | null;
 }
 
 /** Profilový filtr jídelníčku – diety a alergie uživatele. */

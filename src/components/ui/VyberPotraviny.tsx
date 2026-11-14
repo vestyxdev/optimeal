@@ -24,6 +24,17 @@ export interface PolozkaVyberu {
   sleva: boolean;
   kategorie?: string;
   obrazek?: string | null;
+  /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
+  baleniG?: number | null;
+}
+
+/** Cena pro zobrazení: za balení („~25 Kč · 400 g"), jinak za 100 g. */
+function cenaLabel(p: PolozkaVyberu): string | null {
+  if (p.aktualniCena <= 0) return null;
+  if (p.baleniG && p.baleniG > 0) {
+    return `~${Math.round((p.aktualniCena * p.baleniG) / 100)} Kč · ${p.baleniG} g`;
+  }
+  return `${p.aktualniCena.toFixed(2)} Kč/100 g`;
 }
 
 const norm = (s: string) =>
@@ -173,7 +184,7 @@ export function VyberPotraviny({
             <MiniaturaPotraviny obrazek={vybrana.obrazek} velikost="size-7" />
             <span className="min-w-0 flex-1 truncate">{vybrana.nazev}</span>
             <span className="shrink-0 text-xs tabular-nums text-muted">
-              {vybrana.aktualniCena > 0 ? `${vybrana.aktualniCena.toFixed(2)} Kč` : "—"}
+              {cenaLabel(vybrana) ?? "—"}
             </span>
           </>
         ) : (
@@ -405,8 +416,8 @@ function Radek({
                 SLEVA
               </span>
             )}
-            {p.aktualniCena > 0 && (
-              <span className="tabular-nums">{p.aktualniCena.toFixed(2)} Kč/100 g</span>
+            {cenaLabel(p) && (
+              <span className="tabular-nums">{cenaLabel(p)}</span>
             )}
           </span>
         </span>
@@ -436,11 +447,15 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
       </div>
       <span className="block truncate text-xs font-medium text-fg">{p.nazev}</span>
       <span className="mt-0.5 block text-[11px] tabular-nums text-muted">
-        {p.kalorie} kcal / 100 g
+        {p.kalorie} kcal / 100 g{p.baleniG ? ` · ${p.baleniG} g` : ""}
       </span>
       <span className="mt-1.5 flex items-center justify-between">
         <span className="text-xs font-semibold tabular-nums text-fg">
-          {p.aktualniCena > 0 ? `${p.aktualniCena.toFixed(2)} Kč` : "—"}
+          {p.aktualniCena > 0
+            ? p.baleniG
+              ? `~${Math.round((p.aktualniCena * p.baleniG) / 100)} Kč`
+              : `${p.aktualniCena.toFixed(2)} Kč`
+            : "—"}
         </span>
         <span className="grid size-7 place-items-center rounded-full bg-primary text-primary-fg transition-transform group-hover:scale-110">
           <Plus className="size-3.5" />

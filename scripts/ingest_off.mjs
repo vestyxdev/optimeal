@@ -68,7 +68,7 @@ const FIELDS = [
   "nutriments", "nutrition_data_per",
   "allergens_tags", "ingredients_analysis_tags", "labels_tags",
   "categories_tags", "image_url", "image_small_url", "image_front_url", "image_front_small_url",
-  "quantity", "completeness", "unique_scans_n",
+  "quantity", "product_quantity", "completeness", "unique_scans_n",
 ].join(",");
 
 async function fetchStrana(kategorie, strana, pokus = 0) {
@@ -169,6 +169,22 @@ function num(v) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** OFF quantity/product_quantity → balení v g (ml ≈ g). Rozumný rozsah 2–20 000. */
+function baleniG(p) {
+  const q = num(p.product_quantity);
+  if (q !== null && q >= 2 && q <= 20000) return q;
+  const s = String(p.quantity ?? "");
+  const multi = s.match(/(\d+)\s*[×x]\s*(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|cl)\b/i);
+  const single = multi ?? s.match(/(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|cl)\b/i);
+  if (!single) return null;
+  const ks = multi ? Number(multi[1]) : 1;
+  const val = Number(String(single[multi ? 2 : 1]).replace(",", "."));
+  const jednotka = single[multi ? 3 : 2].toLowerCase();
+  const nasobek = jednotka === "kg" || jednotka === "l" ? 1000 : jednotka === "cl" ? 10 : 1;
+  const g = ks * val * nasobek;
+  return g >= 2 && g <= 20000 ? Math.round(g) : null;
+}
+
 /** Jeden OFF produkt → náš řádek foods (nebo null = přeskočit). */
 function mapuj(p) {
   const surove = p.product_name_cs || p.product_name || "";
@@ -212,6 +228,7 @@ function mapuj(p) {
     alergeny,
     diety,
     obrazek: p.image_front_small_url || p.image_small_url || p.image_front_url || p.image_url || null,
+    baleni_g: baleniG(p),
   };
 }
 
@@ -236,14 +253,14 @@ async function nactiExistujici() {
 
 async function vlozDavku(radky) {
   if (radky.length === 0) return 0;
-  const cols = ["nazev", "kategorie", "bilkoviny", "sacharidy", "tuky", "kalorie", "bezna_cena", "ean", "zdroj", "schvaleno", "alergeny", "diety", "obrazek"];
+  const cols = ["nazev", "kategorie", "bilkoviny", "sacharidy", "tuky", "kalorie", "bezna_cena", "ean", "zdroj", "schvaleno", "alergeny", "diety", "obrazek", "baleni_g"];
   const vals = [];
   const params = [];
   radky.forEach((r, i) => {
     const o = i * cols.length;
     vals.push(`(${cols.map((_, j) => `$${o + j + 1}`).join(",")})`);
     params.push(r.nazev, r.kategorie, r.bilkoviny, r.sacharidy, r.tuky, r.kalorie,
-      r.bezna_cena, r.ean, r.zdroj, r.schvaleno, r.alergeny, r.diety, r.obrazek);
+      r.bezna_cena, r.ean, r.zdroj, r.schvaleno, r.alergeny, r.diety, r.obrazek, r.baleni_g);
   });
   // EAN konflikt = aktualizace dat (novější OFF info); jiný konflikt (název) = přeskoč
   const q = `
@@ -254,7 +271,8 @@ async function vlozDavku(radky) {
       tuky = excluded.tuky, kalorie = excluded.kalorie,
       alergeny = excluded.alergeny, diety = excluded.diety,
       obrazek = coalesce(excluded.obrazek, foods.obrazek),
-      kategorie = excluded.kategorie
+      kategorie = excluded.kategorie,
+      baleni_g = coalesce(excluded.baleni_g, foods.baleni_g)
   `;
   const res = await pool.query(q, params);
   return res.rowCount ?? 0;
