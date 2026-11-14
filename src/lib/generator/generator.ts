@@ -506,9 +506,9 @@ export function vygenerujTydenniPlan(potraviny: Potravina[], cile: Cile): Tydenn
 
   // spojíme jídelníčky všech dnů do jednoho nákupního seznamu
   const spojeny: Record<string, SouhrnJidla> = {};
-  for (const den of Object.values(dny)) {
-    for (const [nazev, souhrn] of Object.entries(den.jidelnicek)) {
-      const klic = `${den ?? ""}-${nazev}`; // dny se nesmí slít
+  for (const [den, vysledek] of Object.entries(dny)) {
+    for (const [nazev, souhrn] of Object.entries(vysledek.jidelnicek)) {
+      const klic = `${den}-${nazev}`; // dny se nesmí slít
       spojeny[klic] = souhrn;
     }
   }

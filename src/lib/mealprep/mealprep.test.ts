@@ -30,6 +30,7 @@ const potravinyy: Potravina[] = [
 function recept(id: string, nazev: string, porce: number, suroviny: { foodId: string; gramyNaPorce: number }[]): Recept {
   return {
     id,
+    userId: null,
     nazev,
     popis: null,
     kategorie: "hlavni",

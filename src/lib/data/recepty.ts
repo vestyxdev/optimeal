@@ -24,6 +24,8 @@ export interface Surovina {
 
 export interface Recept {
   id: string;
+  /** null = globální recept, jinak id autora */
+  userId: string | null;
   nazev: string;
   popis: string | null;
   kategorie: string;
@@ -36,6 +38,7 @@ export interface Recept {
 
 interface RadkaReceptu {
   id: string;
+  user_id: string | null;
   nazev: string;
   popis: string | null;
   kategorie: string;
@@ -54,6 +57,7 @@ interface RadkaReceptu {
 function naRecept(r: RadkaReceptu): Recept {
   return {
     id: r.id,
+    userId: r.user_id,
     nazev: r.nazev,
     popis: r.popis,
     kategorie: r.kategorie,
@@ -79,7 +83,7 @@ export async function nactiRecepty(): Promise<Recept[]> {
 
   const { data, error } = await klient
     .from("recipes")
-    .select("id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
+    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
     .order("kategorie")
     .order("nazev");
 
@@ -94,7 +98,7 @@ export async function nactiRecept(id: string): Promise<Recept> {
 
   const { data, error } = await klient
     .from("recipes")
-    .select("id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
+    .select("id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev))")
     .eq("id", id)
     .single();
 
@@ -105,12 +109,12 @@ export async function nactiRecept(id: string): Promise<Recept> {
 /** Vytvoření vlastního receptu (RLS: jen pro přihlášeného). */
 export async function ulozRecept(recept: {
   nazev: string;
-  popis?: string;
+  popis?: string | undefined;
   kategorie: string;
   porce: number;
-  casMinuty?: number | null;
+  casMinuty?: number | null | undefined;
   postup: string;
-  suroviny: { foodId: string; gramyNaPorce: number; poznamka?: string | null }[];
+  suroviny: { foodId: string; gramyNaPorce: number; poznamka?: string | null | undefined }[];
 }): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -149,6 +153,52 @@ export async function ulozRecept(recept: {
   }
 
   return idReceptu;
+}
+
+/** Úprava vlastního receptu – hlavičku přepíše, suroviny nahradí novými. */
+export async function upravRecept(
+  id: string,
+  recept: {
+    nazev: string;
+    popis?: string | undefined;
+    kategorie: string;
+    porce: number;
+    casMinuty?: number | null | undefined;
+    postup: string;
+    suroviny: { foodId: string; gramyNaPorce: number; poznamka?: string | null | undefined }[];
+  },
+): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { error } = await klient
+    .from("recipes")
+    .update({
+      nazev: recept.nazev,
+      popis: recept.popis ?? null,
+      kategorie: recept.kategorie,
+      porce: recept.porce,
+      cas_minuty: recept.casMinuty ?? null,
+      postup: recept.postup,
+    })
+    .eq("id", id);
+  if (error) throw new Error(`Recept se neuložil: ${error.message}`);
+
+  // suroviny nahradíme celou sadou (smazat → vložit)
+  const { error: errDel } = await klient.from("recipe_ingredients").delete().eq("recipe_id", id);
+  if (errDel) throw new Error(`Suroviny se neuložily: ${errDel.message}`);
+
+  if (recept.suroviny.length > 0) {
+    const { error: errIns } = await klient.from("recipe_ingredients").insert(
+      recept.suroviny.map((s) => ({
+        recipe_id: id,
+        food_id: s.foodId,
+        gramy_na_porce: s.gramyNaPorce,
+        poznamka: s.poznamka ?? null,
+      })),
+    );
+    if (errIns) throw new Error(`Suroviny se neuložily: ${errIns.message}`);
+  }
 }
 
 /** Smazání vlastního receptu (RLS chrání). */

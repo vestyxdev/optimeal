@@ -14,6 +14,7 @@ export function Registrace() {
   const [hesloZnovu, setHesloZnovu] = useState("");
   const [chyba, setChyba] = useState<string | null>(null);
   const [odesilam, setOdesilam] = useState(false);
+  const [cekaNaEmail, setCekaNaEmail] = useState(false);
 
   async function odeslat(e: FormEvent) {
     e.preventDefault();
@@ -32,8 +33,31 @@ export function Registrace() {
       setChyba(vysledek.chyba);
       return;
     }
-    toast.success("Účet vytvořen. Zkontrolujte e-mail (možná čeká potvrzovací odkaz).");
-    naviguj("/");
+    if (vysledek.cekaNaEmail) {
+      // projekt vyžaduje potvrzení e-mailu – bez session se nepřihlásíme
+      setCekaNaEmail(true);
+      return;
+    }
+    toast.success("Účet vytvořen – vítejte v OptiMeal!");
+    naviguj("/ucet");
+  }
+
+  if (cekaNaEmail) {
+    return (
+      <div className="mx-auto max-w-sm">
+        <h1 className="text-2xl font-extrabold tracking-tight">Potvrďte e-mail</h1>
+        <p className="mt-4 rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
+          Účet pro <strong>{email.trim()}</strong> je vytvořený. Poslali jsme vám
+          potvrzovací odkaz – po kliknutí se můžete přihlásit.
+        </p>
+        <p className="mt-4 text-sm text-muted">
+          Potvrzeno?{" "}
+          <Link to="/prihlaseni" className="font-semibold text-primary hover:underline">
+            Přihlaste se
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   return (

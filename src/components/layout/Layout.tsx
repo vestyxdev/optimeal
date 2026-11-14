@@ -33,9 +33,9 @@ interface Sekce {
 const SEKCE: Sekce[] = [
   { cesta: "/", nazev: "Přehled", ikona: Receipt, vListe: true },
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
-  { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat },
-  { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot },
-  { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket },
+  { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat, vListe: true },
+  { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot, vListe: true },
+  { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket, vListe: true },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound, vListe: true },
   { cesta: "/nastaveni", nazev: "Nastavení", ikona: Settings },
 ];
@@ -52,7 +52,7 @@ export function Layout() {
       className={({ isActive }) =>
         cn(
           mobilni
-            ? "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium"
+            ? "flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium"
             : "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
           isActive
             ? mobilni

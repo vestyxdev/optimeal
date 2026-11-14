@@ -87,6 +87,7 @@ export function Mealprep() {
       ulozNakupniSeznam(
         `Mealprep – ${vysledek.porceCelkem} porcí`,
         vysledek.polozky.map((p) => ({
+          foodId: p.id,
           nazev: p.nazev,
           gramy: p.gramy,
           cenaZa100g: p.cenaZa100g,

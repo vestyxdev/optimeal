@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Printer } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { ArrowLeft, Pencil, Printer, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { nactiRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { useAuth } from "@/lib/auth";
+import { nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 
 /**
@@ -14,6 +16,9 @@ import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 
 export function ReceptDetail() {
   const { id } = useParams<{ id: string }>();
+  const { uzivatel } = useAuth();
+  const naviguj = useNavigate();
+  const klientQ = useQueryClient();
 
   const dotazRecept = useQuery({
     queryKey: ["recept", id],
@@ -22,8 +27,19 @@ export function ReceptDetail() {
   });
   const dotazCeny = useQuery({ queryKey: ["aktualni_ceny"], queryFn: nactiPotravinySeSlevami });
 
+  const mutaceSmazat = useMutation({
+    mutationFn: () => smazRecept(id as string),
+    onSuccess: () => {
+      toast.success("Recept byl smazán.");
+      void klientQ.invalidateQueries({ queryKey: ["recepty"] });
+      naviguj("/recepty");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const recept = dotazRecept.data ?? null;
   const ceny = dotazCeny.data ?? null;
+  const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
 
   const kroky = recept
     ? recept.postup
@@ -48,14 +64,34 @@ export function ReceptDetail() {
           {recept?.popis && <p className="mt-1 max-w-xl text-sm text-muted">{recept.popis}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
             <Badge tono="neutral">{KATEGORIE_NAZVY[recept?.kategorie ?? ""] ?? recept?.kategorie}</Badge>
+            {vlastni && <Badge tono="primary">Vlastní recept</Badge>}
             <span>{recept?.porce ?? "—"} × porce</span>
             {recept?.casMinuty != null && <span>⏱ {recept.casMinuty} min</span>}
             <span>zdroj: {recept?.zdroj}</span>
           </div>
         </div>
-        <Button varianta="outline" onClick={() => window.print()}>
-          <Printer className="size-4" /> Tisk
-        </Button>
+        <div className="flex gap-2">
+          {vlastni && (
+            <>
+              <Button varianta="outline" onClick={() => naviguj(`/recepty/${id}/upravit`)}>
+                <Pencil className="size-4" /> Upravit
+              </Button>
+              <Button
+                varianta="ghost"
+                className="text-danger hover:bg-danger-soft"
+                onClick={() => {
+                  if (window.confirm("Opravdu smazat tento recept?")) mutaceSmazat.mutate();
+                }}
+                disabled={mutaceSmazat.isPending}
+              >
+                <Trash2 className="size-4" /> Smazat
+              </Button>
+            </>
+          )}
+          <Button varianta="outline" onClick={() => window.print()}>
+            <Printer className="size-4" /> Tisk
+          </Button>
+        </div>
       </div>
 
       {dotazRecept.isLoading && <p className="text-sm text-muted">Načítám recept…</p>}

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -7,12 +7,19 @@ import { useAuth } from "@/lib/auth";
 
 /** Přihlášení e-mailem a heslem (Supabase Auth). */
 export function Prihlaseni() {
-  const { prihlasit } = useAuth();
+  const { prihlasit, uzivatel, nacitaSe } = useAuth();
   const naviguj = useNavigate();
+  const lokalita = useLocation();
+  const zpetNa =
+    (lokalita.state as { zpetNa?: string } | null)?.zpetNa ?? "/";
   const [email, setEmail] = useState("");
   const [heslo, setHeslo] = useState("");
   const [chyba, setChyba] = useState<string | null>(null);
   const [odesilam, setOdesilam] = useState(false);
+
+  if (!nacitaSe && uzivatel) {
+    return <Navigate to={zpetNa} replace />;
+  }
 
   async function odeslat(e: FormEvent) {
     e.preventDefault();
@@ -25,7 +32,7 @@ export function Prihlaseni() {
       return;
     }
     toast.success("Přihlášení proběhlo úspěšně.");
-    naviguj("/");
+    naviguj(zpetNa);
   }
 
   return (
@@ -47,7 +54,15 @@ export function Prihlaseni() {
           />
         </div>
         <div>
-          <Label htmlFor="heslo">Heslo</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="heslo">Heslo</Label>
+            <Link
+              to="/obnoveni-hesla"
+              className="mb-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              Zapomenuté heslo?
+            </Link>
+          </div>
           <Input
             id="heslo"
             type="password"

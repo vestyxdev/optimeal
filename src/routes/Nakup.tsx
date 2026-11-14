@@ -37,6 +37,7 @@ export function Nakup() {
 
   const mutaceKoupeno = useMutation({
     mutationFn: (p: { id: string; koupeno: boolean }) => prepnoutKoupeno(p.id, p.koupeno),
+    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["nakupni_seznam", vybrany] }),
     onError: neplatneMutace,
   });
   const mutaceHotovo = useMutation({
@@ -190,8 +191,8 @@ export function Nakup() {
 
       {seznamy.length === 0 && !dotazSeznamy.isLoading && (
         <Card className="text-center text-sm text-muted">
-          Zatím nemáte žádné nákupní seznamy. Vytvořte je v Jídelníčku (Uložit plán)
-          nebo v Mealprepu (Uložit nákupní seznam).
+          Zatím nemáte žádné nákupní seznamy. Vytvořte je v Jídelníčku nebo
+          v Mealprepu tlačítkem „Uložit nákupní seznam".
         </Card>
       )}
 

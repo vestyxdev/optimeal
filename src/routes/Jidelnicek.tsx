@@ -2,19 +2,22 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CalendarDays, Printer, Save, Trash2 } from "lucide-react";
+import { CalendarDays, Printer, Save, ShoppingBasket, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { DenniVysledek, TydennyVysledek } from "@/components/jidelnicek/Vysledky";
 import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib/data/plany";
+import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { nactiAktivniCile } from "@/lib/data/profil";
 import { useAuth } from "@/lib/auth";
 import {
+  sestavNakupniSeznam,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
   type Cile,
   type DenVysledek,
+  type NakupniPolozka,
   type Potravina,
   type TydenniPlan,
 } from "@/lib/generator/generator";
@@ -36,6 +39,7 @@ export function Jidelnicek() {
   const [typ, setTyp] = useState<"den" | "tyden">("den");
   const [cile, setCile] = useState<Cile>({ kalorie: 2450, bilkoviny: 184, sacharidy: 244, tuky: 82 });
   const [vysledek, setVysledek] = useState<DenVysledek | TydenniPlan | null>(null);
+  const [ulozenyPlanId, setUlozenyPlanId] = useState<string | null>(null);
 
   // katalog potravin s aktuálními cenami
   const dotazPotraviny = useQuery({
@@ -61,9 +65,41 @@ export function Jidelnicek() {
 
   const mutaceUlozit = useMutation({
     mutationFn: () => ulozPlan({ typ, cile, vysledek }),
-    onSuccess: () => {
+    onSuccess: (id) => {
+      setUlozenyPlanId(id);
       toast.success("Plán byl uložen – najdete ho v sekci Mé plány.");
       void dotazPlany.refetch();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const mutaceUlozitNakup = useMutation({
+    mutationFn: () => {
+      const polozky: NakupniPolozka[] =
+        typ === "den"
+          ? sestavNakupniSeznam((vysledek as DenVysledek).jidelnicek)
+          : (vysledek as TydenniPlan).nakup;
+      const nazev =
+        typ === "den"
+          ? `Nákup – denní plán ${new Date().toLocaleDateString("cs-CZ")}`
+          : `Nákup – týdenní plán ${new Date().toLocaleDateString("cs-CZ")}`;
+      return ulozNakupniSeznam(
+        nazev,
+        polozky.map((p) => ({
+          foodId: p.id,
+          nazev: p.nazev,
+          gramy: p.gramy,
+          cenaZa100g: p.cenaZa100g,
+          obchod: p.obchod,
+          jeSleva: p.sleva,
+          kategorie: "ostatni",
+        })),
+        ulozenyPlanId,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Nákupní seznam uložen – najdete ho v sekci Nákup.");
+      void navigaceQ.invalidateQueries({ queryKey: ["me_nakupni_seznamy"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -83,6 +119,7 @@ export function Jidelnicek() {
       toast.error("Katalog potravin se nenačetl.");
       return;
     }
+    setUlozenyPlanId(null);
     setVysledek(
       typ === "den"
         ? vygenerujJidelnicek(potraviny, cile)
@@ -160,6 +197,16 @@ export function Jidelnicek() {
             >
               <Save className="size-4" />
               {mutaceUlozit.isPending ? "Ukládám…" : "Uložit plán"}
+            </Button>
+          )}
+          {vysledek && uzivatel && (
+            <Button
+              varianta="outline"
+              onClick={() => mutaceUlozitNakup.mutate()}
+              disabled={mutaceUlozitNakup.isPending}
+            >
+              <ShoppingBasket className="size-4" />
+              {mutaceUlozitNakup.isPending ? "Ukládám…" : "Uložit nákupní seznam"}
             </Button>
           )}
           {vysledek && (

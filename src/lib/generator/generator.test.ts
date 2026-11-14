@@ -233,6 +233,26 @@ describe("vygenerujTydenniPlan", () => {
       expect(x.gramy).toBeGreaterThan(0);
     }
   });
+
+  it("nákupní seznam obsahuje potraviny ze všech 7 dnů (regrese: slévání dnů)", () => {
+    const tyden = vygenerujTydenniPlan(KATALOG, CILE);
+
+    // očekávané gramy = součet gramáží přes všechny dny podle food id
+    const ocekavane = new Map<string, number>();
+    for (const den of Object.values(tyden.dny)) {
+      for (const souhrn of Object.values(den.jidelnicek)) {
+        for (const j of souhrn.jidla) {
+          ocekavane.set(j.id, (ocekavane.get(j.id) ?? 0) + j.gramy);
+        }
+      }
+    }
+
+    const skutecne = new Map(tyden.nakup.map((x) => [x.id, x.gramy]));
+    expect(skutecne.size).toBe(ocekavane.size);
+    for (const [id, gramy] of ocekavane) {
+      expect(skutecne.get(id)).toBe(gramy);
+    }
+  });
 });
 
 /* ============================================================

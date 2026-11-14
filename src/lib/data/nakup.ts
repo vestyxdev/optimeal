@@ -38,10 +38,11 @@ export async function nactiMeNakupniSeznamy(): Promise<NakupniSeznam[]> {
   return data ?? [];
 }
 
-/** Vytvoří seznam z položek (gramy, cena, obchod, sleva). */
+/** Vytvoří seznam z položek (gramy, cena, obchod, sleva); volitelně vázaný na plán. */
 export async function ulozNakupniSeznam(
   nazev: string,
-  polozky: { nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean; kategorie?: string }[],
+  polozky: { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean; kategorie?: string }[],
+  planId?: string | null,
 ): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -51,7 +52,7 @@ export async function ulozNakupniSeznam(
 
   const { data: seznam, error } = await klient
     .from("shopping_lists")
-    .insert({ user_id: uzivatel.user.id, nazev })
+    .insert({ user_id: uzivatel.user.id, nazev, plan_id: planId ?? null })
     .select("id")
     .single();
   if (error) throw new Error(`Seznam se neuložil: ${error.message}`);
@@ -61,6 +62,7 @@ export async function ulozNakupniSeznam(
     const { error: err } = await klient.from("shopping_list_items").insert(
       polozky.map((p) => ({
         list_id: idSeznamu,
+        food_id: p.foodId ?? null,
         nazev: p.nazev,
         gramy: Math.round(p.gramy),
         cena_za_100g: p.cenaZa100g,

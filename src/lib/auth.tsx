@@ -18,7 +18,11 @@ interface AuthStav {
   /** false = aplikace běží bez Supabase klíčů (demo) */
   authDostupne: boolean;
   prihlasit: (email: string, heslo: string) => Promise<{ chyba?: string }>;
-  registrovat: (email: string, heslo: string) => Promise<{ chyba?: string }>;
+  registrovat: (email: string, heslo: string) => Promise<{ chyba?: string; cekaNaEmail?: boolean }>;
+  /** Pošle odkaz na nastavení nového hesla (obnovený přístup). */
+  obnovitHeslo: (email: string) => Promise<{ chyba?: string }>;
+  /** Nastaví nové heslo v recovery session (po kliknutí na odkaz z e-mailu). */
+  ulozitNoveHeslo: (heslo: string) => Promise<{ chyba?: string }>;
   odhlasit: () => Promise<void>;
 }
 
@@ -28,6 +32,8 @@ const AuthKontext = createContext<AuthStav>({
   authDostupne: false,
   prihlasit: async () => ({ chyba: "Auth není nakonfigurováno" }),
   registrovat: async () => ({ chyba: "Auth není nakonfigurováno" }),
+  obnovitHeslo: async () => ({ chyba: "Auth není nakonfigurováno" }),
+  ulozitNoveHeslo: async () => ({ chyba: "Auth není nakonfigurováno" }),
   odhlasit: async () => undefined,
 });
 
@@ -76,7 +82,22 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
     },
     registrovat: async (email, heslo) => {
       if (!supabase) return { chyba: "Aplikace není připojena k Supabase." };
-      const { error } = await supabase.auth.signUp({ email, password: heslo });
+      const { data, error } = await supabase.auth.signUp({ email, password: heslo });
+      if (error) return { chyba: prelozAuthChybu(error.message) };
+      // bez session čeká registrace na potvrzovací e-mail
+      return { cekaNaEmail: data.session === null };
+    },
+    obnovitHeslo: async (email) => {
+      if (!supabase) return { chyba: "Aplikace není připojena k Supabase." };
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/nove-heslo`,
+      });
+      if (error) return { chyba: prelozAuthChybu(error.message) };
+      return {};
+    },
+    ulozitNoveHeslo: async (heslo) => {
+      if (!supabase) return { chyba: "Aplikace není připojena k Supabase." };
+      const { error } = await supabase.auth.updateUser({ password: heslo });
       if (error) return { chyba: prelozAuthChybu(error.message) };
       return {};
     },
