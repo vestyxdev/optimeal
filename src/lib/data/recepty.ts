@@ -269,10 +269,11 @@ export function spocitejRecept(recept: Recept, potraviny: Potravina[] | null): R
     soucet.bilkoviny += p.bilkoviny * koef;
     soucet.sacharidy += p.sacharidy * koef;
     soucet.tuky += p.tuky * koef;
+    // dominantní kategorie podle kalorií – nezávisle na ceně
+    const kat = p.kategorie ?? "ostatni";
+    kaloriePodleKategorie[kat] = (kaloriePodleKategorie[kat] ?? 0) + p.kalorie * koef;
     if (p.aktualniCena > 0) {
       soucet.cena += (p.aktualniCena * gramy) / 100;
-      const kat = p.kategorie ?? "ostatni";
-      kaloriePodleKategorie[kat] = (kaloriePodleKategorie[kat] ?? 0) + p.kalorie * koef;
     } else {
       chybejiciCeny.push(p.nazev);
     }
