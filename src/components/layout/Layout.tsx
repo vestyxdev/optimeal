@@ -90,6 +90,12 @@ export function Layout() {
 
   return (
     <div className="flex min-h-dvh">
+      <a
+        href="#obsah"
+        className="sr-only z-[60] rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Přeskočit na obsah
+      </a>
       {/* ---- desktop: boční menu ---- */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
         <div className="flex items-center gap-2 px-5 py-5">
@@ -153,7 +159,7 @@ export function Layout() {
           )}
         </header>
 
-        <main className="om-kontejner w-full flex-1 py-6">
+        <main id="obsah" className="om-kontejner w-full flex-1 py-6">
           <Outlet />
         </main>
       </div>

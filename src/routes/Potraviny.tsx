@@ -10,6 +10,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
+import { sklonuj } from "@/lib/sklonovani";
 import {
   hledejOpenFoodFacts,
   nactiKatalogPotravin,
@@ -88,7 +89,7 @@ export function Potraviny() {
           <p className="mt-1 text-sm text-muted">
             {dotaz.isLoading
               ? "Načítám…"
-              : `${potraviny.length} potravin s aktuálními cenami. Generátor je používá automaticky.`}
+              : `${potraviny.length} ${sklonuj(potraviny.length, "potravina", "potraviny", "potravin")} s aktuálními cenami. Generátor je používá automaticky.`}
           </p>
         </div>
         {uzivatel && !formZobrazen && (
@@ -266,17 +267,21 @@ function FormNovePotraviny({ naZavreni }: { naZavreni: () => void }) {
   const mutaceUloz = useMutation({
     mutationFn: () => {
       const cislo = (v: string, nazev: string, max: number) => {
-        const n = Number(v.replace(",", "."));
+        const t = v.trim();
+        if (t === "") throw new Error(`${nazev}: vyplňte číslo (0 lze zadat explicitně).`);
+        const n = Number(t.replace(",", "."));
         if (!Number.isFinite(n) || n < 0 || n > max) {
           throw new Error(`${nazev}: zadejte číslo 0–${max}.`);
         }
         return Math.round(n * 100) / 100;
       };
       if (f.nazev.trim().length < 2) throw new Error("Název musí mít aspoň 2 znaky.");
+      const kalorie = cislo(f.kalorie, "Kalorie", 1500);
+      if (kalorie <= 0) throw new Error("Kalorie musí být větší než 0 – potravina bez energie by rozbila generátor.");
       return pridejPotravinu({
         nazev: f.nazev,
         kategorie: f.kategorie,
-        kalorie: cislo(f.kalorie, "Kalorie", 1500),
+        kalorie,
         bilkoviny: cislo(f.bilkoviny, "Bílkoviny", 100),
         sacharidy: cislo(f.sacharidy, "Sacharidy", 100),
         tuky: cislo(f.tuky, "Tuky", 100),
