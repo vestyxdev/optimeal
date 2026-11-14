@@ -609,3 +609,43 @@ describe("okrajové případy generátoru", () => {
     expect(den.celkem.kalorie).toBe(0);
   });
 });
+
+describe("QA bug hunt – další okrajové případy", () => {
+  it("NaN cíle neotráví plán (poškozená data z DB)", () => {
+    const den = vygenerujJidelnicek(KATALOG, { kalorie: NaN, bilkoviny: NaN, sacharidy: NaN, tuky: NaN });
+    expect(den.celkem.kalorie).toBe(0);
+    expect(Object.values(den.jidelnicek).every((s) => s.jidla.length === 0)).toBe(true);
+  });
+
+  it("záporné cíle → prázdný plán bez pádu", () => {
+    const den = vygenerujJidelnicek(KATALOG, { kalorie: -500, bilkoviny: -10, sacharidy: -5, tuky: -1 });
+    expect(den.celkem.kalorie).toBe(0);
+    expect(Object.values(den.jidelnicek).every((s) => s.jidla.length === 0)).toBe(true);
+  });
+
+  it("Infinity cíle se chovají jako nulové", () => {
+    const den = vygenerujJidelnicek(KATALOG, { kalorie: Infinity, bilkoviny: Infinity, sacharidy: 10, tuky: 10 });
+    expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
+  });
+
+  it("katalog bez jediné slevy → plán se vygeneruje normálně", () => {
+    const bezSlev = KATALOG.map((x) => ({ ...x, sleva: false, obchod: null }));
+    const den = vygenerujJidelnicek(bezSlev, CILE);
+    expect(den.celkem.kalorie).toBeGreaterThan(0);
+    expect(den.jidelnicek["Oběd"]!.jidla.length).toBeGreaterThan(0);
+  });
+
+  it("nemožná makro kombinace (500 kcal, 200 g bílkovin) → plán drží kalorický strop", () => {
+    const den = vygenerujJidelnicek(KATALOG, { kalorie: 500, bilkoviny: 200, sacharidy: 10, tuky: 5 });
+    expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
+    expect(den.celkem.kalorie).toBeLessThan(2500);
+  });
+
+  it("potravina s 0 kcal a 0 cenou nezpůsobí dělení nulou", () => {
+    const katalog = [...KATALOG, p("voda", "Voda", 0, 0, 0, 0, 0)];
+    const den = vygenerujJidelnicek(katalog, CILE);
+    expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
+    const nakup = sestavNakupniSeznam(den.jidelnicek);
+    for (const x of nakup) expect(Number.isFinite(x.cenaCelkem)).toBe(true);
+  });
+});

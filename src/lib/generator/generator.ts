@@ -308,7 +308,9 @@ export function naplanujJidlo(
   poolMin = 0.85,
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
-  const zbyva = { b: Math.max(cilB, 0), s: Math.max(cilS, 0), t: Math.max(cilT, 0), k: Math.max(cilK, 0) };
+  // nezáporné a konečné zbytky – NaN/Infinity cíl nesmí otrávit plán
+  const z = (v: number) => (Number.isFinite(v) && v > 0 ? v : 0);
+  const zbyva = { b: z(cilB), s: z(cilS), t: z(cilT), k: z(cilK) };
 
   /** gramace podle požadovaného makra + kalorického stropu +
    * strop ostatních maker (vysokotučná kotva nesmí vyčerpat tukový rozpočet) */
@@ -442,6 +444,16 @@ export function vygenerujJidelnicek(
   pocetJidel = 4,
   filtr: FiltrPotraviny | null = null,
 ): DenVysledek {
+  // ochrana proti poškozeným cílům (NaN / Infinity / záporná čísla
+  // z DB nebo formuláře) – raději nulový plán než NaN ve výsledku
+  const fin = (v: number): number => (Number.isFinite(v) && v > 0 ? v : 0);
+  const cileCiste: Cile = {
+    kalorie: fin(cile.kalorie),
+    bilkoviny: fin(cile.bilkoviny),
+    sacharidy: fin(cile.sacharidy),
+    tuky: fin(cile.tuky),
+  };
+
   const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
 
   const jidelnicek: Record<string, SouhrnJidla> = {};
@@ -461,10 +473,10 @@ export function vygenerujJidelnicek(
     const jidla = naplanujJidlo(
       kategorie,
       poradi,
-      cile.bilkoviny * podil,
-      cile.sacharidy * podil,
-      cile.tuky * podil,
-      cile.kalorie * podil,
+      cileCiste.bilkoviny * podil,
+      cileCiste.sacharidy * podil,
+      cileCiste.tuky * podil,
+      cileCiste.kalorie * podil,
       pouziteId,
       denniPosun,
       poolMin,

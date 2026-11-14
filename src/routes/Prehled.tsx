@@ -135,6 +135,9 @@ function PrihlasenyPrehled() {
   const seznamy = dotazSeznamy.data ?? [];
   const aktivniSeznamy = seznamy.filter((s) => !s.hotovo);
 
+  const nekdeChyba =
+    dotazProfil.isError || dotazCile.isError || dotazPlan.isError || dotazSeznamy.isError;
+
   const jmeno = profil?.jmeno?.trim() || null;
   const uspora = plan ? usporaPlanu(plan.data?.vysledek) : 0;
   const cenaPosledniho = plan ? cenaPlanu(plan.data?.vysledek) : 0;
@@ -159,6 +162,24 @@ function PrihlasenyPrehled() {
           ) : undefined
         }
       />
+
+      {nekdeChyba && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 bg-danger-soft text-sm text-danger">
+          <span>Data přehledu se nepodařilo načíst – zkontrolujte připojení.</span>
+          <Button
+            varianta="outline"
+            velikost="sm"
+            onClick={() => {
+              void dotazProfil.refetch();
+              void dotazCile.refetch();
+              void dotazPlan.refetch();
+              void dotazSeznamy.refetch();
+            }}
+          >
+            Zkusit znovu
+          </Button>
+        </Card>
+      )}
 
       {/* rychlé akce */}
       <div className="flex flex-wrap gap-2">

@@ -16,7 +16,7 @@ export default defineConfig({
       output: {
         // vendor chunky se mění jen při upgradeu závislostí → dlouhá cache,
         // aplikační kód se mění při každém release
-        advancedChunks: {
+        codeSplitting: {
           groups: [
             { name: "react-vendor", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: "supabase", test: /node_modules[\\/]@supabase[\\/]/ },

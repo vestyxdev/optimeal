@@ -273,6 +273,20 @@ export function parsujOffProduktyVice(produkty: OffProdukt[]): OffNalezenaPotrav
   return vysledky;
 }
 
+/** Fetch na OFF se srozumitelnou chybou i při výpadku sítě (TypeError). */
+async function fetchOff(url: string): Promise<Response> {
+  let odpoved: Response;
+  try {
+    odpoved = await fetch(url, {
+      headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
+    });
+  } catch {
+    throw new Error("Nepodařilo se připojit k OpenFoodFacts – zkontrolujte připojení k internetu.");
+  }
+  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
+  return odpoved;
+}
+
 /** Vyhledá produkty v OFF podle názvu – vrací všechny použitelné kandidáty. */
 export async function hledejOpenFoodFactsVice(
   dotaz: string,
@@ -283,11 +297,7 @@ export async function hledejOpenFoodFactsVice(
     `?search_terms=${encodeURIComponent(dotaz)}` +
     `&search_simple=1&action=process&json=1&page_size=${limit}&lc=cs`;
 
-  const odpoved = await fetch(url, {
-    headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
-  });
-  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
-
+  const odpoved = await fetchOff(url);
   const json = (await odpoved.json()) as { products?: OffProdukt[] };
   return parsujOffProduktyVice(json.products ?? []);
 }
@@ -315,10 +325,7 @@ export async function nactiOffPodleEan(
   if (ean === null) throw new Error("Zadejte platný čárový kód (8–14 číslic).");
 
   const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,image_small_url,image_front_small_url,nutriments`;
-  const odpoved = await fetch(url, {
-    headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
-  });
-  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
+  const odpoved = await fetchOff(url);
 
   const json = (await odpoved.json()) as { status?: number; product?: OffProdukt };
   if (json.status !== 1 || !json.product) return null;
