@@ -13,7 +13,7 @@ import pg from "pg";
 
 const SLOZKA = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const PROJECT_REF = process.env.SUPABASE_REF ?? "anzyjytdpvcmznmnmppe";
+const PROJECT_REF = process.env.SUPABASE_REF ?? "gduquvqofcohbjzzsicb";
 const HESLO = process.argv[2];
 
 if (!HESLO) {
@@ -22,7 +22,7 @@ if (!HESLO) {
 }
 
 const pool = new pg.Pool({
-  host: "aws-0-eu-central-1.pooler.supabase.com",
+  host: process.env.SUPABASE_POOLER ?? "aws-0-eu-west-2.pooler.supabase.com",
   port: 6543,
   user: `postgres.${PROJECT_REF}`,
   password: HESLO,
