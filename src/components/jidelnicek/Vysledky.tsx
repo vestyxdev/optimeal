@@ -49,7 +49,35 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
           Díky dnešním slevám šetříte {usetreno.toFixed(2)} Kč
         </div>
       )}
-      <div className="overflow-x-auto">
+      {/* mobil: kompaktní řádky (název, množství, sleva, cena) */}
+      <div className="divide-y divide-border md:hidden">
+        {polozky.map((x) => (
+          <div key={x.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <span className="flex min-w-0 items-center gap-2 font-medium">
+              <MiniaturaPotraviny obrazek={x.obrazek} velikost="size-7" inline />
+              <span className="min-w-0">
+                <span className="block truncate">{x.nazev}</span>
+                <span className="text-xs text-muted tabular-nums">
+                  {Math.round(x.gramy)} g{x.obchod ? ` · ${x.obchod}` : ""}
+                </span>
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {x.sleva && <Badge tono="warning">SLEVA</Badge>}
+              <span className="font-semibold tabular-nums">
+                {x.cenaZa100g !== null ? `${x.cenaCelkem.toFixed(2)} Kč` : "—"}
+              </span>
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3 bg-surface-2 px-4 py-2.5 text-sm">
+          <span className="font-semibold">{soucetPopisek}</span>
+          <span className="font-extrabold tabular-nums">{celkem.toFixed(2)} Kč</span>
+        </div>
+      </div>
+
+      {/* desktop: plná tabulka */}
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[600px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs text-muted">

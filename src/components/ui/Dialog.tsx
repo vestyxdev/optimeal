@@ -49,7 +49,7 @@ export function Dialog({
         if (e.target === ref.current) naZavreni();
       }}
       className={cn(
-        "m-auto w-[min(92vw,26rem)] rounded-card border border-border bg-surface p-0 text-fg",
+        "m-auto flex max-h-[85dvh] w-[min(92vw,26rem)] flex-col rounded-card border border-border bg-surface p-0 text-fg",
         "shadow-xl backdrop:bg-black/40 backdrop:backdrop-blur-[2px]",
       )}
     >
@@ -64,7 +64,7 @@ export function Dialog({
           <X className="size-4" />
         </button>
       </div>
-      <div className="px-5 py-3 text-sm">{deti}</div>
+      <div className="overflow-y-auto px-5 py-3 text-sm">{deti}</div>
       {paticka && <div className="flex justify-end gap-2 px-5 pb-5">{paticka}</div>}
     </dialog>
   );

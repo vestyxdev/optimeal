@@ -142,7 +142,7 @@ export function Layout() {
       </aside>
 
       {/* ---- obsah ---- */}
-      <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         {/* mobilní horní lišta */}
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export function Layout() {
 
       {/* ---- mobil: spodní navigace ---- */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Hlavní navigace"
       >
         {SEKCE.filter((s) => s.vListe).map((s) => odkazSekce(s, true))}
