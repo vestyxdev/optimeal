@@ -108,6 +108,7 @@ Migrace:
 | `0025_prepchy_v_nazvech.sql` | překlepy `SEmolinové těstoviny` → `Semolinové`, `SMléčná čokoláda … náplni` → `Mléčná čokoláda s jemnou tekutou náplní` |
 | `0026_margariny_kategorie.sql` | 11 margarínů/rostlinných tuků (Hera, Flora, Rama, Sonnenblumen, Zlatá Haná…) z `ovoce_zelenina` → `mlecne_vyrobky` |
 | `0027_ryby_a_seminko.sql` | 11 konzervovaných ryb a jerky z `ostatni` → `maso_ryby` (sardinky, makrely, tuňák, losos v omáčce), `Lněná semínka mletá` z `maso_ryby` → `ostatni` |
+| `0028_ovoce_zelenina_cistka.sql` | 178 položek z `ovoce_zelenina`: 39 nápojů + 97 sladkostí/tyčinek → `ostatni`, 4 jogurtové produkty → `mlecne_vyrobky`, 43 cereálií/müsli/rýží → `peckoviny_obily`, perník → `suchary_testoviny`; salátové a zeleninové „Mix" produkty ponechány |
 
 ## Funkce
 

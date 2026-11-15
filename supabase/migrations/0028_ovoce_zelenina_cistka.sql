@@ -1,0 +1,223 @@
+-- Migrace 0028: vyčistění ovoce_zelenina – sladkosti, nápoje, cereálie
+--   a mléčné výrobky nepatří do oddělení ovoce/zelenina.
+--   Konvence katalogu: čokoláda/sladkosti/tyčinky/nápoje→ostatni,
+--   cereálie/obilniny/pečivo→peckoviny_obily, jogurty→mlecne_vyrobky.
+--   Ručně vytříděno ze seznamu: salátové a zeleninové "Mix" produkty,
+--   tropické ovoce, "Sweet mix", "Bergsteiger Mix" apod. ZŮSTÁVAJÍ
+--   v ovoce_zelenina – jsou to skutečné produkty, ne sladkosti.
+
+begin;
+
+-- nápoje (nektary, čaje, cola, vody, víno, ledové čaje) -> ostatni
+update foods set kategorie = 'ostatni'
+where kategorie = 'ovoce_zelenina' and nazev in (
+  'Apfel Nektar',
+  'Banánový nektar',
+  'Broskvový nektar',
+  'Broskvový nektar (Kaufland)',
+  'Čaj horká hruška',
+  'Čaj instant s příchutí citrónu',
+  'Cola (Kofola)',
+  'Cola Višeň',
+  'Dobrá Voda neperlivá - Jahoda a malina',
+  'Fit mango-citron zelený čaj',
+  'Hroznové víno',
+  'Hroznové víno bílé',
+  'Instantní čaj s broskvovou příchutí',
+  'Instantní medovo-citronový čaj',
+  'Jablečný nektar z koncentrátu',
+  'Jahoda neperlivá',
+  'Jemně perlivá voda mandarinka',
+  'Jemně perlivá voda s příchutí pomeranč',
+  'Jujube čaj',
+  'Ledový čaj s příchutí citrónu a ibišku',
+  'Ledový čaj s příchutí citrónu a opuncie',
+  'Ledový čaj s příchutí limetky a yuzu',
+  'Malina neperlivá',
+  'Maracujový nektar',
+  'Matcha čaj s citrónem a zázvorem',
+  'Matcha čaj s příchutí broskve',
+  'Matcha čaj s příchutí limetky',
+  'Matcha zelený čaj s grepem a yuzu',
+  'Mattoni granátové jablko perlivá',
+  'Merňkový nektar',
+  'Minerální voda perlivá citrón sklo',
+  'Ondrášovka citrón jemné perlivá',
+  'Piña colada',
+  'Pomeranč perlivá',
+  'Pomerančový džus 100% z koncentrátu',
+  'Pomerančový nektar z koncentrátu dužinou',
+  'Red malina jemně perlivá',
+  'Směs na Yuzu čaj'
+);
+
+-- sladkosti: čokolády, dražé, tyčinky, kandované ovoce, snack mixy -> ostatni
+update foods set kategorie = 'ostatni'
+where kategorie = 'ovoce_zelenina' and nazev in (
+  'BA! Energy bar banán',
+  'Banán v čokoládě',
+  'Banánky v čokoládě',
+  'Banány v čokoládě',
+  'Bio hořká čokoláda 88% se zázvorem a kurkumou',
+  'Bio hořká čokoláda s brusnicemi',
+  'Bio ovocná tyčinka banán, jablko, višňa',
+  'Brigit tyčinka s kokosovou příchutí',
+  'Brusinky v hořké čokoládě',
+  'Cereální tyčinka s kokosem v mléčné čokoládě',
+  'Chimpanzee Bar Apricot',
+  'Chocolate Fruit & Nut Mix',
+  'Čoko kuličky',
+  'Čoko mušličky',
+  'Čoko tyčinka s jahodovou příchutí',
+  'Čoko tyčinka s mandlemi a pomerančem',
+  'Čoko-kokosky s fair trade čokoládou',
+  'Čokoláda mandarinka matcha kokos',
+  'Čokoláda pomerančová',
+  'Čokoláda s kokosem a rumem',
+  'Čokoláda z nepraženého kakaa s kousky ořechů a třešní',
+  'Čokoláda-kokos bezlaktózový',
+  'Čokoládovo-mandlová pěna s kokosovo-čokoládovou vrstvou',
+  'Cranberries in Dark Chocolate',
+  'Double mix crunch',
+  'Energy Bar - Cherry',
+  'Excelent Protein Bar - čokoláda + nugát s brusinkami',
+  'EXCELENT protein bar černý rybíz s brusinkami',
+  'Fermentovaný ovesný pokrm malina',
+  'Flap Jack Gluten Free Čokoláda, banán',
+  'Flap Jack Gluten Free Čokoláda, kokos',
+  'FLAPJACK banán a karamel',
+  'Flapjack kokos čokoláda',
+  'Flapjack s brusinkami',
+  'Flapjack Třešeň s čokoládou',
+  'Hořické trubičky čokoládové',
+  'Hořká čokoláda s brusinkami',
+  'Hořká čokoláda s fíky a vlaškkými ořechy',
+  'Hořká čokoláda s granátovým jablkem',
+  'Hořká čokoláda s malinovými granulemi',
+  'Hořká čokoláda s mandlemi a kokosem',
+  'Hořká čokoláda s pekanovými ořechy a kokosem',
+  'Hořká čokoláda s pomerančem',
+  'Hořká čokoláda s pomerančem a mandlemi',
+  'Hořká čokoláda s želé s pomerančovou příchutí, arašídy a rozinkami',
+  'Hořká čokoláda se sekanými kakaovými boby, malinami a višněmi',
+  'Jablečné trubičky s čokoládou a černým rybízem',
+  'Kokosová čokoláda',
+  'Kokosová hnízda s čokoládou',
+  'Kokosová tyčinka v mléčné polevě',
+  'Kokosové kuličky s mandlemi',
+  'Kousky kandovaného pomeranče v hořké čokoládě',
+  'Křehké peřinky s čokoládovou příchutí',
+  'Křupky s příchutí banán v čokoládě',
+  'Křupky s příchutí čokoláda',
+  'Kukuřičné cornies s hořkou čokoládou',
+  'Kuličky matcha a mango',
+  'Lifebar',
+  'Lifebar chia pistachio',
+  'LIFEBAR fíková BIO',
+  'LIFEBAR Proteinová tyčinka Bio jahodová',
+  'Lion caramel & chocolate',
+  'Lion caramel and chocolate',
+  'Malinové dražé',
+  'Mandle v hořké čokoládě (Racional)',
+  'Mandle v polevě z kokosu a bílé čokolády',
+  'Milk chocolate fitness',
+  'Mixitka černý rybíz a čokoláda',
+  'Nakd. raw fruit & nut bar 100% NATURAL INGREDIENTS',
+  'Ovesná tyčinka s brusinkami, jahodami a mandlemi',
+  'Ovesný flapjack s kokosem',
+  'Ovocná a ořechová tyčinka - fíky',
+  'Ovocná tyčinka s jahodami',
+  'Ovocné kostičky WOW Fruit mix 3 chutí',
+  'Ovocné taštičky VEGGIES Mix 3 chutí',
+  'Ovocno-oříšková raw tyčinka s borůvkami',
+  'Pistáciová pěna s kokosovo-čokoládovou vrstvou',
+  'Protein bar - kokos',
+  'Protein Bar - Mango',
+  'Protein bar banana',
+  'Protein bar banány',
+  'RAW tyčinka kokos a marakuja',
+  'RAW tyčinka s kakaem a pomerančem',
+  'Riso Čokoláda',
+  'Sour cherry fruit bar',
+  'Strawberry bar',
+  'Tapioka čokoláda',
+  'Tmavá čokoláda s kokosem',
+  'Tofu tyčinka s kokosem',
+  'Tyčinka americké brusinky a lískové oříšky',
+  'Tyčinka Ořechy a brusinka',
+  'Tyčinka s kešu a kokosem',
+  'Veganská mléčná čokoláda s mandlemi a pomerančem',
+  'Z pece bramborové tyčinky',
+  'Želé v čokoládě s příchutí citron',
+  'Želé v čokoláde třešeň'
+);
+
+-- mléčné výrobky omylem v oddělení zeleniny -> mlecne_vyrobky
+update foods set kategorie = 'mlecne_vyrobky'
+where kategorie = 'ovoce_zelenina' and nazev in (
+  'Jogobella special edition sour cherry chocolate, banan',
+  'Müller Mix borůvka',
+  'Müllermilch Protein Chocolate-Banana Taste',
+  'Yoghurt mix'
+);
+
+-- cereálie, müsli, kaše, rýže, pečivo -> peckoviny_obily
+update foods set kategorie = 'peckoviny_obily'
+where kategorie = 'ovoce_zelenina' and nazev in (
+  'Basmati ryze',
+  'Basmati ryze (Lagris)',
+  'Bezobilné cereálie - křupinky s kakaem',
+  'Bio pečená celozrnná ovesná svačinka s banánovými lupínkami a čokoládou',
+  'Bran flakes',
+  'Cereálie čokoládové hvězdy',
+  'Cereální kakaové kuličky',
+  'Cereální kakaové kuličky (Tesco)',
+  'Cookie cereálie',
+  'Corn Flakes',
+  'Corn Flakes (Crip Crop)',
+  'Corn Flakes (Emco)',
+  'Crispy Flakes with Chocolate',
+  'Crispy flakes with yoghurt',
+  'Danvita Crisp Bread - berries and chocolate',
+  'Dinkel Flakes',
+  'Dobrá vláknina - cereální snídaně',
+  'Hamburger Bun',
+  'Instant Oat Flakes',
+  'Kakaové cereálie',
+  'Kakaové cereální kuličky',
+  'Kakaové kuličky',
+  'Kaša biela čokoláda & višne',
+  'Low carb protein mash - Chocolate and coconut',
+  'Muesli Chocolat Noir Framboises',
+  'Muesli čokoláda',
+  'Mysli 3 types of chocolate crunchy',
+  'Mysli čokoláda a Ořechy',
+  'Mysli Čokoládové',
+  'Mysli na zdraví čokoláda',
+  'Mysli na zdraví čokoláda a skořice',
+  'Mysli na zdraví čokoládové trio',
+  'Oat flakes',
+  'Oat Flakes (Auga)',
+  'Oat Flakes Whole',
+  'Ovesné cereálie jahoda',
+  'Ovsánek meruňka (Semix)',
+  'Protein porridge čokoláda',
+  'Rolled Oat Flakes',
+  'Rýžová Probio kaša čokoláda a banán',
+  'Special Flakes Red Berries',
+  'Tesco corn flakes',
+  'Vegane Kokos mit Kokoschips & Dinkelflakes'
+);
+
+-- perník s náplní a polevou je cukroví -> suchary_testoviny
+update foods set kategorie = 'suchary_testoviny'
+where kategorie = 'ovoce_zelenina' and nazev = 'Medový perník s jahodovou náplní a čokoládovou polevou';
+
+-- cizokrajné chyby v maso_ryby: čokoláda s mořskou solí a protein bar
+update foods set kategorie = 'ostatni'
+where kategorie = 'maso_ryby' and nazev in (
+  'Bianca Belgická čokoláda hořká s mořskou solí',
+  'High protein bar'
+);
+
+commit;

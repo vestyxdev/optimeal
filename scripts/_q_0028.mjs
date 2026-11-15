@@ -1,0 +1,12 @@
+import pg from "pg";
+import fs from "node:fs";
+const { Client } = pg;
+const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+const c = new Client({ host: "aws-0-eu-west-2.pooler.supabase.com", port: 6543, user: "postgres.gduquvqofcohbjzzsicb", password: heslo, database: "postgres", ssl: { rejectUnauthorized: false } });
+await c.connect();
+const r = await c.query("select kategorie, count(*) n from foods where nazev ~* 'čokolád|nektar|mysli|muesli' group by kategorie order by n desc");
+r.rows.forEach(x => console.log(x.kategorie, x.n));
+const z = await c.query("select nazev from foods where kategorie='ovoce_zelenina' and nazev ~* 'čokolád|nektar|cereál|flak|ryze' order by nazev limit 20");
+console.log("--- podezrele zbyvajici v ovoce:", z.rows.length);
+z.rows.forEach(x => console.log("  ", x.nazev));
+await c.end();
