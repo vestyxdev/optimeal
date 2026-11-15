@@ -298,6 +298,14 @@ const SNIDANOVA_PRILOHA_ANTI_RE =
 const SVACINA_ANCHOR_ANTI_RE =
   /tyčink|smoothie|pudink|cornflakes|kornflejk|müsli|musli|granola|popcorn|chips|croissant|sušenk/i;
 
+/** Sladkosti a dezerty – vysoký tuk ano, ale tukový doplněk jídla nejsou. */
+const TUK_ANTI_RE =
+  /čokol[áa]d|pralink|bonb[oó]n|karamel|nug[áa]t|marcip|l[íi]z[áa]tk|žel[eé] bonb|gumov|z[áa]kusk|dort|zmrzlin|pern[íi]k|kol[áa][čc]|škub[áa]nk|bucht|str[úu]dl|mazanec|v[áa]no[cč]k|tartalet|pusink|marshmallow|mochi|halva|rahat|krokant/i;
+
+/** Dezerty – nekothví žádné jídlo (cheesecake k snídani není snídaně). */
+const DEZERT_ANTI_RE =
+  /cheesecake|z[áa]kusk|dort|zmrzlin|tiramisu|cr[èe]me|panna cotta|tartalet|škub[áa]nk|mazanec|v[áa]no[cč]k|halva|rahat/i;
+
 type TypJidla = "snidane" | "obedVecere" | "svacina";
 
 function typJidlaZ_nazvu(nazevJidla: string): TypJidla {
@@ -443,7 +451,10 @@ export function naplanujJidlo(
   // špagety nejsou svačina). Vše měkké – bez kandidátů plný pool.
   const typJ = typJidlaZ_nazvu(nazevJidla);
   const reKotva = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : OBED_VECERE_RE;
-  const antiKotva = typJ === "obedVecere" ? SVACINA_ANCHOR_ANTI_RE : null;
+  const antiKotva =
+    typJ === "obedVecere"
+      ? new RegExp(`(?:${SVACINA_ANCHOR_ANTI_RE.source})|(?:${DEZERT_ANTI_RE.source})`, "i")
+      : DEZERT_ANTI_RE;
   const rePriloha = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : PRILOHA_RE;
   const antiPriloha =
     typJ === "svacina" ? TEPLE_PRILOHY_RE : typJ === "obedVecere" ? SNIDANOVA_PRILOHA_ANTI_RE : null;
@@ -533,7 +544,7 @@ export function naplanujJidlo(
     denniPosun,
     poolMin,
     reTuk,
-    null,
+    TUK_ANTI_RE,
     pouziteKlice,
     minuleDny,
   );
