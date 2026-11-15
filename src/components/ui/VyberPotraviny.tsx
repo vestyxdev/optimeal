@@ -454,8 +454,13 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
           : ""}
       </span>
       <span className="mt-1.5 flex items-center justify-between">
-        <span className="text-xs font-semibold tabular-nums text-fg">
-          {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
+        <span className="flex flex-col">
+          <span className="text-xs font-semibold tabular-nums text-fg">
+            {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
+          </span>
+          {p.sleva && formatujPlatnostDo(p.platnostDo) && (
+            <span className="text-[10px] text-muted">{formatujPlatnostDo(p.platnostDo)}</span>
+          )}
         </span>
         <span className="grid size-7 place-items-center rounded-full bg-primary text-primary-fg transition-transform group-hover:scale-110">
           <Plus className="size-3.5" />

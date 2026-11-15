@@ -185,6 +185,27 @@ export function Nakup() {
             )}
           </ul>
 
+          {/* účet – součet známých cen, přepočet na gramy */}
+          {(() => {
+            const sCenou = polozky.filter((p) => p.cenaZa100g !== null && !p.koupeno);
+            const celkem = sCenou.reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
+            const bezCeny = polozky.filter((p) => p.cenaZa100g === null).length;
+            const veSleve = sCenou.filter((p) => p.jeSleva).length;
+            if (polozky.length === 0) return null;
+            return (
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
+                <span className="text-sm font-semibold tabular-nums">
+                  Celkem ≈ {celkem.toFixed(0)} Kč
+                </span>
+                <span className="text-xs text-muted">
+                  {veSleve > 0 && `${veSleve}× ve slevě`}
+                  {veSleve > 0 && bezCeny > 0 && " · "}
+                  {bezCeny > 0 && `u ${bezCeny} ${sklonuj(bezCeny, "položky", "položek", "položek")} cena chybí`}
+                </span>
+              </div>
+            );
+          })()}
+
           {/* ruční doplnění */}
           <div className="flex gap-2 border-t border-border p-4">
             <Input
