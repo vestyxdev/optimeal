@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatujCenu } from "@/lib/cena";
+import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
 
 describe("formatujCenu", () => {
   it("balené zboží → cena za balení + jednotková vedlejší", () => {
@@ -31,5 +31,31 @@ describe("formatujCenu", () => {
 
   it("baleni_g=0 se chová jako vážené zboží", () => {
     expect(formatujCenu(2, 0).hlavni).toBe("20,00 Kč/kg");
+  });
+});
+
+describe("formatujPlatnostDo", () => {
+  it("prázdný vstup → null", () => {
+    expect(formatujPlatnostDo(null)).toBeNull();
+    expect(formatujPlatnostDo(undefined)).toBeNull();
+    expect(formatujPlatnostDo("")).toBeNull();
+  });
+
+  it("neplatné datum → null", () => {
+    expect(formatujPlatnostDo("nesmysl")).toBeNull();
+    expect(formatujPlatnostDo("2024-13-99")).toBeNull();
+  });
+
+  it("dnešek → „do dneška“", () => {
+    const dnes = new Date();
+    const iso = `${dnes.getFullYear()}-${String(dnes.getMonth() + 1).padStart(2, "0")}-${String(dnes.getDate()).padStart(2, "0")}`;
+    expect(formatujPlatnostDo(iso)).toBe("do dneška");
+  });
+
+  it("jiný den → „do <den> <d>. <m>.“ s českou zkratkou", () => {
+    // pevné datum v budoucnosti/minulosti – den v týdnu odvozený z Date
+    const d = new Date("2030-06-19T00:00:00"); // středa
+    expect(d.getDay()).toBe(3);
+    expect(formatujPlatnostDo("2030-06-19")).toBe("do st 19. 6.");
   });
 });

@@ -44,3 +44,20 @@ export function formatujCenuPolozky(p: {
 }): CenaZobrazeni {
   return formatujCenu(p.aktualniCena, p.baleniG);
 }
+
+const DNY_KRATCE = ["ne", "po", "út", "st", "čt", "pá", "so"];
+
+/**
+ * Konec platnosti akce jako „do út 18. 11.“ / „do dneška“.
+ * Letákové slevy trvají max týden – den v týdnu je pro nakupujícího
+ * praktičtější než holé datum.
+ */
+export function formatujPlatnostDo(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const dnes = new Date();
+  dnes.setHours(0, 0, 0, 0);
+  if (d.getTime() === dnes.getTime()) return "do dneška";
+  return `do ${DNY_KRATCE[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}.`;
+}

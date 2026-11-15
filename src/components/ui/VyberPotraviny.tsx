@@ -7,7 +7,7 @@ import {
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import { hledejPodleEanLokalne } from "@/lib/data/potraviny";
-import { formatujCenu } from "@/lib/cena";
+import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
 import { cn } from "@/lib/cn";
 
 /**
@@ -25,6 +25,8 @@ export interface PolozkaVyberu {
   sleva: boolean;
   /** % slevy – badge ukazuje „−30 %“ místo holého SLEVA */
   slevaProcenta?: number | null;
+  /** poslední den akce (ISO) – „do út 18. 11.“ */
+  platnostDo?: string | null;
   kategorie?: string;
   obrazek?: string | null;
   /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
@@ -409,6 +411,9 @@ function Radek({
               <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
                 {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "SLEVA"}
               </span>
+            )}
+            {p.sleva && formatujPlatnostDo(p.platnostDo) && (
+              <span>{formatujPlatnostDo(p.platnostDo)}</span>
             )}
             {p.aktualniCena > 0 && (
               <span className="tabular-nums">

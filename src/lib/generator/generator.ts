@@ -46,6 +46,8 @@ export interface Potravina {
   puvodniCena?: number | null;
   /** % slevy spočítaná z původní ceny (badge „-30 %“) */
   slevaProcenta?: number | null;
+  /** poslední den platnosti akční ceny (ISO) – „sleva do út 18. 11.“ */
+  platnostDo?: string | null;
   /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
   kategorie?: string;
   /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) */

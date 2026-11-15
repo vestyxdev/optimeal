@@ -16,11 +16,14 @@ import {
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
+import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
+import { nactiAktualniSlevy } from "@/lib/data/potraviny";
 
 const MakroGraf = lazy(() => import("@/components/prehled/MakroGraf"));
 
@@ -128,6 +131,7 @@ function PrihlasenyPrehled() {
   const dotazCile = useQuery({ queryKey: ["cile"], queryFn: nactiAktivniCile });
   const dotazPlan = useQuery({ queryKey: ["posledni_plan"], queryFn: nactiPosledniPlan });
   const dotazSeznamy = useQuery({ queryKey: ["me_nakupni_seznamy"], queryFn: nactiMeNakupniSeznamy });
+  const dotazSlevy = useQuery({ queryKey: ["aktualni_slevy"], queryFn: () => nactiAktualniSlevy(10) });
 
   const profil = dotazProfil.data ?? null;
   const cile = dotazCile.data ?? null;
@@ -204,6 +208,45 @@ function PrihlasenyPrehled() {
           </Button>
         </Link>
       </div>
+
+      {/* živé akční nabídky ze scraperu – vede do katalogu */}
+      <Card>
+        <CardNadpis>Aktuální akce</CardNadpis>
+        {dotazSlevy.isLoading ? (
+          <Skeleton className="h-32" />
+        ) : (dotazSlevy.data ?? []).length === 0 ? (
+          <p className="text-sm text-muted">Dnes žádné aktivní slevy.</p>
+        ) : (
+          <div className="flex snap-x gap-3 overflow-x-auto pb-1">
+            {(dotazSlevy.data ?? []).map((p) => (
+              <Link
+                key={p.id}
+                to="/potraviny"
+                className="w-32 shrink-0 snap-start rounded-xl border border-border bg-surface p-2 transition-colors hover:border-primary/60"
+              >
+                <span className="relative mb-1.5 block overflow-hidden rounded-lg bg-surface-2">
+                  <MiniaturaPotraviny obrazek={p.obrazek} velikost="aspect-square w-full" />
+                  {p.slevaProcenta != null && (
+                    <span className="absolute left-1 top-1 rounded-md bg-accent px-1 py-0.5 text-[10px] font-bold text-accent-ink">
+                      −{p.slevaProcenta} %
+                    </span>
+                  )}
+                </span>
+                <span className="block truncate text-xs font-medium">{p.nazev}</span>
+                <span className="mt-0.5 block text-[11px] tabular-nums text-muted">
+                  {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
+                  {p.obchod ? ` · ${p.obchod}` : ""}
+                </span>
+                {formatujPlatnostDo(p.platnostDo) && (
+                  <span className="mt-0.5 block text-[10px] text-muted">
+                    {formatujPlatnostDo(p.platnostDo)}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* denní cíl */}

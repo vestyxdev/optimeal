@@ -46,6 +46,46 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
+    platnostDo: (r.platnost_do ?? null) as string | null,
+  }));
+}
+
+/** Top akční nabídky živě z view – pro dashboard „Aktuální akce“. */
+export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient
+    .from("aktualni_ceny")
+    .select("*")
+    .eq("sleva", true)
+    .order("sleva_procenta", { ascending: false, nullsFirst: false })
+    .order("pozorovano_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
+
+  return (data ?? []).map((r) => ({
+    id: r.food_id as string,
+    nazev: r.nazev as string,
+    kategorie: r.kategorie as string,
+    bilkoviny: Number(r.bilkoviny),
+    sacharidy: Number(r.sacharidy),
+    tuky: Number(r.tuky),
+    kalorie: Number(r.kalorie),
+    beznaCena: Number(r.bezna_cena),
+    aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
+    obchod: (r.sleva ? r.obchod : null) as string | null,
+    sleva: true,
+    vytvoril: (r.vytvoril ?? null) as string | null,
+    zdroj: (r.zdroj_potraviny as string) ?? "manual",
+    alergeny: (r.alergeny as string[]) ?? [],
+    diety: (r.diety as string[]) ?? [],
+    obrazek: (r.obrazek ?? null) as string | null,
+    ean: (r.ean ?? null) as string | null,
+    baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
+    platnostDo: (r.platnost_do ?? null) as string | null,
   }));
 }
 

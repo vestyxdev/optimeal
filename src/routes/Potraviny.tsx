@@ -14,7 +14,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCenu } from "@/lib/cena";
+import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
@@ -372,6 +372,9 @@ function RadekPotraviny({
             <Badge tono="accent">
               {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "Sleva"}
               {p.obchod ? ` · ${p.obchod}` : ""}
+              {formatujPlatnostDo(p.platnostDo)
+                ? ` · ${formatujPlatnostDo(p.platnostDo)}`
+                : ""}
             </Badge>
           )}
           {vlastni && <Badge tono="primary">Vlastní</Badge>}
@@ -451,6 +454,9 @@ function KartaPotraviny({
               <Badge tono="accent">
                 {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "Sleva"}
                 {p.obchod ? ` · ${p.obchod}` : ""}
+                {formatujPlatnostDo(p.platnostDo)
+                  ? ` · ${formatujPlatnostDo(p.platnostDo)}`
+                  : ""}
               </Badge>
             )}
             {vlastni && <Badge tono="primary">Vlastní</Badge>}

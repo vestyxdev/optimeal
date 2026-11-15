@@ -56,6 +56,7 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
+    platnostDo: (r as { platnost_do?: string | null }).platnost_do ?? null,
   }));
 }
 
