@@ -116,6 +116,7 @@ Migrace:
 | `0033_tunak_a_preklep.sql` | 13 tuňákových konzerv + jedlí cvrčci z `ostatni` → `maso_ryby`, `Jablečné kačenky` → `suchary_testoviny`, překlep `Tuňákový pomazanka rybex` → `Tuňáková pomazánka Rybex` |
 | `0034_mlecne_z_ostatni.sql` | 14 mléčných výrobků z `ostatni` → `mlecne_vyrobky` (jogurty Activia/Florian, sýry Camembert/hermelín, skyr, proteinové pudinky), `Christmas pudding` → `suchary_testoviny` |
 | `0035_lusteniny.sql` | Konvence luštěnin: 15 pečených/konzervovaných luštěnin + polévek + chipsů z `ovoce_zelenina` → `ostatni` (zelené lusky a hrách zůstávají), `Proteinové plátky z hrášku a fazolí` → `maso_ryby`, 4 překlepy (`cervena`→`červená`, `cirznou`→`cizrnou`, `ve.`→`ve`) |
+| `0036_suchary_a_preklepy.sql` | 10 sušenek/trubiček/perníků/tortill → `suchary_testoviny`, 6 müsli/kaší/rýží → `peckoviny_obily`, Monte dezerty → `mlecne_vyrobky`, `Sójový granulát` → `maso_ryby`; 4 překlepy (`rotein`, `enery`, diakritika) |
 
 ## Funkce
 
