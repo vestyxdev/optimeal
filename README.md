@@ -117,6 +117,8 @@ Migrace:
 | `0034_mlecne_z_ostatni.sql` | 14 mléčných výrobků z `ostatni` → `mlecne_vyrobky` (jogurty Activia/Florian, sýry Camembert/hermelín, skyr, proteinové pudinky), `Christmas pudding` → `suchary_testoviny` |
 | `0035_lusteniny.sql` | Konvence luštěnin: 15 pečených/konzervovaných luštěnin + polévek + chipsů z `ovoce_zelenina` → `ostatni` (zelené lusky a hrách zůstávají), `Proteinové plátky z hrášku a fazolí` → `maso_ryby`, 4 překlepy (`cervena`→`červená`, `cirznou`→`cizrnou`, `ve.`→`ve`) |
 | `0036_suchary_a_preklepy.sql` | 10 sušenek/trubiček/perníků/tortill → `suchary_testoviny`, 6 müsli/kaší/rýží → `peckoviny_obily`, Monte dezerty → `mlecne_vyrobky`, `Sójový granulát` → `maso_ryby`; 4 překlepy (`rotein`, `enery`, diakritika) |
+| `0037_ostatni_cistka.sql` | ~90 položek: 25 džemů/moštů/candy + 33 polévek a směsí + 17 chipsů z `ovoce_zelenina` → `ostatni`, 12 lupínků + 6 kaší → `peckoviny_obily`; 16 oříškových „másel"/pomazánek + polévky/chipsy/čokolády z `mlecne_vyrobky` → `ostatni`, 5 máslových sušenek a sýrových tyčinek → `suchary`; skutečná másla a margaríny zůstávají; 4 překlepy |
+| `0038_pernicky.sql` | 5 perníčků z `ovoce_zelenina` → `suchary_testoviny` (plurál unikl vzoru 0037), `Relax černý rybíz` nápoj → `ostatni` |
 
 ## Funkce
 
