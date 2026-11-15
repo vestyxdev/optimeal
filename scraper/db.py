@@ -46,6 +46,10 @@ class SupabaseWriter:
     def nacti_potraviny(self) -> list[dict]:
         if self._potraviny is None:
             self._potraviny = self._get("foods", "id,nazev,ean,baleni_g")
+            self._norm_potraviny = [
+                (p["id"], normalizuj_nazev(p["nazev"]), p)
+                for p in self._potraviny
+            ]
         return self._potraviny
 
     def _retailer_id(self, nazev: str) -> str | None:
@@ -175,9 +179,9 @@ class SupabaseWriter:
         cil_t = set(cil.split())
         if not cil_t:
             return None
+        self.nacti_potraviny()  # naplní _norm_potraviny
         nej_id, nej_skore = None, 0.0
-        for p in self.nacti_potraviny():
-            fn = normalizuj_nazev(p["nazev"])
+        for pid, fn, _p in self._norm_potraviny:
             ft = fn.split()
             fts = set(ft)
             skore = 0.0
@@ -189,11 +193,27 @@ class SupabaseWriter:
             elif len(cil) >= 4 and re.search(rf"\b{re.escape(cil)}\b", fn):
                 skore = 0.85
             else:
-                r = difflib.SequenceMatcher(None, cil, fn).ratio()
+                # okno: srovnej jméno potraviny s každým podřetězcem
+                # nabídky stejné délky – „kuřecí prsa" vs „kuřecí
+                # prsní řízky" → okno „kuřecí prsní" ≈ 0.85
+                cl = cil.split()
+                if len(cl) >= len(ft) and ft:
+                    best_win = max(
+                        difflib.SequenceMatcher(
+                            None, fn, " ".join(cl[i : i + len(ft)])
+                        ).ratio()
+                        for i in range(len(cl) - len(ft) + 1)
+                    )
+                    r = max(
+                        best_win,
+                        difflib.SequenceMatcher(None, cil, fn).ratio(),
+                    )
+                else:
+                    r = difflib.SequenceMatcher(None, cil, fn).ratio()
                 if r >= 0.80:
                     skore = r
             if skore > nej_skore:
-                nej_id, nej_skore = p["id"], skore
+                nej_id, nej_skore = pid, skore
         return nej_id if nej_skore >= 0.80 else None
 
     def _dopln_baleni_a_obrazek(self, food_id: str, nabidka: Nabidka) -> None:
@@ -234,6 +254,8 @@ class SupabaseWriter:
             retailer_id = self._retailer_id(n.obchod)
             if not food_id or not retailer_id:
                 stat["preskoceno"] += 1
+                if len(stat.setdefault("nesparovano_nazvy", [])) < 8:
+                    stat["nesparovano_nazvy"].append(n.nazev)
                 continue
             self._dopln_baleni_a_obrazek(food_id, n)
             klic = (food_id, retailer_id)
@@ -250,6 +272,11 @@ class SupabaseWriter:
             if klic not in radky or n.cena_za_100g < radky[klic]["cena"]:
                 radky[klic] = radek
             stat["sparovano"] += 1
+        if stat["preskoceno"]:
+            log.info(
+                "Nespárováno %d nabídek, vzorek: %s",
+                stat["preskoceno"], stat["nesparovano_nazvy"],
+            )
         radky_list = list(radky.values())
         if radky_list:
             r = requests.post(
