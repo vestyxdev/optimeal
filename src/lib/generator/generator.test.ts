@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BONUS_SLEVY,
   filtrujPotraviny,
+  jePrisada,
   kategoriePotraviny,
   naplanujJidlo,
   panelTik,
@@ -660,5 +661,51 @@ describe("QA bug hunt – další okrajové případy", () => {
     // a plán s neceněnými položkami stále běží
     const den = vygenerujJidelnicek([bezCeny, cenena], CILE);
     expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
+  });
+
+  it("suroviny (cukr, olej, mouka) nevytvoří jídlo – real browser QA bug", () => {
+    // Reprodukce: generátor vydával snídani „seitan + cukr krystal + olej",
+    // protože suroviny mají nejlepší makra za Kč. Cukr/olej/mouka nesmí
+    // ukotvit jídlo; olej se smí objevit jen jako malý tukový doplněk (≤30 g).
+    const katalog = [
+      p("cukr", "Cukr krystal", 0, 99, 0, 400, 1), // extrémně levný sacharid
+      p("olej", "Slunečnicový olej", 0, 0, 100, 900, 2), // extrémně levný tuk
+      p("mouka", "Hladká mouka", 10, 72, 1, 350, 1),
+      p("maso", "Kuřecí prsa", 23, 0, 3, 110, 30),
+      p("ryze", "Rýže basmati", 7, 78, 1, 350, 12),
+      p("orechy", "Mandle", 21, 10, 52, 580, 60),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE);
+    for (const souhrn of Object.values(den.jidelnicek)) {
+      for (const s of souhrn.jidla) {
+        if (!jePrisada(s)) continue;
+        // jediná povolená surovina v jídle je malý tukový doplněk
+        expect(s.tuky / (s.gramy / 100)).toBeGreaterThan(50);
+        expect(s.gramy).toBeLessThanOrEqual(30);
+      }
+      // cukr/mouka v žádné roli
+      expect(souhrn.jidla.some((s) => /cukr|mouka/i.test(s.nazev))).toBe(false);
+    }
+    // a alespoň jedno jídlo ukotvilo reálné jídlo (kuřecí prsa)
+    expect(
+      Object.values(den.jidelnicek).some((souhrn) =>
+        souhrn.jidla.some((s) => s.nazev === "Kuřecí prsa"),
+      ),
+    ).toBe(true);
+  });
+
+  it("surovina je jediný kandidát → plán nepadá, použije ji v malé gramáži", () => {
+    const katalog = [
+      p("olej", "Řepkový olej", 0, 0, 100, 900, 5),
+      p("maso", "Tuňák konzerva", 25, 0, 1, 110, 40),
+      p("ryze", "Rýže", 7, 78, 1, 350, 12),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE);
+    expect(Object.keys(den.jidelnicek).length).toBeGreaterThan(0);
+    for (const souhrn of Object.values(den.jidelnicek)) {
+      for (const s of souhrn.jidla) {
+        if (s.nazev === "Řepkový olej") expect(s.gramy).toBeLessThanOrEqual(30);
+      }
+    }
   });
 });

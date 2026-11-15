@@ -245,7 +245,7 @@ const PRISADA_RE =
   /\b(olej\b|s[aá]dl|mouk|cukr|sirup|ocet|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|želatin|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|maggi|m[aá]slo\b|med\b|caro\b)/i;
 
 /** Je potravina kuchyňská surovina, ne samostatná složka jídla? */
-export function jePrisada(p: Potravina): boolean {
+export function jePrisada(p: { nazev: string }): boolean {
   return PRISADA_RE.test(p.nazev);
 }
 
