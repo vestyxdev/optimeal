@@ -116,7 +116,6 @@ class KupiScraper(BaseScraper):
             )
             if r is None:
                 break
-            self.fetched = True
             nalezeno_na_strane = 0
             soup = BeautifulSoup(r.text, "html.parser")
             wraps = soup.select(".product--wrap")
@@ -133,6 +132,8 @@ class KupiScraper(BaseScraper):
                     self.obchod, strana, r.text.replace("\n", " "),
                 )
                 break
+            self.fetched = True  # stránka skutečně parsovatelná –
+                                 # jen teď smí stale purge sahat na data
             # .product--wrap a .promo_discounts (s .discount_row) jsou
             # SOUROZENCI uvnitř .group_discounts – řádek k produktu
             # kotvíme přes find_previous na nejbližší předchozí produkt.

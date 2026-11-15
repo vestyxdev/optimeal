@@ -116,7 +116,9 @@ class BaseScraper:
                 # User-Agent má u WAF nízké skóre a často chytá 403
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "cs-CZ,cs;q=0.9,en;q=0.7",
-                "Accept-Encoding": "gzip, deflate, br",
+                # pozor: „br" (brotli) neumí requests dekódovat bez balíčku
+                # brotli – server by poslal nečitelnou odpověď
+                "Accept-Encoding": "gzip, deflate",
                 "Cache-Control": "no-cache",
                 "Pragma": "no-cache",
                 "Upgrade-Insecure-Requests": "1",
