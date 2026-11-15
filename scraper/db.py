@@ -160,25 +160,41 @@ class SupabaseWriter:
     # ------------------------------------------------------------------
 
     def _food_id_fuzzy(self, ean: str | None, nazev: str) -> str | None:
-        """Párování nabídek na foods: EAN → přesný název → fuzzy název.
+        """Párování nabídek na foods.
 
-        Letákové názvy jsou povídavé („TUC MINI ORIGINAL 100G AKCE"),
-        takže po přesné shodě zkusíme difflib na normalizované názvy.
+        Letákové názvy jsou povídavé („Mléko trvanlivé Pragolaktos –
+        1,5% polotučné"), katalog má stručné názvy („Mléko trvanlivé").
+        Pořadí: EAN → přesný název → token-subset → substring
+        (word-boundary) → difflib ≥0.8. Preferujeme nejkonkrétnější
+        shodu (delší název potraviny).
         """
         food_id = self._food_id(ean, nazev)
         if food_id:
             return food_id
         cil = normalizuj_nazev(nazev)
-        if not cil:
+        cil_t = set(cil.split())
+        if not cil_t:
             return None
         nej_id, nej_skore = None, 0.0
         for p in self.nacti_potraviny():
-            skore = difflib.SequenceMatcher(
-                None, cil, normalizuj_nazev(p["nazev"])
-            ).ratio()
+            fn = normalizuj_nazev(p["nazev"])
+            ft = fn.split()
+            fts = set(ft)
+            skore = 0.0
+            if ft and len(ft) >= 1 and fts <= cil_t:
+                # všechna slova názvu potraviny jsou v nabídce
+                skore = 0.90 + 0.01 * len(ft)
+            elif len(fn) >= 4 and re.search(rf"\b{re.escape(fn)}\b", cil):
+                skore = 0.88 + 0.01 * len(fn)
+            elif len(cil) >= 4 and re.search(rf"\b{re.escape(cil)}\b", fn):
+                skore = 0.85
+            else:
+                r = difflib.SequenceMatcher(None, cil, fn).ratio()
+                if r >= 0.80:
+                    skore = r
             if skore > nej_skore:
                 nej_id, nej_skore = p["id"], skore
-        return nej_id if nej_skore >= 0.82 else None
+        return nej_id if nej_skore >= 0.80 else None
 
     def _dopln_baleni_a_obrazek(self, food_id: str, nabidka: Nabidka) -> None:
         """Doplní baleni_g/ean/obrazek z nabídky na potravinu – best-effort."""
