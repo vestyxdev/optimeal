@@ -31,7 +31,8 @@ UA_POOL = [
 ]
 
 POKUSY = 3
-PAUZA = 0.8  # základní pauza mezi požadavky (s jitterem)
+PAUZA = 2.0  # základní pauza mezi požadavky (s jitterem) – kupi.cz
+             # začne po rychlé sérii vracet 403; ~2 s + jitter drží tempo
 
 
 @dataclass
@@ -121,7 +122,7 @@ class BaseScraper:
             try:
                 r = self.session.get(url, timeout=30, **kw)
                 if r.status_code == 200:
-                    time.sleep(self.pauza + random.uniform(0, 0.5))
+                    time.sleep(self.pauza + random.uniform(0, 1.2))
                     return r
                 if r.status_code in (403, 429) and pokus < POKUSY:
                     # rate-limit / WAF – rotuj UA a čekej déle
