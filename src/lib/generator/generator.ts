@@ -42,6 +42,10 @@ export interface Potravina {
   obchod: string | null;
   /** je právě ve slevě? */
   sleva: boolean;
+  /** původní (přeškrtnutá) cena za 100 g z letáku/seedu – může se lišit od beznaCena */
+  puvodniCena?: number | null;
+  /** % slevy spočítaná z původní ceny (badge „-30 %“) */
+  slevaProcenta?: number | null;
   /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
   kategorie?: string;
   /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) */

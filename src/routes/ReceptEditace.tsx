@@ -96,7 +96,9 @@ function spocitejUctenku(
       nazev: p.nazev,
       gramy: g,
       cena: p.aktualniCena > 0 ? p.aktualniCena * podil : null,
-      sleva: p.sleva && p.beznaCena > p.aktualniCena ? (p.beznaCena - p.aktualniCena) * podil : 0,
+      sleva: p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena
+        ? ((p.puvodniCena ?? p.beznaCena) - p.aktualniCena) * podil
+        : 0,
     };
   });
   return { polozky, kcal, b, s, t };

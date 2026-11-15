@@ -23,6 +23,8 @@ export interface PolozkaVyberu {
   kalorie: number;
   aktualniCena: number;
   sleva: boolean;
+  /** % slevy – badge ukazuje „−30 %“ místo holého SLEVA */
+  slevaProcenta?: number | null;
   kategorie?: string;
   obrazek?: string | null;
   /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
@@ -405,7 +407,7 @@ function Radek({
             <span className="tabular-nums">{p.kalorie} kcal / 100 g</span>
             {p.sleva && (
               <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
-                SLEVA
+                {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "SLEVA"}
               </span>
             )}
             {p.aktualniCena > 0 && (
@@ -435,7 +437,7 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="aspect-square w-full" />
         {p.sleva && (
           <span className="absolute left-1.5 top-1.5 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
-            SLEVA
+            {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "SLEVA"}
           </span>
         )}
       </div>

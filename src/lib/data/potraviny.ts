@@ -44,6 +44,8 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     obrazek: (r.obrazek ?? null) as string | null,
     ean: (r.ean ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
   }));
 }
 

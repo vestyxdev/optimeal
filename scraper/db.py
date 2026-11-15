@@ -6,12 +6,15 @@ Service-role klíč NIKDY nepatří do frontendu – tady běží na serveru
 
 from __future__ import annotations
 
+import difflib
 import logging
 import os
+from datetime import date, datetime, timezone
 
 import requests
 
 from .normalizace import normalizuj_nazev
+from .retailers.base import Nabidka
 
 log = logging.getLogger("scraper.db")
 
@@ -40,7 +43,7 @@ class SupabaseWriter:
 
     def nacti_potraviny(self) -> list[dict]:
         if self._potraviny is None:
-            self._potraviny = self._get("foods", "id,nazev,ean")
+            self._potraviny = self._get("foods", "id,nazev,ean,baleni_g")
         return self._potraviny
 
     def _retailer_id(self, nazev: str) -> str | None:
@@ -149,3 +152,127 @@ class SupabaseWriter:
             r.raise_for_status()
         stat["vlozeno"] = len(radky)
         return stat
+
+    # ------------------------------------------------------------------
+    # Letákové/eshopové nabídky (PriceScraper)
+    # ------------------------------------------------------------------
+
+    def _food_id_fuzzy(self, ean: str | None, nazev: str) -> str | None:
+        """Párování nabídek na foods: EAN → přesný název → fuzzy název.
+
+        Letákové názvy jsou povídavé („TUC MINI ORIGINAL 100G AKCE"),
+        takže po přesné shodě zkusíme difflib na normalizované názvy.
+        """
+        food_id = self._food_id(ean, nazev)
+        if food_id:
+            return food_id
+        cil = normalizuj_nazev(nazev)
+        if not cil:
+            return None
+        nej_id, nej_skore = None, 0.0
+        for p in self.nacti_potraviny():
+            skore = difflib.SequenceMatcher(
+                None, cil, normalizuj_nazev(p["nazev"])
+            ).ratio()
+            if skore > nej_skore:
+                nej_id, nej_skore = p["id"], skore
+        return nej_id if nej_skore >= 0.82 else None
+
+    def _dopln_baleni_a_obrazek(self, food_id: str, nabidka: Nabidka) -> None:
+        """Doplní baleni_g/ean/obrazek z nabídky na potravinu – best-effort."""
+        patch: dict = {}
+        for p in self.nacti_potraviny():
+            if p["id"] == food_id:
+                if nabidka.gramy and not p.get("baleni_g"):
+                    patch["baleni_g"] = nabidka.gramy
+                if nabidka.ean and not p.get("ean"):
+                    patch["ean"] = nabidka.ean
+                break
+        if not patch:
+            return
+        try:
+            requests.patch(
+                f"{self.url}/rest/v1/foods",
+                headers={**self._hlavicky, "Prefer": "return=minimal"},
+                params={"id": f"eq.{food_id}"},
+                json=patch,
+                timeout=30,
+            )
+        except requests.RequestException as e:
+            log.warning("Doplnění metadat na %s selhalo: %s", food_id, e)
+
+    def zapis_nabidky(self, nabidky: list[Nabidka], od: datetime) -> dict:
+        """UPSERT nabídek do price_observations (zdroj='scraper:<obchod>')."""
+        radky: list[dict] = []
+        stat = {"sparovano": 0, "preskoceno": 0}
+        ted = od.isoformat()
+        for n in nabidky:
+            food_id = self._food_id_fuzzy(n.ean, n.nazev)
+            retailer_id = self._retailer_id(n.obchod)
+            if not food_id or not retailer_id:
+                stat["preskoceno"] += 1
+                continue
+            self._dopln_baleni_a_obrazek(food_id, n)
+            radky.append(
+                {
+                    "food_id": food_id,
+                    "retailer_id": retailer_id,
+                    "cena": n.cena_za_100g,
+                    "puvodni_cena": n.puvodni_cena_za_100g,
+                    "je_sleva": True,
+                    "platnost_do": n.platnost_do,
+                    "zdroj": f"scraper:{n.obchod.lower()}",
+                    "pozorovano_at": ted,
+                }
+            )
+            stat["sparovano"] += 1
+        if radky:
+            r = requests.post(
+                f"{self.url}/rest/v1/price_observations",
+                headers={**self._hlavicky, "Prefer": "resolution=ignore-duplicates"},
+                json=radky,
+                timeout=60,
+            )
+            r.raise_for_status()
+        stat["vlozeno"] = len(radky)
+        return stat
+
+    def purge_scrapera(self, predtim: datetime) -> int:
+        """Stale purge: smaže scraper-pozorování neobnovená v tomto běhu."""
+        try:
+            r = requests.delete(
+                f"{self.url}/rest/v1/price_observations",
+                headers=self._hlavicky,
+                params={
+                    "zdroj": "like.scraper:*",
+                    "pozorovano_at": f"lt.{predtim.isoformat()}",
+                },
+                timeout=60,
+            )
+            smazano = int(r.headers.get("content-range", "*/0").split("/")[-1] or 0) if r.ok else 0
+            if smazano:
+                log.info("Stale purge: smazáno %d starých scraper-pozorování", smazano)
+            return smazano
+        except (requests.RequestException, ValueError) as e:
+            log.warning("Stale purge selhal: %s", e)
+            return 0
+
+    def purge_expirovanych(self) -> int:
+        """Smaže pozorování s prošlou platností (view je filtruje taky,
+        ale tabulka zůstává čistá a malá)."""
+        try:
+            r = requests.delete(
+                f"{self.url}/rest/v1/price_observations",
+                headers=self._hlavicky,
+                params={
+                    "platnost_do": f"lt.{date.today().isoformat()}",
+                },
+                timeout=60,
+            )
+            smazano = int(r.headers.get("content-range", "*/0").split("/")[-1] or 0) if r.ok else 0
+            if smazano:
+                log.info("Purge: smazáno %d expirovaných pozorování", smazano)
+            return smazano
+        except (requests.RequestException, ValueError) as e:
+            log.warning("Purge expirovaných selhal: %s", e)
+            return 0

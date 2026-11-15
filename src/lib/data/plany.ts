@@ -23,6 +23,8 @@ interface RadkaAktualniCeny {
   zdroj_ceny: string | null;
   pozorovano_at: string | null;
   baleni_g: number | null;
+  puvodni_cena: number | null;
+  sleva_procenta: number | null;
 }
 
 export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
@@ -52,6 +54,8 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
     diety: (r as { diety?: string[] }).diety ?? [],
     obrazek: (r as { obrazek?: string | null }).obrazek ?? null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
   }));
 }
 

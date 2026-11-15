@@ -1,0 +1,46 @@
+# PriceScraper – denní scraping letákových/eshopových slev.
+# Běží každou noc ~02:00 CET (01:00 UTC; v letním čase 03:00 CET).
+# Secrets v GitHub repo:
+#   SUPABASE_URL              – https://<ref>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY – service-role klíč (jen server-side!)
+name: PriceScraper
+
+on:
+  schedule:
+    - cron: "0 1 * * *"  # ~02:00 CET každou noc
+  workflow_dispatch:
+    inputs:
+      obchod:
+        description: "Jen jeden řetězec (volitelné: Kaufland, Lidl, …)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalace závislostí
+        run: pip install -r scraper/requirements.txt
+
+      - name: Scrape všechny řetězce
+        if: ${{ github.event.inputs.obchod == '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m scraper.ceniky
+
+      - name: Scrape jednoho řetězce (manual dispatch)
+        if: ${{ github.event.inputs.obchod != '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m scraper.ceniky --obchod "${{ github.event.inputs.obchod }}"

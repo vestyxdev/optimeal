@@ -368,7 +368,12 @@ function RadekPotraviny({
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" inline />
         <span className="font-medium">{p.nazev}</span>
         <span className="ml-2 inline-flex gap-1">
-          {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
+          {p.sleva && (
+            <Badge tono="accent">
+              {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "Sleva"}
+              {p.obchod ? ` · ${p.obchod}` : ""}
+            </Badge>
+          )}
           {vlastni && <Badge tono="primary">Vlastní</Badge>}
           {(p.diety ?? []).map((d) => (
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
@@ -398,8 +403,10 @@ function RadekPotraviny({
       <td className="px-4 py-2.5 text-right tabular-nums">{p.tuky}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
-        {p.sleva && p.beznaCena > p.aktualniCena && (
-          <span className="ml-1 text-xs text-muted line-through">{cenaLabel(p, p.beznaCena)}</span>
+        {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
+          <span className="ml-1 text-xs text-muted line-through">
+            {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
+          </span>
         )}
       </td>
       {uzivatelId !== null && (
@@ -440,7 +447,12 @@ function KartaPotraviny({
           <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
             <Ikona className="size-3" aria-hidden />
             {KATEGORIE[p.kategorie ?? "ostatni"] ?? p.kategorie}
-            {p.sleva && <Badge tono="accent">{p.obchod ? `${p.obchod} sleva` : "Sleva"}</Badge>}
+            {p.sleva && (
+              <Badge tono="accent">
+                {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "Sleva"}
+                {p.obchod ? ` · ${p.obchod}` : ""}
+              </Badge>
+            )}
             {vlastni && <Badge tono="primary">Vlastní</Badge>}
             {(p.diety ?? []).map((d) => (
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
@@ -458,9 +470,9 @@ function KartaPotraviny({
             </span>
             <span className="tabular-nums font-semibold">
               {cenaLabel(p, p.aktualniCena)}
-              {p.sleva && p.beznaCena > p.aktualniCena && (
+              {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
                 <span className="ml-1 text-xs font-normal text-muted line-through">
-                  {cenaLabel(p, p.beznaCena)}
+                  {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
                 </span>
               )}
             </span>
