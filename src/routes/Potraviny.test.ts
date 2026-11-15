@@ -52,4 +52,15 @@ describe("filtrujKatalog", () => {
     expect(filtrujKatalog(KATALOG, "8590001", "mlecne_vyrobky")).toHaveLength(0);
     expect(filtrujKatalog(KATALOG, "8590001", "maso_ryby")).toHaveLength(1);
   });
+
+  it("jenSlevy vrátí jen akční položky seřazené podle % slevy", () => {
+    const kat = [
+      { ...p("A"), sleva: true, slevaProcenta: 10 },
+      { ...p("B"), sleva: false, slevaProcenta: null },
+      { ...p("C"), sleva: true, slevaProcenta: 40 },
+      { ...p("D"), sleva: true, slevaProcenta: null },
+    ];
+    const v = filtrujKatalog(kat, "", "vse", true);
+    expect(v.map((x) => x.nazev)).toEqual(["C", "A", "D"]);
+  });
 });

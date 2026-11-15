@@ -214,6 +214,17 @@ function PrihlasenyPrehled() {
         <CardNadpis>Aktuální akce</CardNadpis>
         {dotazSlevy.isLoading ? (
           <Skeleton className="h-32" />
+        ) : dotazSlevy.isError ? (
+          <p className="text-sm text-muted">
+            Slevy se nepodařilo načíst.{" "}
+            <button
+              type="button"
+              className="font-semibold text-primary hover:underline"
+              onClick={() => void dotazSlevy.refetch()}
+            >
+              Zkusit znovu
+            </button>
+          </p>
         ) : (dotazSlevy.data ?? []).length === 0 ? (
           <p className="text-sm text-muted">Dnes žádné aktivní slevy.</p>
         ) : (
@@ -221,7 +232,7 @@ function PrihlasenyPrehled() {
             {(dotazSlevy.data ?? []).map((p) => (
               <Link
                 key={p.id}
-                to="/potraviny"
+                to="/potraviny?slevy=1"
                 className="w-32 shrink-0 snap-start rounded-xl border border-border bg-surface p-2 transition-colors hover:border-primary/60"
               >
                 <span className="relative mb-1.5 block overflow-hidden rounded-lg bg-surface-2">

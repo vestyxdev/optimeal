@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
-  Sparkles, Trash2, Wheat, X,
+  Sparkles, Tag, Trash2, Wheat, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -122,17 +122,24 @@ export function filtrujKatalog(
   potraviny: KatalogPotravina[],
   dotaz: string,
   kategorie: string,
+  jenSlevy = false,
 ): KatalogPotravina[] {
   const dot = dotaz.trim().toLowerCase();
   const jeEan = /^\d{4,14}$/.test(dot.replace(/[\s-]/g, ""));
   const eanDotaz = dot.replace(/[\s-]/g, "");
-  return potraviny.filter(
+  const vybrane = potraviny.filter(
     (p) =>
       (kategorie === "vse" || p.kategorie === kategorie) &&
+      (!jenSlevy || p.sleva) &&
       (dot === "" ||
         p.nazev.toLowerCase().includes(dot) ||
         (jeEan && p.ean !== null && p.ean.includes(eanDotaz))),
   );
+  // u „jen slevy" řadíme podle % slevy – nejvýhodnější nahoře
+  if (jenSlevy) {
+    vybrane.sort((a, b) => (b.slevaProcenta ?? -1) - (a.slevaProcenta ?? -1));
+  }
+  return vybrane;
 }
 
 export function Potraviny() {
@@ -140,6 +147,10 @@ export function Potraviny() {
   const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
   const [hledat, setHledat] = useState("");
   const [kategorie, setKategorie] = useState<string>("vse");
+  // „?slevy=1" z dashboardu „Aktuální akce" – rovnou ukáže akční zboží
+  const [jenSlevy, setJenSlevy] = useState(
+    () => new URLSearchParams(window.location.search).get("slevy") === "1",
+  );
   const [formZobrazen, setFormZobrazen] = useState(false);
   const [editovana, setEditovana] = useState<KatalogPotravina | null>(null);
 
@@ -149,14 +160,15 @@ export function Potraviny() {
   };
 
   const potraviny = dotaz.data ?? [];
+  const pocetSlev = useMemo(() => potraviny.filter((p) => p.sleva).length, [potraviny]);
   const filtrovane = useMemo(
-    () => filtrujKatalog(potraviny, hledat, kategorie),
-    [potraviny, hledat, kategorie],
+    () => filtrujKatalog(potraviny, hledat, kategorie, jenSlevy),
+    [potraviny, hledat, kategorie, jenSlevy],
   );
   // velký katalog se vykresluje po dávkách – tisíce DOM uzlů naráz
   // by zabily mobil; filtr resetuje limit na první dávku
   const [limitZobrazeni, setLimitZobrazeni] = useState(DAVKA_ZOBRAZENI);
-  useEffect(() => setLimitZobrazeni(DAVKA_ZOBRAZENI), [hledat, kategorie]);
+  useEffect(() => setLimitZobrazeni(DAVKA_ZOBRAZENI), [hledat, kategorie, jenSlevy]);
   const zobrazeno = filtrovane.slice(0, limitZobrazeni);
   const zbyva = filtrovane.length - zobrazeno.length;
 
@@ -209,6 +221,19 @@ export function Potraviny() {
             <option key={k} value={k}>{v}</option>
           ))}
         </Select>
+        <button
+          type="button"
+          onClick={() => setJenSlevy((s) => !s)}
+          aria-pressed={jenSlevy}
+          className={
+            jenSlevy
+              ? "inline-flex h-10 items-center gap-1.5 rounded-lg border border-accent bg-accent px-3 text-sm font-semibold text-accent-ink"
+              : "inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-accent/60 hover:text-fg"
+          }
+        >
+          <Tag className="size-4" />
+          Ve slevě{pocetSlev > 0 ? ` (${pocetSlev})` : ""}
+        </button>
       </div>
 
       {dotaz.isError && (
