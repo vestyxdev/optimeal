@@ -111,6 +111,7 @@ Migrace:
 | `0028_ovoce_zelenina_cistka.sql` | 178 položek z `ovoce_zelenina`: 39 nápojů + 97 sladkostí/tyčinek → `ostatni`, 4 jogurtové produkty → `mlecne_vyrobky`, 43 cereálií/müsli/rýží → `peckoviny_obily`, perník → `suchary_testoviny`; salátové a zeleninové „Mix" produkty ponechány |
 | `0029_mlecne_cistka.sql` | 27 položek z `mlecne_vyrobky`: čokoládové tabulky/chipsy → `ostatni`, pečivo → `suchary_testoviny`, máslové fazole → `ovoce_zelenina`, rybí salát → `maso_ryby` |
 | `0030_maso_a_suchary_cistka.sql` | 37 položek: chipsy + instantní polévky z `maso_ryby` → `ostatni`, polévky/hotová jídla/luštěniny ze `suchary_testoviny` → `ostatni`, `Mrkev na nudlicky` → `ovoce_zelenina` |
+| `0031_peckoviny_cistka.sql` | 25 položek z `peckoviny_obily`: rostlinná mléka → `mlecne_vyrobky`, tuňákové vločky → `maso_ryby`, energy/müsli tyčinky a sendviče → `ostatni`, croissant/perníky/cookies → `suchary_testoviny` |
 
 ## Funkce
 
