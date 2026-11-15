@@ -112,6 +112,8 @@ Migrace:
 | `0029_mlecne_cistka.sql` | 27 položek z `mlecne_vyrobky`: čokoládové tabulky/chipsy → `ostatni`, pečivo → `suchary_testoviny`, máslové fazole → `ovoce_zelenina`, rybí salát → `maso_ryby` |
 | `0030_maso_a_suchary_cistka.sql` | 37 položek: chipsy + instantní polévky z `maso_ryby` → `ostatni`, polévky/hotová jídla/luštěniny ze `suchary_testoviny` → `ostatni`, `Mrkev na nudlicky` → `ovoce_zelenina` |
 | `0031_peckoviny_cistka.sql` | 25 položek z `peckoviny_obily`: rostlinná mléka → `mlecne_vyrobky`, tuňákové vločky → `maso_ryby`, energy/müsli tyčinky a sendviče → `ostatni`, croissant/perníky/cookies → `suchary_testoviny` |
+| `0032_diakritika_a_nazvy.sql` | 13 přejmenování: chybějící diakritika (`uzeny`→`uzený`, `Bezlaktozovy`→`Bezlaktozový`), překlepy (`Merňkový`→`Meruňkový`, `Seafoo tofu tuned`→`uzený`, `Athenikos bíý`→`bílý`), strojové překlady (`Ananas giana bucati`, `Butter Milch`) |
+| `0033_tunak_a_preklep.sql` | 13 tuňákových konzerv + jedlí cvrčci z `ostatni` → `maso_ryby`, `Jablečné kačenky` → `suchary_testoviny`, překlep `Tuňákový pomazanka rybex` → `Tuňáková pomazánka Rybex` |
 
 ## Funkce
 
