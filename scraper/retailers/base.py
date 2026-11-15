@@ -105,6 +105,7 @@ class BaseScraper:
         self.pauza = pauza
         self.session = requests.Session()
         self.nalezeno = 0
+        self.fetched = False  # aspoň jedna stránka skutečně načtena
         self._rotuj_ua()
 
     def _rotuj_ua(self) -> None:

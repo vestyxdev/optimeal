@@ -294,25 +294,31 @@ class SupabaseWriter:
         m = re.search(r"/(\d+)$", r.headers.get("content-range", ""))
         return int(m.group(1)) if m else 0
 
-    def purge_scrapera(self, predtim: datetime) -> int:
-        """Stale purge: smaže scraper-pozorování neobnovená v tomto běhu."""
-        try:
-            r = requests.delete(
-                f"{self.url}/rest/v1/price_observations",
-                headers={**self._hlavicky, "Prefer": "count=exact"},
-                params={
-                    "zdroj": "like.scraper:*",
-                    "pozorovano_at": f"lt.{predtim.isoformat()}",
-                },
-                timeout=60,
-            )
-            smazano = self._pocet_smazanych(r) if r.ok else 0
-            if smazano:
-                log.info("Stale purge: smazáno %d starých scraper-pozorování", smazano)
-            return smazano
-        except requests.RequestException as e:
-            log.warning("Stale purge selhal: %s", e)
+    def purge_scrapera(self, predtim: datetime, zdroje: list[str]) -> int:
+        """Stale purge: smaže scraper-pozorování neobnovená v tomto běhu –
+        ale JEN u zdrojů, které v tomto běhu reálně stáhly stránku.
+        Zablokovaný řetězec tak nesmaže svoje minulá data.
+        """
+        if not zdroje:
             return 0
+        smazano = 0
+        for zdroj in zdroje:
+            try:
+                r = requests.delete(
+                    f"{self.url}/rest/v1/price_observations",
+                    headers={**self._hlavicky, "Prefer": "count=exact"},
+                    params={
+                        "zdroj": f"eq.{zdroj}",
+                        "pozorovano_at": f"lt.{predtim.isoformat()}",
+                    },
+                    timeout=60,
+                )
+                smazano += self._pocet_smazanych(r) if r.ok else 0
+            except requests.RequestException as e:
+                log.warning("Stale purge %s selhal: %s", zdroj, e)
+        if smazano:
+            log.info("Stale purge: smazáno %d starých scraper-pozorování", smazano)
+        return smazano
 
     def purge_expirovanych(self) -> int:
         """Smaže pozorování s prošlou platností (view je filtruje taky,

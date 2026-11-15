@@ -41,6 +41,7 @@ def main() -> int:
 
     vsechny = []
     vysledky: dict[str, str] = {}
+    uspesne_zdroje: list[str] = []  # řetězce, co stáhly ≥1 stránku
     for cls in scrapery:
         s = cls()
         try:
@@ -48,6 +49,8 @@ def main() -> int:
             vsechny.extend(nabidky)
             vysledky[s.obchod] = f"{len(nabidky)} nabídek"
             log.info("%s: %d nabídek", s.obchod, len(nabidky))
+            if s.fetched:
+                uspesne_zdroje.append(f"scraper:{s.obchod.lower()}")
         except Exception as e:  # noqa: BLE001 – jeden řetězec nesmí shodit běh
             vysledky[s.obchod] = f"CHYBA: {e.__class__.__name__}"
             log.exception("%s: scraper selhal – pokračuji dalším", s.obchod)
@@ -71,7 +74,7 @@ def main() -> int:
         "Zapsáno %d pozorování (spárováno %d, přeskočeno %d)",
         stat["vlozeno"], stat["sparovano"], stat["preskoceno"],
     )
-    writer.purge_scrapera(start)
+    writer.purge_scrapera(start, uspesne_zdroje)
     writer.purge_expirovanych()
 
     # 0 nabídek ze všech řetězců = něco je špatně (síť/WAF změny) → fail

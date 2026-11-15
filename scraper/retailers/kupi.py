@@ -103,11 +103,15 @@ class KupiScraper(BaseScraper):
     obchod = "?"
 
     def stahni_slevy(self) -> Iterator[Nabidka]:
+        # session „ohřátí" – kupi.cz dává cookie na homepage,
+        # studený request na /slevy/* častěji chytí 403
+        self._get("https://www.kupi.cz/")
         for strana in range(1, MAX_STRAN + 1):
             params = {"page": strana} if strana > 1 else None
             r = self._get(f"{BASE}/{self.slug}", params=params)
             if r is None:
                 break
+            self.fetched = True
             nalezeno_na_strane = 0
             soup = BeautifulSoup(r.text, "html.parser")
             wraps = soup.select(".product--wrap")
