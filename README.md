@@ -103,6 +103,7 @@ Migrace:
 | `0020_kategorie.sql` | oprava kategorií starých importů: pečivo z `ovoce_zelenina` → `peckoviny_obily` (150 → 586 položek), suroviny/omáčky/nápoje → `ostatni`; překlep `Chlèb` → `Chléb` |
 | `0021_cyrilice_a_obecne_nazvy.sql` | překlad 17 cyrilických + řeckého názvu, obecné názvy doplněné podle EAN (`Chocolate` → `Kinder Chocolate`, `Vanilla` → `Coca-Cola Vanilla`, `12%` → `Zlatý Bažant 12%`), oprava HTML entit, kategorie opravených řádků |
 | `0022_kecup_a_mleko.sql` | 39 kečupů z `ovoce_zelenina` → `ostatni`, kyselé cukroví z produce → `ostatni`, genitiv „vloček" → `peckoviny_obily`, překlady slovenského/polského mléčného zboží |
+| `0023_formatovani_nazvu.sql` | kapitalizace počátečních písmen (294 názvů, kolizní case-duplikáty vynechány), `´`→`'`, `Nº`→`N°`, emoji, překlady rumunských/německých/anglických názvů |
 
 ## Funkce
 
