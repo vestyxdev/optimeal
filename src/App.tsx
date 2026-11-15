@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { supabaseNastaveno } from "@/lib/supabase";
 import { MotivPoskytovatel } from "@/lib/motiv";
@@ -13,18 +13,21 @@ import { NoveHeslo } from "@/routes/NoveHeslo";
 import { VyzadujePrihlaseni } from "@/components/layout/VyzadujePrihlaseni";
 import { Nenalezeno } from "@/routes/Nenalezeno";
 import { Skeleton } from "@/components/ui/Nacitani";
+import { lazyRoute } from "@/lib/lazyRoute";
 
-// těžké routy se načítají lazy – hlavní bundle zůstane malý
-const Ucet = lazy(() => import("@/routes/Ucet").then((m) => ({ default: m.Ucet })));
-const Nastaveni = lazy(() => import("@/routes/Nastaveni").then((m) => ({ default: m.Nastaveni })));
-const Jidelnicek = lazy(() => import("@/routes/Jidelnicek").then((m) => ({ default: m.Jidelnicek })));
-const PlanyDetail = lazy(() => import("@/routes/PlanyDetail").then((m) => ({ default: m.PlanyDetail })));
-const Recepty = lazy(() => import("@/routes/Recepty").then((m) => ({ default: m.Recepty })));
-const Potraviny = lazy(() => import("@/routes/Potraviny").then((m) => ({ default: m.Potraviny })));
-const ReceptDetail = lazy(() => import("@/routes/ReceptDetail").then((m) => ({ default: m.ReceptDetail })));
-const ReceptEditace = lazy(() => import("@/routes/ReceptEditace").then((m) => ({ default: m.ReceptEditace })));
-const Mealprep = lazy(() => import("@/routes/Mealprep").then((m) => ({ default: m.Mealprep })));
-const Nakup = lazy(() => import("@/routes/Nakup").then((m) => ({ default: m.Nakup })));
+// těžké routy se načítají lazy – hlavní bundle zůstane malý;
+// lazyRoute po nezdařeném importu (zastaralý chunk po deployi)
+// jednou automaticky reloadne místo error screenu
+const Ucet = lazyRoute(() => import("@/routes/Ucet"), "Ucet");
+const Nastaveni = lazyRoute(() => import("@/routes/Nastaveni"), "Nastaveni");
+const Jidelnicek = lazyRoute(() => import("@/routes/Jidelnicek"), "Jidelnicek");
+const PlanyDetail = lazyRoute(() => import("@/routes/PlanyDetail"), "PlanyDetail");
+const Recepty = lazyRoute(() => import("@/routes/Recepty"), "Recepty");
+const Potraviny = lazyRoute(() => import("@/routes/Potraviny"), "Potraviny");
+const ReceptDetail = lazyRoute(() => import("@/routes/ReceptDetail"), "ReceptDetail");
+const ReceptEditace = lazyRoute(() => import("@/routes/ReceptEditace"), "ReceptEditace");
+const Mealprep = lazyRoute(() => import("@/routes/Mealprep"), "Mealprep");
+const Nakup = lazyRoute(() => import("@/routes/Nakup"), "Nakup");
 
 export default function App() {
   // bez klíčů k Supabase produkt nespustí demo verzi – zobrazí přesný návod
