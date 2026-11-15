@@ -204,8 +204,13 @@ class SupabaseWriter:
             log.warning("Doplnění metadat na %s selhalo: %s", food_id, e)
 
     def zapis_nabidky(self, nabidky: list[Nabidka], od: datetime) -> dict:
-        """UPSERT nabídek do price_observations (zdroj='scraper:<obchod>')."""
-        radky: list[dict] = []
+        """UPSERT nabídek do price_observations (zdroj='scraper:<obchod>').
+
+        unique(food_id, retailer_id, pozorovano_at) → z jednoho běhu
+        držíme jen NEJLEPŠÍ (nejnižší) cenu na dvojici potravina×obchod,
+        jinak by stejné timestampy vyvolaly 409.
+        """
+        radky: dict[tuple, dict] = {}
         stat = {"sparovano": 0, "preskoceno": 0}
         ted = od.isoformat()
         for n in nabidky:
@@ -215,28 +220,30 @@ class SupabaseWriter:
                 stat["preskoceno"] += 1
                 continue
             self._dopln_baleni_a_obrazek(food_id, n)
-            radky.append(
-                {
-                    "food_id": food_id,
-                    "retailer_id": retailer_id,
-                    "cena": n.cena_za_100g,
-                    "puvodni_cena": n.puvodni_cena_za_100g,
-                    "je_sleva": True,
-                    "platnost_do": n.platnost_do,
-                    "zdroj": f"scraper:{n.obchod.lower()}",
-                    "pozorovano_at": ted,
-                }
-            )
+            klic = (food_id, retailer_id)
+            radek = {
+                "food_id": food_id,
+                "retailer_id": retailer_id,
+                "cena": n.cena_za_100g,
+                "puvodni_cena": n.puvodni_cena_za_100g,
+                "je_sleva": True,
+                "platnost_do": n.platnost_do,
+                "zdroj": f"scraper:{n.obchod.lower()}",
+                "pozorovano_at": ted,
+            }
+            if klic not in radky or n.cena_za_100g < radky[klic]["cena"]:
+                radky[klic] = radek
             stat["sparovano"] += 1
-        if radky:
+        radky_list = list(radky.values())
+        if radky_list:
             r = requests.post(
                 f"{self.url}/rest/v1/price_observations",
                 headers={**self._hlavicky, "Prefer": "resolution=ignore-duplicates"},
-                json=radky,
+                json=radky_list,
                 timeout=60,
             )
             r.raise_for_status()
-        stat["vlozeno"] = len(radky)
+        stat["vlozeno"] = len(radky_list)
         return stat
 
     def _pocet_smazanych(self, r: requests.Response) -> int:
