@@ -330,6 +330,7 @@ export function vyberKandidata(
   vhodnostRe: RegExp | null = null,
   nevhodnostRe: RegExp | null = null,
   pouziteKlice: Set<string> = new Set(),
+  minuleDny: Set<string> = new Set(),
 ): Kandidat | null {
   if (kandidati.length === 0) return null;
 
@@ -357,13 +358,20 @@ export function vyberKandidata(
   //    je gastronomický, když to cena dovoluje, a funkční vždy.
   const BONUS_VHODNOSTI = 2.5;
   const MALUS_NEVHODNOSTI = 0.4;
+  const MALUS_MINULE_DNY = 0.5;
   const jeVhodny = (p: Kandidat) => vhodnostRe !== null && vhodnostRe.test(p.nazev);
   const jeNevhodny = (p: Kandidat) => nevhodnostRe !== null && nevhodnostRe.test(p.nazev);
+  // rodina už použitá v předchozích dnech týdne – měkký malus, ať se
+  // kotvy/doplňky rotují napříč týdnem (sušené maso ne každý den)
+  const jeMinulyDen = (p: Kandidat) => minuleDny.has(klicPodobnosti(p.nazev));
   const nejlepsi = kandidati.reduce((m, p) => Math.max(m, p.skore), 0);
   if (nejlepsi > 0) {
     const srovnatelni = kandidati.filter(
       (p) =>
-        p.skore * (jeVhodny(p) ? BONUS_VHODNOSTI : 1) * (jeNevhodny(p) ? MALUS_NEVHODNOSTI : 1) >=
+        p.skore *
+          (jeVhodny(p) ? BONUS_VHODNOSTI : 1) *
+          (jeNevhodny(p) ? MALUS_NEVHODNOSTI : 1) *
+          (jeMinulyDen(p) ? MALUS_MINULE_DNY : 1) >=
         nejlepsi * poolMin,
     );
     if (srovnatelni.length > 0) {
@@ -427,6 +435,7 @@ export function naplanujJidlo(
   poolMin = 0.85,
   nazevJidla = "",
   pouziteKlice: Set<string> = new Set(),
+  minuleDny: Set<string> = new Set(),
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
   // Kulinářská vhodnost podle ROLE v jídle: kotva, příloha a tukový
@@ -479,15 +488,15 @@ export function naplanujJidlo(
   const bilkovinyBezPrisad = kategorie.bilkovinova.filter((p) => !jePrisada(p));
   const bilkovinyPool = bilkovinyBezPrisad.length > 0 ? bilkovinyBezPrisad : kategorie.bilkovinova;
   if (bilkovinyPool.some((p) => !pouziteId.includes(p.id))) {
-    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, pouziteKlice);
+    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, pouziteKlice, minuleDny);
   } else {
     const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
       .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p))
       .sort((a, b) => b.bilkoviny - a.bilkoviny);
     kotva =
-      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, reKotva, antiKotva, pouziteKlice) ??
-      vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva) ??
-      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva);
+      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, reKotva, antiKotva, pouziteKlice, minuleDny) ??
+      vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny) ??
+      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny);
   }
   if (kotva !== null && zbyva.b >= 5) {
     pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
@@ -507,7 +516,7 @@ export function naplanujJidlo(
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
   }
-  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice);
+  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice, minuleDny);
   if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
     pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
   }
@@ -524,6 +533,9 @@ export function naplanujJidlo(
     denniPosun,
     poolMin,
     reTuk,
+    null,
+    pouziteKlice,
+    minuleDny,
   );
   if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
     pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100));
@@ -617,6 +629,7 @@ export function vygenerujJidelnicek(
   poolMin = 0.85,
   pocetJidel = 4,
   filtr: FiltrPotraviny | null = null,
+  minuleDny: Set<string> = new Set(),
 ): DenVysledek {
   // ochrana proti poškozeným cílům (NaN / Infinity / záporná čísla
   // z DB nebo formuláře) – raději nulový plán než NaN ve výsledku
@@ -657,6 +670,7 @@ export function vygenerujJidelnicek(
       poolMin,
       nazevJidla,
       pouziteKlice,
+      minuleDny,
     );
 
     const souhrn = souhrnJidla(jidla);
@@ -769,9 +783,17 @@ export function vygenerujTydenniPlan(
     cenaBezna: 0,
   };
 
+  // rodiny potravin použité v předchozích dnech – měkký malus,
+  // ať se týden skutečně různí (ne 7× sušené maso + křupavý sýr)
+  const tydenniKlice = new Set<string>();
   for (let den = 1; den <= 7; den++) {
-    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel, filtr);
+    const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel, filtr, tydenniKlice);
     dny[den] = vysledek;
+    for (const souhrn of Object.values(vysledek.jidelnicek)) {
+      for (const j of souhrn.jidla) {
+        tydenniKlice.add(klicPodobnosti(j.nazev));
+      }
+    }
 
     tyden.kalorie += vysledek.celkem.kalorie;
     tyden.bilkoviny += vysledek.celkem.bilkoviny;
