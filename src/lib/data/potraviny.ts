@@ -100,12 +100,13 @@ export async function nactiPotravinu(id: string): Promise<{
   tuky: number;
   beznaCena: number;
   ean: string | null;
+  baleniG: number | null;
 }> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
   const { data, error } = await klient
     .from("foods")
-    .select("id, nazev, kategorie, kalorie, bilkoviny, sacharidy, tuky, bezna_cena, ean")
+    .select("id, nazev, kategorie, kalorie, bilkoviny, sacharidy, tuky, bezna_cena, ean, baleni_g")
     .eq("id", id)
     .single();
   if (error) throw new Error(`Potravinu se nepodařilo načíst: ${error.message}`);
@@ -119,6 +120,7 @@ export async function nactiPotravinu(id: string): Promise<{
     tuky: Number(data.tuky),
     beznaCena: Number(data.bezna_cena),
     ean: (data.ean ?? null) as string | null,
+    baleniG: data.baleni_g != null ? Number(data.baleni_g) : null,
   };
 }
 
@@ -135,6 +137,7 @@ export async function upravPotravinu(
     beznaCena: number;
     ean?: string | null;
     obrazek?: string | null;
+    baleniG?: number | null;
   },
 ): Promise<void> {
   const klient = supabase;
@@ -149,6 +152,7 @@ export async function upravPotravinu(
     tuky: p.tuky,
     bezna_cena: p.beznaCena,
     ean: p.ean ?? null,
+    baleni_g: p.baleniG ?? null,
   };
   if (p.obrazek !== undefined) payload.obrazek = p.obrazek;
 
@@ -193,6 +197,7 @@ export async function pridejPotravinu(p: {
   beznaCena: number;
   ean?: string | null;
   obrazek?: string | null;
+  baleniG?: number | null;
 }): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -212,6 +217,7 @@ export async function pridejPotravinu(p: {
     tuky: p.tuky,
     bezna_cena: p.beznaCena,
     ean: p.ean ?? null,
+    baleni_g: p.baleniG ?? null,
     zdroj: "uzivatel",
     vytvoril: user.id,
     schvaleno: true,

@@ -105,6 +105,8 @@ interface FormPotravina {
   sacharidy: string;
   tuky: string;
   cena: string;
+  /** gramáž balení – prázdné = vážené zboží (cena se ukazuje za kg) */
+  baleni: string;
 }
 
 const PRAZDNY_FORM: FormPotravina = {
@@ -115,6 +117,7 @@ const PRAZDNY_FORM: FormPotravina = {
   sacharidy: "",
   tuky: "",
   cena: "",
+  baleni: "",
 };
 
 /** Filtrace katalogu: text hledá v názvu, čistě číselný dotaz i v EAN. */
@@ -533,6 +536,7 @@ function FormNovePotraviny({
           sacharidy: String(editovana.sacharidy),
           tuky: String(editovana.tuky),
           cena: String(editovana.beznaCena),
+          baleni: editovana.baleniG != null ? String(editovana.baleniG) : "",
         }
       : PRAZDNY_FORM,
   );
@@ -577,6 +581,8 @@ function FormNovePotraviny({
         sacharidy: cislo(f.sacharidy, "Sacharidy", 100),
         tuky: cislo(f.tuky, "Tuky", 100),
         beznaCena: cislo(f.cena, "Cena", 1000),
+        // prázdné balení = vážené zboží (baleni_g = null)
+        baleniG: f.baleni.trim() === "" ? null : cislo(f.baleni, "Balení", 50000),
         ean: normalizujEan(ean),
         ...(obrazek !== undefined ? { obrazek } : {}),
       };
@@ -806,10 +812,21 @@ function FormNovePotraviny({
           <Input id="pCena" inputMode="decimal" value={f.cena} onChange={(e) => uprav("cena", e.target.value)} placeholder="Např. 9.90" />
         </div>
         <div>
+          <Label htmlFor="pBaleni">Balení (g)</Label>
+          <Input
+            id="pBaleni"
+            inputMode="decimal"
+            value={f.baleni}
+            onChange={(e) => uprav("baleni", e.target.value)}
+            placeholder="Např. 400 – prázdné = vážené"
+          />
+          <p className="mt-1 text-xs text-muted">Balené zboží ukáže cenu za balení; prázdné = cena za kg.</p>
+        </div>
+        <div>
           <Label htmlFor="pKcal">Kalorie (kcal/100 g)</Label>
           <Input id="pKcal" inputMode="decimal" value={f.kalorie} onChange={(e) => uprav("kalorie", e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:col-span-2">
           <div>
             <Label htmlFor="pB">B (g)</Label>
             <Input id="pB" inputMode="decimal" value={f.bilkoviny} onChange={(e) => uprav("bilkoviny", e.target.value)} />
