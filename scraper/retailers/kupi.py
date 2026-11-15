@@ -110,7 +110,15 @@ class KupiScraper(BaseScraper):
                 break
             nalezeno_na_strane = 0
             soup = BeautifulSoup(r.text, "html.parser")
-            for wrap in soup.select(".product--wrap"):
+            wraps = soup.select(".product--wrap")
+            if not wraps:
+                log.warning(
+                    "%s: strana %d – 0 .product--wrap (%d B HTML); pravděpodobně "
+                    "jiná šablona/bot wall. Ukázka: %.200s",
+                    self.obchod, strana, len(r.text), r.text.replace("\n", " "),
+                )
+                break
+            for wrap in wraps:
                 nazev_el = wrap.select_one(".product_name strong")
                 if not nazev_el:
                     continue

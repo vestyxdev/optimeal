@@ -9,6 +9,7 @@ from __future__ import annotations
 import difflib
 import logging
 import os
+import re
 from datetime import date, datetime, timezone
 
 import requests
@@ -238,23 +239,28 @@ class SupabaseWriter:
         stat["vlozeno"] = len(radky)
         return stat
 
+    def _pocet_smazanych(self, r: requests.Response) -> int:
+        """Počet smazaných řádků z content-range ('*/53' s count=exact)."""
+        m = re.search(r"/(\d+)$", r.headers.get("content-range", ""))
+        return int(m.group(1)) if m else 0
+
     def purge_scrapera(self, predtim: datetime) -> int:
         """Stale purge: smaže scraper-pozorování neobnovená v tomto běhu."""
         try:
             r = requests.delete(
                 f"{self.url}/rest/v1/price_observations",
-                headers=self._hlavicky,
+                headers={**self._hlavicky, "Prefer": "count=exact"},
                 params={
                     "zdroj": "like.scraper:*",
                     "pozorovano_at": f"lt.{predtim.isoformat()}",
                 },
                 timeout=60,
             )
-            smazano = int(r.headers.get("content-range", "*/0").split("/")[-1] or 0) if r.ok else 0
+            smazano = self._pocet_smazanych(r) if r.ok else 0
             if smazano:
                 log.info("Stale purge: smazáno %d starých scraper-pozorování", smazano)
             return smazano
-        except (requests.RequestException, ValueError) as e:
+        except requests.RequestException as e:
             log.warning("Stale purge selhal: %s", e)
             return 0
 
@@ -264,16 +270,16 @@ class SupabaseWriter:
         try:
             r = requests.delete(
                 f"{self.url}/rest/v1/price_observations",
-                headers=self._hlavicky,
+                headers={**self._hlavicky, "Prefer": "count=exact"},
                 params={
                     "platnost_do": f"lt.{date.today().isoformat()}",
                 },
                 timeout=60,
             )
-            smazano = int(r.headers.get("content-range", "*/0").split("/")[-1] or 0) if r.ok else 0
+            smazano = self._pocet_smazanych(r) if r.ok else 0
             if smazano:
                 log.info("Purge: smazáno %d expirovaných pozorování", smazano)
             return smazano
-        except (requests.RequestException, ValueError) as e:
+        except requests.RequestException as e:
             log.warning("Purge expirovaných selhal: %s", e)
             return 0
