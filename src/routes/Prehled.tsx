@@ -248,6 +248,11 @@ function PrihlasenyPrehled() {
                   {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
                   {p.obchod ? ` · ${p.obchod}` : ""}
                 </span>
+                {p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
+                  <span className="block text-[10px] tabular-nums text-muted line-through">
+                    {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
+                  </span>
+                )}
                 {formatujPlatnostDo(p.platnostDo) && (
                   <span className="mt-0.5 block text-[10px] text-muted">
                     {formatujPlatnostDo(p.platnostDo)}
