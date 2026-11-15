@@ -1,0 +1,11 @@
+import pg from "pg";
+import fs from "node:fs";
+const { Client } = pg;
+const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+const c = new Client({ host: "aws-0-eu-west-2.pooler.supabase.com", port: 6543, user: "postgres.gduquvqofcohbjzzsicb", password: heslo, database: "postgres", ssl: { rejectUnauthorized: false } });
+await c.connect();
+const k = await c.query("select nazev, ean from foods where nazev ~* 'napln' and nazev ~ 'nápln[^í]' order by nazev limit 30");
+k.rows.forEach(x => console.log("NAPLN:", x.nazev));
+const m = await c.query("select nazev, ean from foods where nazev ~* 'ml[ée]čná čokoláda' order by nazev limit 20");
+m.rows.forEach(x => console.log("COK:", x.nazev));
+await c.end();
