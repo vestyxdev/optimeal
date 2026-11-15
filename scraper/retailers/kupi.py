@@ -111,11 +111,17 @@ class KupiScraper(BaseScraper):
             nalezeno_na_strane = 0
             soup = BeautifulSoup(r.text, "html.parser")
             wraps = soup.select(".product--wrap")
+            radky = soup.select(".discount_row")
+            log.info(
+                "%s: strana %d – status %d, %d B, %d wraps, %d discount_row, url %s",
+                self.obchod, strana, r.status_code, len(r.text),
+                len(wraps), len(radky), r.url,
+            )
             if not wraps:
                 log.warning(
-                    "%s: strana %d – 0 .product--wrap (%d B HTML); pravděpodobně "
-                    "jiná šablona/bot wall. Ukázka: %.200s",
-                    self.obchod, strana, len(r.text), r.text.replace("\n", " "),
+                    "%s: strana %d – 0 .product--wrap; pravděpodobně "
+                    "jiná šablona/bot wall. Ukázka: %.300s",
+                    self.obchod, strana, r.text.replace("\n", " "),
                 )
                 break
             for wrap in wraps:
