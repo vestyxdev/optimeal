@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Nacitani";
+import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { useAuth } from "@/lib/auth";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
@@ -114,6 +115,21 @@ export function Recepty() {
                 {recept.popis && (
                   <p className="mt-1 line-clamp-2 text-sm text-muted">{recept.popis}</p>
                 )}
+                {(() => {
+                  const obrazky = recept.suroviny
+                    .map((s) => s.obrazek)
+                    .filter((o): o is string => !!o)
+                    .slice(0, 5);
+                  return (
+                    obrazky.length >= 2 && (
+                      <div className="mt-2 flex gap-1" aria-hidden="true">
+                        {obrazky.map((o) => (
+                          <MiniaturaPotraviny key={o} obrazek={o} velikost="size-9" />
+                        ))}
+                      </div>
+                    )
+                  );
+                })()}
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
                   <span className="inline-flex items-center gap-1">
                     <Flame className="size-3 text-warning" />
