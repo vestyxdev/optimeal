@@ -36,6 +36,8 @@ function Metrika({ nazev, hodnota, cilyJednotka }: { nazev: string; hodnota: str
 export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozka[]; soucetPopisek: string }) {
   const celkem = polozky.reduce((s, x) => s + x.cenaCelkem, 0);
   const usetreno = polozky.reduce((s, x) => s + x.usetreno, 0);
+  const bezCeny = polozky.filter((x) => x.cenaZa100g === null).length;
+  const tvarPolozka = bezCeny === 1 ? "položka" : bezCeny < 5 ? "položky" : "položek";
 
   return (
     <Card className="p-0">
@@ -116,6 +118,11 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
         </tfoot>
       </table>
       </div>
+      {bezCeny > 0 && (
+        <div className="border-t border-border bg-surface-2 px-5 py-2 text-xs text-muted">
+          {bezCeny} {tvarPolozka} nemá známou cenu – součet zahrnuje jen oceněné položky.
+        </div>
+      )}
     </Card>
   );
 }

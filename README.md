@@ -100,6 +100,7 @@ Migrace:
 | `0017_preklad_tunaku.sql` | překlad anglických názvů tuňákových produktů (zachován token „(tuna)" pro letákový matcher) |
 | `0018_deduplikace.sql` | sloučení duplicitního řeckého jogurtu (remap FK), překlad 3 azbukových názvů |
 | `0019_ceske_nazvy.sql` | překlad ~95 cizojazyčných názvů z OFF importů (nápoje, jogurty, omáčky, pomazánky; kvalifikátory kvůli UNIQUE `nazev`) |
+| `0020_kategorie.sql` | oprava kategorií starých importů: pečivo z `ovoce_zelenina` → `peckoviny_obily` (150 → 586 položek), suroviny/omáčky/nápoje → `ostatni`; překlep `Chlèb` → `Chléb` |
 
 ## Funkce
 
