@@ -242,7 +242,7 @@ export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?:
  * jen jako samostatná slova (máslový chléb zůstane pečivem).
  */
 const PRISADA_RE =
-  /\b(olej\b|olio\b|oil\b|huile|olivov|margarin|s[aá]dl|mouk|cukr|sirup|ocet|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|želatin|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|tatarsk|tatark|dresink|dressing|j[ií][šš]k|rama\b|gh[ií]\b|ghee)/i;
+  /\b(olej\b|olio\b|oil\b|huile|olivov|margarin|s[aá]dl|mouk|cukr|sirup|ocet|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|želatin|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|tatarsk|tatark|dresink|dressing|j[ií][šš]k|rama\b|gh[ií]\b|ghee|hera\b|perla\b|flora\b|zlat[áa] han|rozt[ií]rateln[ýy] tuk)/i;
 
 /** Je potravina kuchyňská surovina, ne samostatná složka jídla? */
 export function jePrisada(p: { nazev: string }): boolean {

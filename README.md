@@ -106,6 +106,7 @@ Migrace:
 | `0023_formatovani_nazvu.sql` | kapitalizace počátečních písmen (294 názvů, kolizní case-duplikáty vynechány), `´`→`'`, `Nº`→`N°`, emoji, překlady rumunských/německých/anglických názvů |
 | `0024_vyziva_a_kategorie.sql` | oprava nemožné výživy z OFF (chléb 77→7,7 g bílkovin apod.), instantní polévka/chipsy/tyčinka z `ovoce_zelenina` a `maso_ryby` → `ostatni` |
 | `0025_prepchy_v_nazvech.sql` | překlepy `SEmolinové těstoviny` → `Semolinové`, `SMléčná čokoláda … náplni` → `Mléčná čokoláda s jemnou tekutou náplní` |
+| `0026_margariny_kategorie.sql` | 11 margarínů/rostlinných tuků (Hera, Flora, Rama, Sonnenblumen, Zlatá Haná…) z `ovoce_zelenina` → `mlecne_vyrobky` |
 
 ## Funkce
 
