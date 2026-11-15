@@ -250,20 +250,37 @@ export function jePrisada(p: { nazev: string }): boolean {
 }
 
 /**
+ * Klíč podobnosti názvu – první dvě slova bez diakritiky.
+ * „Sušené maso hovězí" a „Sušené maso krůtí" mají stejný klíč →
+ * generátor jich do jednoho dne nedá víc (různorodost, ne opakování).
+ */
+export function klicPodobnosti(nazev: string): string {
+  return nazev
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(" ");
+}
+
+/**
  * „Kulinářská vhodnost" pro typ jídla – snídaně se nesestavuje
  * z beef jerky a oběd z müsli. Měkká preference: vhodné potraviny
  * jdou do výběru první, když žádná nekandiduje, vezme se plný pool
  * (plán musí fungovat i na malém/filtrovaném katalogu).
  */
 const SNIDANE_RE =
-  /müsli|musli|granola|vlo[čc]k|ovsen|kaše|jogurt|skyr|ml[eé]k|chl[eé]b|chleba|rohl[íi]k|housk|toast|croissant|veka|pomaz[aá]nk|džem|marmel[aá]d|tvaroh|vaj[íi][čc]|vejce|cornflakes|kornflejk|proteinov|ban[aá]n|jablk|hru[šs]k|bor[ůu]v|jahod|malin|meloun|ananas|smoothie|o[řr]ech|mandle|kešu|kesu|pist[aá]c/i;
+  /müsli|musli|granola|vlo[čc]k|ovsen|kaše|jogurt|skyr|ml[eé]k|chl[eé]b|chleba|rohl[íi]k|housk|toast|croissant|veka|pomaz[aá]nk|džem|marmel[aá]d|tvaroh|vaj[íi][čc]|vejce|cornflakes|kornflejk|proteinov|ban[aá]n|jablk|hru[šs]k|bor[ůu]v|jahod|malin|meloun|ananas|smoothie|o[řr]ech|mandle|kešu|kesu|pist[aá]c|krupič/i;
 
 const OBED_VECERE_RE =
   /r[ýy]že|risott|t[ěe]stovin|spaget|penne|fusilli|nudl|brambor|knedl|maso|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|jehn[ěe]|telec|ryb|tu[ňn][aá]k|losos|kapr|pstruh|sle[ďd]|makrel|sardink|tresk|tilapi|krevet|kalam[aá]r|krab|fazol|[čc]očk|cizrn|zelenin|sal[aá]t|gul[aá]š|pol[ée]vk|steak|file|prso|prsa|seitan|tofu|tempeh|pizza|tortill|wrap|burg|chilli|curry|quino|bulgur|kuskus|tarho[ňn]|[úu]zen|[šs]unk|jerky|zavin|sv[íi][čc]kov|kan[čc]|tvaroh|s[ýy]r|oliv|avok[aá]d|chl[eé]b|rohl[íi]k|housk/i;
 
 /** Samostatné svačinové potraviny – ovoce, tyčinky, ořechy, snacky. */
 const SVACINA_RE =
-  /tyčink|jerky|smoothie|pudink|ban[aá]n|jablk|hru[šs]k|bor[ůu]v|jahod|malin|meloun|ananas|pomeranč|mandar|hroznov|kiwi|mango|o[řr]ech|mandle|l[íi]skov|kešu|kesu|pist[aá]c|vla[šs]sk|müsli|musli|granola|jogurt|proteinov|croissant|sušen|crack|popcorn|chips|sušenk|vlo[čc]k|ovsen|kaše|tvaroh|s[ýy]r|yogurt/i;
+  /tyčink|jerky|smoothie|pudink|ban[aá]n|jablk|hru[šs]k|bor[ůu]v|jahod|malin|meloun|ananas|pomeranč|mandar|hroznov|kiwi|mango|o[řr]ech|mandle|l[íi]skov|kešu|kesu|pist[aá]c|vla[šs]sk|müsli|musli|granola|jogurt|proteinov|croissant|sušen|crack|popcorn|chips|sušenk|vlo[čc]k|ovsen|kaše|krupič|tvaroh|s[ýy]r|yogurt/i;
 
 /** Tepelné přílohy – do svačiny nedávají smysl. */
 const TEPLE_PRILOHY_RE =
@@ -272,6 +289,10 @@ const TEPLE_PRILOHY_RE =
 /** Přílohy k hlavnímu jídlu – sacharidový doplněk oběda/večeře. */
 const PRILOHA_RE =
   /r[ýy]že|t[ěe]stovin|spaget|penne|fusilli|nudl|brambor|knedl|kuskus|bulgur|quino|tarho[ňn]|pohank|chl[ée]b|chleba|rohl[íi]k|housk|veka|toast|tortill|bat[aá]t/i;
+
+/** Snídaňové/sladké sacharidy – přílohou hlavního jídla nejsou. */
+const SNIDANOVA_PRILOHA_ANTI_RE =
+  /müsli|musli|granola|vlo[čc]k|ovsen|kaše|krupič|cornflakes|kornflejk|džem|marmel[aá]d|smoothie|pudink/i;
 
 /** Jen-svačinové potraviny – nesmí kotvit hlavní jídlo. */
 const SVACINA_ANCHOR_ANTI_RE =
@@ -308,6 +329,7 @@ export function vyberKandidata(
   poolMin = 0.85,
   vhodnostRe: RegExp | null = null,
   nevhodnostRe: RegExp | null = null,
+  pouziteKlice: Set<string> = new Set(),
 ): Kandidat | null {
   if (kandidati.length === 0) return null;
 
@@ -315,6 +337,14 @@ export function vyberKandidata(
   const nove = kandidati.filter((p) => !pouziteId.includes(p.id));
   if (nove.length > 0) {
     kandidati = nove;
+  }
+
+  // 1b) a nejen to – preferujeme i potraviny, jejichž „rodina" se dnes
+  //     neobjevila: „Sušené maso hovězí" i „Sušené maso krůtí" je pořád
+  //     sušené maso. Bez klíčů kandidátů filtr přeskočíme.
+  const bezRodiny = kandidati.filter((p) => !pouziteKlice.has(klicPodobnosti(p.nazev)));
+  if (bezRodiny.length > 0) {
+    kandidati = bezRodiny;
   }
 
   // 2) rotujeme jen mezi cenově srovnatelnými kandidáty.
@@ -396,6 +426,7 @@ export function naplanujJidlo(
   denniPosun: number | null = null,
   poolMin = 0.85,
   nazevJidla = "",
+  pouziteKlice: Set<string> = new Set(),
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
   // Kulinářská vhodnost podle ROLE v jídle: kotva, příloha a tukový
@@ -405,7 +436,8 @@ export function naplanujJidlo(
   const reKotva = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : OBED_VECERE_RE;
   const antiKotva = typJ === "obedVecere" ? SVACINA_ANCHOR_ANTI_RE : null;
   const rePriloha = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : PRILOHA_RE;
-  const antiPriloha = typJ === "svacina" ? TEPLE_PRILOHY_RE : null;
+  const antiPriloha =
+    typJ === "svacina" ? TEPLE_PRILOHY_RE : typJ === "obedVecere" ? SNIDANOVA_PRILOHA_ANTI_RE : null;
   const reTuk = reKotva; // tukový doplněk sdílí typ jídla (ořechy/sýr/olivy)
   // nezáporné a konečné zbytky – NaN/Infinity cíl nesmí otrávit plán
   const z = (v: number) => (Number.isFinite(v) && v > 0 ? v : 0);
@@ -429,6 +461,7 @@ export function naplanujJidlo(
 
   const pridej = (p: Potravina, gramy: number) => {
     pouziteId.push(p.id);
+    pouziteKlice.add(klicPodobnosti(p.nazev));
     const jidlo = vytvorJidlo(p, gramy);
     jidla.push(jidlo);
     zbyva.b -= jidlo.bilkoviny;
@@ -446,13 +479,13 @@ export function naplanujJidlo(
   const bilkovinyBezPrisad = kategorie.bilkovinova.filter((p) => !jePrisada(p));
   const bilkovinyPool = bilkovinyBezPrisad.length > 0 ? bilkovinyBezPrisad : kategorie.bilkovinova;
   if (bilkovinyPool.some((p) => !pouziteId.includes(p.id))) {
-    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva);
+    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, pouziteKlice);
   } else {
     const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
       .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p))
       .sort((a, b) => b.bilkoviny - a.bilkoviny);
     kotva =
-      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, reKotva, antiKotva) ??
+      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, reKotva, antiKotva, pouziteKlice) ??
       vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva) ??
       vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva);
   }
@@ -474,7 +507,7 @@ export function naplanujJidlo(
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
   }
-  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha);
+  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice);
   if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
     pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
   }
@@ -607,6 +640,7 @@ export function vygenerujJidelnicek(
     cenaBezna: 0,
   };
   const pouziteId: string[] = [];
+  const pouziteKlice = new Set<string>();
   let poradi = 0;
 
   const podily = podilyProPocetJidel(pocetJidel);
@@ -622,6 +656,7 @@ export function vygenerujJidelnicek(
       denniPosun,
       poolMin,
       nazevJidla,
+      pouziteKlice,
     );
 
     const souhrn = souhrnJidla(jidla);
@@ -803,6 +838,10 @@ export function vymenJidlo(
   // všechna jídla včetně vyměňovaného → náhrada použije vždy jiné potraviny
   const pouziteId = Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => j.id));
   const puvodnePouzite = new Set(pouziteId);
+  // i „rodiny" použitých potravin se vyhýbáme – náhrada má být opravdu jiná
+  const pouziteKlice = new Set(
+    Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => klicPodobnosti(j.nazev))),
+  );
   const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
   const jidla = naplanujJidlo(
     kategorie,
@@ -815,6 +854,7 @@ export function vymenJidlo(
     null,
     poolMin,
     nazevJidla,
+    pouziteKlice,
   );
   // vyberKandidata padá zpět na použité potraviny, když je fond malý –
   // u výměny to porušuje garanci „vždy jiné jídlo", takže takovou
