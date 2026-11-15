@@ -749,4 +749,27 @@ describe("QA bug hunt – další okrajové případy", () => {
       }
     }
   });
+  it("svacina nedostane tepelnou prilohu, hlavni jidlo nekotvi tycinka", () => {
+    const katalog = [
+      p("tycinka", "Proteinova tycinka", 30, 20, 8, 280, 8),
+      p("maso", "Kureci prsa", 23, 0, 3, 110, 30),
+      p("spagety", "Spagety", 12, 72, 1, 350, 8),
+      p("jablko", "Jablko", 0.5, 14, 0.2, 60, 4),
+      p("mandle", "Mandle", 21, 10, 52, 580, 60),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE);
+    const svacina = den.jidelnicek["Sva" + "\u010d" + "ina"];
+    const obed = den.jidelnicek["Ob" + "\u011b" + "d"];
+    // svacina: spagety se nevyberou, kdyz existuje svacinova potravina
+    expect(svacina).toBeDefined();
+    if (svacina) {
+      const n = svacina.jidla.map((j) => j.nazev);
+      expect(n).not.toContain("Spagety");
+    }
+    // obed: tycinka nekandiduje jako kotva, kdyz existuje maso
+    expect(obed).toBeDefined();
+    if (obed) {
+      expect(obed.jidla[0]?.nazev).not.toBe("Proteinova tycinka");
+    }
+  });
 });
