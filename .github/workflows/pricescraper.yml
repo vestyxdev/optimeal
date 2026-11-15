@@ -3,6 +3,11 @@
 # Secrets v GitHub repo:
 #   SUPABASE_URL              – https://<ref>.supabase.co
 #   SUPABASE_SERVICE_ROLE_KEY – service-role klíč (jen server-side!)
+#
+# ARCHITEKTURA: každý řetězec běží jako SAMOSTATNÝ matrix job =
+# vlastní runner + vlastní egress IP. kupi.cz občas 403-í GitHub
+# datacenter IP; jeden zablokovaný job tak shodí jen svůj řetězec,
+# ne celý běh. fail-fast:false + purge per-zdroj = izolace.
 name: PriceScraper
 
 on:
@@ -23,7 +28,15 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false   # zablokovaný/zhasnutý řetězec neruší ostatní joby
+      max-parallel: 2    # max 2 souběžné IP proti kupi.cz – působí přirozeně
+      matrix:
+        # dispatch s --obchod = matrix o jednom prvku, jinak všech 7
+        obchod: ${{ github.event.inputs.obchod != ''
+                    && fromJSON(format('["{0}"]', github.event.inputs.obchod))
+                    || fromJSON('["Kaufland","Lidl","Albert","Billa","Tesco","Penny","Globus"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,16 +47,8 @@ jobs:
       - name: Instalace závislostí
         run: pip install -r scraper/requirements.txt
 
-      - name: Scrape všechny řetězce
-        if: ${{ github.event.inputs.obchod == '' }}
+      - name: Scrape ${{ matrix.obchod }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python -m scraper.ceniky
-
-      - name: Scrape jednoho řetězce (manual dispatch)
-        if: ${{ github.event.inputs.obchod != '' }}
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python -m scraper.ceniky --obchod "${{ github.event.inputs.obchod }}"
+        run: python -m scraper.ceniky --obchod "${{ matrix.obchod }}"
