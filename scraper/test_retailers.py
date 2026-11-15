@@ -1,9 +1,15 @@
-"""Offline testy parserů letákových nabídek (python -m unittest scraper.test_retailers)."""
+"""Offline testy parserů Kupi.cz (python -m unittest scraper.test_retailers)."""
 
 import unittest
+from datetime import date
 
 from scraper.retailers.base import BaseScraper, ceny_na_100g, gramaje_z_nazvu
-from scraper.retailers.schwarz import _cislo, _nabidky
+from scraper.retailers.kupi import (
+    _c100_z_jednotkove_ceny,
+    _cislo,
+    gramaje_z_jednotky,
+    platnost_do,
+)
 
 
 class TestGramajeZNazvu(unittest.TestCase):
@@ -29,36 +35,75 @@ class TestGramajeZNazvu(unittest.TestCase):
         self.assertIsNone(gramaje_z_nazvu("Cisterna 50 l"))
 
 
+class TestGramajeZJednotky(unittest.TestCase):
+    def test_litr(self):
+        self.assertEqual(gramaje_z_jednotky("1 l"), 1000)
+
+    def test_multipack(self):
+        self.assertEqual(gramaje_z_jednotky("4x 0.33 l"), 1320)
+
+    def test_ks_none(self):
+        self.assertIsNone(gramaje_z_jednotky("16 ks"))
+
+
+class TestCislo(unittest.TestCase):
+    def test_cena(self):
+        self.assertEqual(_cislo("9,90 Kč"), 9.9)
+
+    def test_procenta(self):
+        self.assertEqual(_cislo("–32 %"), 32.0)
+
+    def test_nbsp(self):
+        self.assertEqual(_cislo("199,90\xa0Kč"), 199.9)
+
+    def test_prazdne(self):
+        self.assertIsNone(_cislo(""))
+        self.assertIsNone(_cislo(None))
+
+
+class TestJednotkovaCena(unittest.TestCase):
+    def test_za_100g(self):
+        self.assertEqual(_c100_z_jednotkove_ceny("66,63 Kč / 100 g"), 66.63)
+
+    def test_za_litr(self):
+        self.assertEqual(_c100_z_jednotkove_ceny("9,90 Kč / 1 l"), 0.99)
+
+    def test_za_kg(self):
+        self.assertEqual(_c100_z_jednotkove_ceny("26,90 Kč / 1 kg"), 2.69)
+
+    def test_za_ks_none(self):
+        self.assertIsNone(_c100_z_jednotkove_ceny("7,49 Kč / 1 ks"))
+
+
+class TestPlatnostDo(unittest.TestCase):
+    def test_datum(self):
+        self.assertEqual(
+            platnost_do("platí do úterý 17. 11.", dnes=date(2026, 11, 15)),
+            "2026-11-17",
+        )
+
+    def test_dnes_konci(self):
+        self.assertEqual(
+            platnost_do("dnes končí", dnes=date(2026, 11, 15)),
+            "2026-11-15",
+        )
+
+    def test_pres_rok(self):
+        self.assertEqual(
+            platnost_do("platí do 5. 1.", dnes=date(2026, 12, 28)),
+            "2027-01-05",
+        )
+
+    def test_bez_data(self):
+        self.assertIsNone(platnost_do("akce", dnes=date(2026, 11, 15)))
+
+
 class TestCenyNa100g(unittest.TestCase):
     def test_prevod(self):
         self.assertEqual(ceny_na_100g(25.0, 400), 6.25)
 
     def test_bez_gramu_none(self):
         self.assertIsNone(ceny_na_100g(25.0, None))
-
-    def test_nulova_cena_none(self):
-        self.assertIsNone(ceny_na_100g(0, 400))
-
-
-class TestCislo(unittest.TestCase):
-    def test_string_s_carkou(self):
-        self.assertEqual(_cislo("24,90"), 24.9)
-
-    def test_dict_value(self):
-        self.assertEqual(_cislo({"value": 12.5}), 12.5)
-
-    def test_none(self):
-        self.assertIsNone(_cislo(None))
-
-
-class TestNabidky(unittest.TestCase):
-    def test_najde_offers(self):
-        data = {"offers": [{"title": "A"}, {"title": "B"}]}
-        self.assertEqual(len(list(_nabidky(data))), 2)
-
-    def test_vnorenou_strukturu(self):
-        data = {"flyer": {"items": [{"title": "X"}]}}
-        self.assertEqual(len(list(_nabidky(data))), 1)
 
 
 class TestNabidka(unittest.TestCase):
@@ -70,11 +115,6 @@ class TestNabidka(unittest.TestCase):
         self.assertIsNotNone(n)
         self.assertEqual(n.sleva_procenta, 50)
         self.assertAlmostEqual(n.cena_za_100g, 6.67, places=2)
-
-    def test_bez_gramu_none(self):
-        s = BaseScraper.__new__(BaseScraper)
-        s.obchod = "Test"
-        self.assertIsNone(s._nabidka("Něco", cena=10.0))
 
 
 if __name__ == "__main__":

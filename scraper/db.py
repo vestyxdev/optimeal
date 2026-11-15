@@ -21,7 +21,8 @@ log = logging.getLogger("scraper.db")
 
 class SupabaseWriter:
     def __init__(self, url: str | None = None, klic: str | None = None):
-        self.url = (url or os.environ["SUPABASE_URL"]).rstrip("/")
+        # strip(): secrets v GitHub Actions můžou mít trailing whitespace
+        self.url = (url or os.environ["SUPABASE_URL"]).strip().rstrip("/")
         self.klic = klic or os.environ["SUPABASE_SERVICE_ROLE_KEY"]
         self._hlavicky = {
             "apikey": self.klic,

@@ -1,11 +1,14 @@
-"""Scrapery jednotlivých českých řetězců."""
+"""Scrapery jednotlivých českých řetězců (všechny přes Kupi.cz)."""
 
-from .albert import AlbertScraper
-from .billa import BillaScraper
-from .globus import GlobusScraper
-from .penny import PennyScraper
-from .schwarz import KauflandScraper, LidlScraper
-from .tesco import TescoScraper
+from .kupi import (
+    AlbertScraper,
+    BillaScraper,
+    GlobusScraper,
+    KauflandScraper,
+    LidlScraper,
+    PennyScraper,
+    TescoScraper,
+)
 
 SCRAPERY = [
     KauflandScraper,
