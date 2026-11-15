@@ -8,6 +8,9 @@ name: PriceScraper
 on:
   schedule:
     - cron: "0 1 * * *"  # ~02:00 CET každou noc
+    - cron: "0 5 * * *"  # pojistný pokus ~06:00 CET – nový runner = nová IP
+                         # (kupi.cz občas 403-í GitHub egress IP, druhá
+                         #  šance zvýší pravděpodobnost čistého běhu)
   workflow_dispatch:
     inputs:
       obchod:

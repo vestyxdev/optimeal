@@ -104,11 +104,16 @@ class KupiScraper(BaseScraper):
 
     def stahni_slevy(self) -> Iterator[Nabidka]:
         # session „ohřátí" – kupi.cz dává cookie na homepage,
-        # studený request na /slevy/* častěji chytí 403
-        self._get("https://www.kupi.cz/")
+        # studený request na /slevy/* častěji chytí 403;
+        # referer z vyhledávače vypadá jako normální návštěva
+        self._get("https://www.kupi.cz/", headers={"Referer": "https://www.google.com/"})
         for strana in range(1, MAX_STRAN + 1):
             params = {"page": strana} if strana > 1 else None
-            r = self._get(f"{BASE}/{self.slug}", params=params)
+            r = self._get(
+                f"{BASE}/{self.slug}",
+                params=params,
+                headers={"Referer": "https://www.kupi.cz/"},
+            )
             if r is None:
                 break
             self.fetched = True

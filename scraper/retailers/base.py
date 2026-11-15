@@ -112,8 +112,19 @@ class BaseScraper:
         self.session.headers.update(
             {
                 "User-Agent": random.choice(UA_POOL),
-                "Accept": "application/json, text/html;q=0.9, */*;q=0.8",
+                # plná hlavičková sada skutečného prohlížeče – samotný
+                # User-Agent má u WAF nízké skóre a často chytá 403
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "cs-CZ,cs;q=0.9,en;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "DNT": "1",
             }
         )
 
