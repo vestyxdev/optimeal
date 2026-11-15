@@ -230,8 +230,8 @@ export function Potraviny() {
           aria-pressed={jenSlevy}
           className={
             jenSlevy
-              ? "inline-flex h-10 items-center gap-1.5 rounded-lg border border-accent bg-accent px-3 text-sm font-semibold text-accent-ink"
-              : "inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-accent/60 hover:text-fg"
+              ? "inline-flex h-10 items-center gap-1.5 rounded-lg border border-accent bg-accent px-3 text-sm font-semibold text-accent-ink focus-visible:outline-2 focus-visible:outline-primary"
+              : "inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-accent/60 hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
           }
         >
           <Tag className="size-4" />

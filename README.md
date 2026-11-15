@@ -89,27 +89,41 @@ Migrace:
 | `0006_alergeny_a_diety.sql` | sloupce `foods.alergeny`/`diety` (jen schéma – data plní `seed.sql`) |
 | `0007_katalog_anon_a_rpc_grants.sql` | SELECT na `foods` i pro anonyma (join v receptech), ostražitější granty RPC |
 | `0008_atomicke_zapisy.sql` | RPC `uloz_recept`/`uprav_recept`/`uloz_nakupni_seznam`/`uloz_cile` – vícekrokové zápisy atomicky v transakci (SECURITY INVOKER, RLS platí) |
+| `0009_obrazky_a_ean_v_katalogu.sql` | `foods.obrazek`/`ean` + sloupce do `aktualni_ceny` |
+| `0010_chybejici_indexy.sql` | doplňující indexy podle audit |
+| `0011_ean_unikatni_index.sql` | unikátní index `foods.ean` |
+| `0012_baleni_g.sql` | `foods.baleni_g` – gramáž balení (cena za balení vs. za kg) |
+| `0013_sleva_detaily.sql` | `price_observations.puvodni_cena`, view počítá `sleva_procenta` |
+| `0014_zakladni_potraviny.sql` | +36 kurátorovaných základních potravin (bez OFF) + opravy nutric/kategorií |
+| `0015_dalsi_zaklady.sql` | další základy (játra, tilápie, káva, víno…) dle nespárovaných nabídek |
+| `0016_verejne_akce.sql` | RPC `top_akce(int)` – veřejný top-N slev pro landing (úzká projekce, max 24) |
 
 ## Funkce
 
 - **Přehled** – dashboard: denní cíl + makro koláč, poslední plán s úsporou,
-  aktivní nákupní seznamy, porovnání s týdenním rozpočtem.
+  aktivní nákupní seznamy, porovnání s týdenním rozpočtem, živá lišta
+  „Aktuální akce" (top slevy s expirací „do út 18. 11."). Nepřihlášeným
+  ukazuje landing stejné živé akce přes veřejné RPC `top_akce`.
 - **Jídelníček** – denní/týdenní plán generovaný podle cílů (TDEE/Mifflin–Katch),
   respektuje `pocet_jidel_denne` z profilu; uložení plánu, vytvoření nákupního
   seznamu jedním klikem, tisk.
 - **Recepty** – katalog globálních receptů (zobrazení všem) + vlastní recepty
   přihlášených uživatelů (vytvořit/upravit/smazat, validace, RLS).
-- **Potraviny** – katalog (100+ potravin v seedu) s aktuálními cenami
-  ze view `aktualni_ceny`, fulltext + filtr kategorií, miniatury produktů,
-  páskem podílu B/S/T. Vlastní potraviny: přidat/upravit/smazat
-  (RLS), dohledání nutric a obrázku v OpenFoodFacts podle názvu
-  (výběr z více kandidátů) nebo čárového kódu – ručně i kamerou
-  (`BarcodeDetector`, kde prohlížeč umí). EAN se ukládá na potraviny,
-  takže opakované skenování matchuje lokálně.
+- **Potraviny** – katalog (tisíce potravin: seed + kurátorované základy
+  + ověřené importy) s aktuálními cenami ze view `aktualni_ceny`,
+  fulltext + filtr kategorií + přepínač „Ve slevě" (počet, řazení dle
+  % slevy, deep-link `?slevy=1`), miniatury produktů, pásek podílu B/S/T,
+  přeškrtnuté původní ceny, expirace akce „do út 18. 11." u slev,
+  cena za balení vs. za kg podle `baleni_g`. Vlastní potraviny:
+  přidat/upravit/smazat (RLS) včetně gramáže balení, dohledání nutric
+  a obrázku v OpenFoodFacts podle názvu (výběr z více kandidátů) nebo
+  čárového kódu – ručně i kamerou (`BarcodeDetector`, kde prohlížeč umí).
+  EAN se ukládá na potraviny, takže opakované skenování matchuje lokálně.
 - **Mealprep** – výběr receptů a porcí → součty, živé ceny a nákupní seznam;
   uložení jako plán typu `mealprep`.
 - **Nákup** – uložené seznamy (z plánu i ruční), odškrtávání položek,
-  dokončení/smazání.
+  dokončení/smazání, účtová patička „Celkem ≈ N Kč" (jen neodkoupené
+  položky se známou cenou; hlásí počet ve slevě i bez ceny).
 - **Můj účet** – tělesné údaje → automatický výpočet denních cílů,
   počet jídel denně, týdenní rozpočet, smazání účtu (GDPR).
 - **Auth** – registrace, přihlášení, obnovení hesla + nové heslo,
