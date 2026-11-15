@@ -187,15 +187,20 @@ export function Nakup() {
 
           {/* účet – součet známých cen, přepočet na gramy */}
           {(() => {
-            const sCenou = polozky.filter((p) => p.cenaZa100g !== null && !p.koupeno);
-            const celkem = sCenou.reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
+            const nekoupenoSCenou = polozky.filter((p) => p.cenaZa100g !== null && !p.koupeno);
+            const vseKoupeno = polozky.length > 0 && polozky.every((p) => p.koupeno);
+            // po odškrtnutí všeho ukazujeme součet celého nákupu, ne „0 Kč"
+            const zaklad = vseKoupeno
+              ? polozky.filter((p) => p.cenaZa100g !== null)
+              : nekoupenoSCenou;
+            const celkem = zaklad.reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
             const bezCeny = polozky.filter((p) => p.cenaZa100g === null).length;
-            const veSleve = sCenou.filter((p) => p.jeSleva).length;
+            const veSleve = zaklad.filter((p) => p.jeSleva).length;
             if (polozky.length === 0) return null;
             return (
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
                 <span className="text-sm font-semibold tabular-nums">
-                  Celkem ≈ {celkem.toFixed(0)} Kč
+                  {vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {celkem.toFixed(0)} Kč
                 </span>
                 <span className="text-xs text-muted">
                   {veSleve > 0 && `${veSleve}× ve slevě`}

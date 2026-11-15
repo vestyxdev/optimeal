@@ -54,11 +54,28 @@ const ALERGEN_NAZVY: Record<string, string> = {
   sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
 };
 
+/** Výchozí cíle – použité i jako záchrana při neplatném vstupu. */
+const VYCHOZI_CILE: Cile = { kalorie: 2450, bilkoviny: 184, sacharidy: 244, tuky: 82 };
+
 export function Jidelnicek() {
   const { uzivatel } = useAuth();
   const navigaceQ = useQueryClient();
   const [typ, setTyp] = useState<"den" | "tyden">("den");
-  const [cile, setCile] = useState<Cile>({ kalorie: 2450, bilkoviny: 184, sacharidy: 244, tuky: 82 });
+  // cíle držíme jako text – jinak pole nejde vyprázdnit (při mazání
+  // by se okamžitě vrátila výchozí hodnota) a české desetinné čárky
+  // by se rozbily uprostřed psaní; na čísla se převedou až při použití
+  const [cileText, setCileText] = useState({
+    kalorie: String(VYCHOZI_CILE.kalorie),
+    bilkoviny: String(VYCHOZI_CILE.bilkoviny),
+    sacharidy: String(VYCHOZI_CILE.sacharidy),
+    tuky: String(VYCHOZI_CILE.tuky),
+  });
+  const cile: Cile = {
+    kalorie: Math.round(naCislo(cileText.kalorie, VYCHOZI_CILE.kalorie)),
+    bilkoviny: Math.round(naCislo(cileText.bilkoviny, VYCHOZI_CILE.bilkoviny)),
+    sacharidy: Math.round(naCislo(cileText.sacharidy, VYCHOZI_CILE.sacharidy)),
+    tuky: Math.round(naCislo(cileText.tuky, VYCHOZI_CILE.tuky)),
+  };
   const [vysledek, setVysledek] = useState<DenVysledek | TydenniPlan | null>(null);
   const [ulozenyPlanId, setUlozenyPlanId] = useState<string | null>(null);
   const [nakupUlozen, nastavNakupUlozen] = useState(false);
@@ -77,7 +94,14 @@ export function Jidelnicek() {
     enabled: uzivatel !== null,
   });
   useEffect(() => {
-    if (dotazCile.data) setCile(dotazCile.data);
+    if (dotazCile.data) {
+      setCileText({
+        kalorie: String(dotazCile.data.kalorie),
+        bilkoviny: String(dotazCile.data.bilkoviny),
+        sacharidy: String(dotazCile.data.sacharidy),
+        tuky: String(dotazCile.data.tuky),
+      });
+    }
   }, [dotazCile.data]);
 
   const dotazPlany = useQuery({
@@ -227,33 +251,33 @@ export function Jidelnicek() {
           <div>
             <Label htmlFor="kcal">Kalorie (kcal)</Label>
             <Input
-              id="kcal" type="number" inputMode="numeric"
-              value={cile.kalorie}
-              onChange={(e) => setCile({ ...cile, kalorie: Math.round(naCislo(e.target.value, 2450)) })}
+              id="kcal" type="number" inputMode="numeric" min={0}
+              value={cileText.kalorie}
+              onChange={(e) => setCileText({ ...cileText, kalorie: e.target.value })}
             />
           </div>
           <div>
             <Label htmlFor="b">Bílkoviny (g)</Label>
             <Input
-              id="b" type="number" inputMode="numeric"
-              value={cile.bilkoviny}
-              onChange={(e) => setCile({ ...cile, bilkoviny: Math.round(naCislo(e.target.value, 184)) })}
+              id="b" type="number" inputMode="numeric" min={0}
+              value={cileText.bilkoviny}
+              onChange={(e) => setCileText({ ...cileText, bilkoviny: e.target.value })}
             />
           </div>
           <div>
             <Label htmlFor="s">Sacharidy (g)</Label>
             <Input
-              id="s" type="number" inputMode="numeric"
-              value={cile.sacharidy}
-              onChange={(e) => setCile({ ...cile, sacharidy: Math.round(naCislo(e.target.value, 244)) })}
+              id="s" type="number" inputMode="numeric" min={0}
+              value={cileText.sacharidy}
+              onChange={(e) => setCileText({ ...cileText, sacharidy: e.target.value })}
             />
           </div>
           <div>
             <Label htmlFor="t">Tuky (g)</Label>
             <Input
-              id="t" type="number" inputMode="numeric"
-              value={cile.tuky}
-              onChange={(e) => setCile({ ...cile, tuky: Math.round(naCislo(e.target.value, 82)) })}
+              id="t" type="number" inputMode="numeric" min={0}
+              value={cileText.tuky}
+              onChange={(e) => setCileText({ ...cileText, tuky: e.target.value })}
             />
           </div>
         </div>
