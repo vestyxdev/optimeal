@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filtrujKatalog } from "@/routes/Potraviny";
+import { filtrujKatalog } from "@/lib/katalog";
 import type { KatalogPotravina } from "@/lib/data/potraviny";
 
 function p(nazev: string, ean: string | null = null, kategorie = "ostatni"): KatalogPotravina {

@@ -14,7 +14,8 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
+import { filtrujKatalog } from "@/lib/katalog";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
@@ -119,31 +120,6 @@ const PRAZDNY_FORM: FormPotravina = {
   cena: "",
   baleni: "",
 };
-
-/** Filtrace katalogu: text hledá v názvu, čistě číselný dotaz i v EAN. */
-export function filtrujKatalog(
-  potraviny: KatalogPotravina[],
-  dotaz: string,
-  kategorie: string,
-  jenSlevy = false,
-): KatalogPotravina[] {
-  const dot = dotaz.trim().toLowerCase();
-  const jeEan = /^\d{4,14}$/.test(dot.replace(/[\s-]/g, ""));
-  const eanDotaz = dot.replace(/[\s-]/g, "");
-  const vybrane = potraviny.filter(
-    (p) =>
-      (kategorie === "vse" || p.kategorie === kategorie) &&
-      (!jenSlevy || p.sleva) &&
-      (dot === "" ||
-        p.nazev.toLowerCase().includes(dot) ||
-        (jeEan && p.ean !== null && p.ean.includes(eanDotaz))),
-  );
-  // u „jen slevy" řadíme podle % slevy – nejvýhodnější nahoře
-  if (jenSlevy) {
-    vybrane.sort((a, b) => (b.slevaProcenta ?? -1) - (a.slevaProcenta ?? -1));
-  }
-  return vybrane;
-}
 
 export function Potraviny() {
   const { uzivatel } = useAuth();
@@ -428,10 +404,10 @@ function RadekPotraviny({
           );
         })()}
       </td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.bilkoviny}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.sacharidy}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.tuky}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{formatujKcal(p.kalorie)}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.bilkoviny)}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.sacharidy)}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.tuky)}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
         {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
@@ -500,7 +476,7 @@ function KartaPotraviny({
           <PasekMakro p={p} />
           <div className="mt-2 flex items-baseline justify-between text-sm">
             <span className="tabular-nums text-muted">
-              {p.kalorie} kcal · B {p.bilkoviny} · S {p.sacharidy} · T {p.tuky}
+              {formatujKcal(p.kalorie)} kcal · B {formatujMakro(p.bilkoviny)} · S {formatujMakro(p.sacharidy)} · T {formatujMakro(p.tuky)}
             </span>
             <span className="tabular-nums font-semibold">
               {cenaLabel(p, p.aktualniCena)}
@@ -787,7 +763,7 @@ function FormNovePotraviny({
                     <MiniaturaPotraviny obrazek={k.obrazek} velikost="size-8" />
                     <span className="min-w-0 truncate font-medium">{k.nazev}</span>
                     <span className="shrink-0 text-xs tabular-nums text-muted">
-                      {k.kalorie ?? "?"} kcal · B {k.bilkoviny ?? "?"} · S {k.sacharidy ?? "?"} · T {k.tuky ?? "?"}
+                      {k.kalorie != null ? formatujKcal(k.kalorie) : "?"} kcal · B {k.bilkoviny != null ? formatujMakro(k.bilkoviny) : "?"} · S {k.sacharidy != null ? formatujMakro(k.sacharidy) : "?"} · T {k.tuky != null ? formatujMakro(k.tuky) : "?"}
                     </span>
                   </button>
                 </li>

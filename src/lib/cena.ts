@@ -45,6 +45,18 @@ export function formatujCenuPolozky(p: {
   return formatujCenu(p.aktualniCena, p.baleniG);
 }
 
+const makroFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });
+
+/** Makroživiny na max. 1 des. místo, česky s čárkou („7,7"). */
+export function formatujMakro(n: number): string {
+  return makroFmt.format(n);
+}
+
+/** Kilokalorie jako celé číslo („453"). */
+export function formatujKcal(n: number): string {
+  return String(Math.round(n));
+}
+
 const DNY_KRATCE = ["ne", "po", "út", "st", "čt", "pá", "so"];
 
 /**

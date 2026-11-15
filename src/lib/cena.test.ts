@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 
 describe("formatujCenu", () => {
   it("balené zboží → cena za balení + jednotková vedlejší", () => {
@@ -59,3 +59,21 @@ describe("formatujPlatnostDo", () => {
     expect(formatujPlatnostDo("2030-06-19")).toBe("do st 19. 6.");
   });
 });
+
+describe("formatujMakro", () => {
+  it("zaokrouhlí na 1 des. místo s českou čárkou", () => {
+    expect(formatujMakro(7.67)).toBe("7,7");
+    expect(formatujMakro(73.33)).toBe("73,3");
+    expect(formatujMakro(20)).toBe("20");
+    expect(formatujMakro(0)).toBe("0");
+  });
+});
+
+describe("formatujKcal", () => {
+  it("zaokrouhlí na celé číslo", () => {
+    expect(formatujKcal(453.33)).toBe("453");
+    expect(formatujKcal(61.9)).toBe("62");
+    expect(formatujKcal(170)).toBe("170");
+  });
+});
+

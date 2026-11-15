@@ -1,9 +1,9 @@
 /*
  * OptiMeal – design systém
  * ---------------------------------------------------------------
- * Identita „cenovka“: tržní zeleň (primár), žlutá slevové cedulky
- * (akcent), papírově bílé pozadí, bílé plochy, displejová Bricolage
- * Grotesque pro nadpisy a Inter pro text.
+ * Identita „cenovka“: hluboká lesní zeleň (primár), tlumené limetkové
+ * slevové cedulky (akcent), teplá off-white, charcoal typografie,
+ * displejová Bricolage Grotesque pro nadpisy a Inter pro text.
  * Světlý i tmavý motiv přes CSS proměnné – utility v Tailwindu
  * (bg-surface, text-fg, …) se mapují na tyto tokeny.
  */
@@ -13,61 +13,68 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* plochy a pozadí */
-  --bg: #faf9f4;
+  /* plochy a pozadí – teplá off-white */
+  --bg: #f8f7f1;
   --surface: #ffffff;
-  --surface-2: #f3f1ea;
-  --border: #e6e3da;
+  --surface-2: #f0eee4;
+  --border: #e4e1d4;
 
-  /* typografie */
-  --fg: #1d1b16;
-  --muted: #6f6a61;
+  /* typografie – charcoal s nádechem zelené */
+  --fg: #20231e;
+  --muted: #686b5f;
 
-  /* značka */
-  --primary: #1b7a44;
-  --primary-strong: #0f4d2c;
-  --primary-soft: #e2f2e6;
+  /* značka – hluboká lesní zeleň + tlumená limetka */
+  --primary: #1d5c36;
+  --primary-strong: #144227;
+  --primary-soft: #e4efe3;
   --primary-fg: #ffffff;
-  --primary-hero: #0f4d2c;
-  --accent: #ffc81f;
-  --accent-soft: #fff3c4;
-  --accent-fg: #3a2e00;
-  --accent-ink: #3a2e00;
+  --primary-hero: #144227;
+  --accent: #a8bd45;
+  --accent-soft: #eff3d8;
+  --accent-fg: #3d4313;
+  --accent-ink: #3d4313;
 
   /* sémantické */
-  --ok: #15803d;
-  --ok-soft: #e6f4ea;
-  --warning: #b45309;
-  --warning-soft: #fdf2e3;
-  --danger: #b91c1c;
-  --danger-soft: #fdeaea;
+  --ok: #187a3f;
+  --ok-soft: #e3f0e6;
+  --warning: #a05c10;
+  --warning-soft: #f8efdd;
+  --danger: #b02a22;
+  --danger-soft: #fae8e6;
+
+  /* hloubka – jemná elevace ploch */
+  --shadow-card: 0 1px 2px rgb(28 30 20 / 0.05), 0 8px 20px -10px rgb(28 30 20 / 0.12);
+  --shadow-pop: 0 12px 32px -8px rgb(28 30 20 / 0.25);
 }
 
 .dark {
-  --bg: #0a0e0b;
-  --surface: #141a15;
-  --surface-2: #1d251e;
-  --border: #2a342b;
+  --bg: #0b100c;
+  --surface: #151b16;
+  --surface-2: #1f2721;
+  --border: #2b352c;
 
-  --fg: #eeeee3;
-  --muted: #9aa293;
+  --fg: #ebeee3;
+  --muted: #98a193;
 
-  --primary: #5bbf7e;
-  --primary-strong: #1b7a44;
-  --primary-soft: #1c3023;
+  --primary: #5ab87c;
+  --primary-strong: #1d5c36;
+  --primary-soft: #1e3024;
   --primary-fg: #0a120c;
-  --primary-hero: #123d22;
-  --accent: #ffd23f;
-  --accent-soft: #332d0d;
-  --accent-fg: #ffefa8;
-  --accent-ink: #2a2200;
+  --primary-hero: #143d25;
+  --accent: #b6cc5b;
+  --accent-soft: #2f3310;
+  --accent-fg: #e4eba9;
+  --accent-ink: #2c3009;
 
-  --ok: #4ade80;
-  --ok-soft: #14291b;
-  --warning: #f59e0b;
-  --warning-soft: #2a2013;
-  --danger: #f87171;
-  --danger-soft: #2b1515;
+  --ok: #4cc07a;
+  --ok-soft: #15291c;
+  --warning: #e0952e;
+  --warning-soft: #2a2010;
+  --danger: #ef6c64;
+  --danger-soft: #2b1513;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 24px -10px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
@@ -148,11 +155,12 @@ h2,
   padding-inline: 1rem;
 }
 
-/* karta – základní plocha systému */
+/* karta – základní plocha systému, jemná elevace */
 .om-karta {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* soustředění čísel v tabulkách */
