@@ -733,4 +733,20 @@ describe("QA bug hunt – další okrajové případy", () => {
     const obedNazvy = obed!.jidla.map((j) => j.nazev);
     expect(obedNazvy.some((n) => /prsa|špagety|jerky/i.test(n))).toBe(true);
   });
+  it("fyzikalne nemozna vyziva ( g maker/100 g) se do planu nedostane", () => {
+    const katalog = [
+      // "nejlepsi" skore, ale nemozna data z OFF (chleb s 77 g bilkovin)
+      p("chleb", "Chleb psenicnozitny", 77, 53.3, 1, 261, 1),
+      p("maso", "Kureci prsa", 23, 0, 3, 110, 30),
+      p("ryze", "Ryze", 7, 78, 1, 350, 12),
+      p("vlocky", "Ovesne vlocky", 13, 60, 7, 370, 8),
+      p("mandle", "Mandle", 21, 10, 52, 580, 60),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE);
+    for (const souhrn of Object.values(den.jidelnicek)) {
+      for (const s of souhrn.jidla) {
+        expect(s.nazev).not.toBe("Chleb psenicnozitny");
+      }
+    }
+  });
 });

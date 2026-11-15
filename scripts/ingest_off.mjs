@@ -201,6 +201,7 @@ function mapuj(p) {
   if (kalorie === null || kalorie <= 0) return null;
   if (bilkoviny === 0 && sacharidy === 0 && tuky === 0) return null;
   if (kalorie > 950) return null; // > 900 kcal/100g = chyba v datech (max ~olej)
+  if (bilkoviny + sacharidy + tuky > 105) return null; // součet maker >100g/100g = fyzikálně nemožné
 
   const ean = normalizujEan(p.code);
   const alergeny = [...new Set((p.allergens_tags ?? [])

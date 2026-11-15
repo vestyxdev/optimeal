@@ -1,23 +1,16 @@
-// Verify 0022
-import pg from "pg";
-import fs from "node:fs";
-const { Client } = pg;
-const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
-const c = new Client({
-  host: "aws-0-eu-west-2.pooler.supabase.com",
-  port: 6543,
-  user: "postgres.gduquvqofcohbjzzsicb",
-  password: heslo,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
-await c.connect();
-const k = await c.query(`select count(*) n from foods where nazev ~* 'ke[čc]up' and kategorie = 'ovoce_zelenina'`);
-console.log("kečup v ovoce:", k.rows[0].n);
-const z = await c.query(`select count(*) n from foods where nazev ~* 'žížalk|červ[iíy]|pásk' and kategorie = 'ovoce_zelenina'`);
-console.log("cukroví v ovoce:", z.rows[0].n);
-const m = await c.query(`select nazev from foods where nazev ~* 'mleko|mlieko|truskawkowo'`);
-console.log("cizí mléko zbývá:", m.rows.length, m.rows.map((x) => x.nazev).join(" | "));
-const d = await c.query(`select kategorie, count(*) n from foods group by 1 order by n desc`);
-console.log(d.rows.map((x) => x.kategorie + ": " + x.n).join(", "));
-await c.end();
+// OFF lookup pro podezřelé řádky
+const eany = ["8593837230372", "8595014602217", "4011800548513", "8594021040531", "8594177020180", "8595070600837"];
+for (const ean of eany) {
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${ean}.json?fields=product_name,nutriments`);
+    const j = await r.json();
+    const n = j.product?.nutriments ?? {};
+    console.log(ean, "|", j.product?.product_name ?? "?");
+    console.log(
+      "   kcal:", n["energy-kcal_100g"], "b:", n.proteins_100g, "s:", n.carbohydrates_100g, "t:", n.fat_100g,
+    );
+  } catch (e) {
+    console.log(ean, "ERR", e.message);
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+}

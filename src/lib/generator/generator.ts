@@ -478,12 +478,28 @@ function medianCeny(potraviny: Potravina[]): number {
   return ceny[Math.floor(ceny.length / 2)]!;
 }
 
+/**
+ * Fyzikálně možná výživa: součet maker nesmí přesáhnout ~100 g na 100 g
+ * (malá rezerva na zaokrouhlování a vlákninu v datech OFF).
+ */
+export function jeNutrienceSpolehliva(p: {
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+}): boolean {
+  return p.bilkoviny + p.sacharidy + p.tuky <= 105;
+}
+
 /** Seřadí potraviny dle skóre a vrátí kategorie kandidátů. */
 function pripravKategorie(potraviny: Potravina[]): KategorieMap {
   const kategorie: KategorieMap = { bilkovinova: [], sacharidova: [], tukova: [] };
   const median = medianCeny(potraviny);
 
-  for (const p of potraviny) {
+  // nemožné nutriční hodnoty z OFF (chybně zadané za 100 g) nesmí do výběru
+  const spolehlive = potraviny.filter(jeNutrienceSpolehliva);
+  const zaklad = spolehlive.length > 0 ? spolehlive : potraviny;
+
+  for (const p of zaklad) {
     const k = kategoriePotraviny(p);
     const kandidat: Kandidat = { ...p, skore: skorePotraviny(p, k, median) };
     kategorie[k].push(kandidat);
