@@ -1,0 +1,10 @@
+import pg from "pg";
+import fs from "node:fs";
+const { Client } = pg;
+const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+const c = new Client({ host: "aws-0-eu-west-2.pooler.supabase.com", port: 6543, user: "postgres.gduquvqofcohbjzzsicb", password: heslo, database: "postgres", ssl: { rejectUnauthorized: false } });
+await c.connect();
+const r = await c.query(`select nazev, kategorie from foods where nazev in ('Fazole červená','Fazole červená (Nature''s Promise)','Vapeur červené fazole','Fazolový mix s cizrnou ve slaném nálevu','Proteinové plátky z hrášku a fazolí','Beanz fazole v rajčatové omáčce')`);
+r.rows.forEach(x => console.log("EXISTUJE:", x.kategorie, "|", x.nazev));
+console.log(r.rows.length === 0 ? "kolize: zadne" : "kolize vyse");
+await c.end();

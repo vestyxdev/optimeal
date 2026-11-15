@@ -114,6 +114,8 @@ Migrace:
 | `0031_peckoviny_cistka.sql` | 25 položek z `peckoviny_obily`: rostlinná mléka → `mlecne_vyrobky`, tuňákové vločky → `maso_ryby`, energy/müsli tyčinky a sendviče → `ostatni`, croissant/perníky/cookies → `suchary_testoviny` |
 | `0032_diakritika_a_nazvy.sql` | 13 přejmenování: chybějící diakritika (`uzeny`→`uzený`, `Bezlaktozovy`→`Bezlaktozový`), překlepy (`Merňkový`→`Meruňkový`, `Seafoo tofu tuned`→`uzený`, `Athenikos bíý`→`bílý`), strojové překlady (`Ananas giana bucati`, `Butter Milch`) |
 | `0033_tunak_a_preklep.sql` | 13 tuňákových konzerv + jedlí cvrčci z `ostatni` → `maso_ryby`, `Jablečné kačenky` → `suchary_testoviny`, překlep `Tuňákový pomazanka rybex` → `Tuňáková pomazánka Rybex` |
+| `0034_mlecne_z_ostatni.sql` | 14 mléčných výrobků z `ostatni` → `mlecne_vyrobky` (jogurty Activia/Florian, sýry Camembert/hermelín, skyr, proteinové pudinky), `Christmas pudding` → `suchary_testoviny` |
+| `0035_lusteniny.sql` | Konvence luštěnin: 15 pečených/konzervovaných luštěnin + polévek + chipsů z `ovoce_zelenina` → `ostatni` (zelené lusky a hrách zůstávají), `Proteinové plátky z hrášku a fazolí` → `maso_ryby`, 4 překlepy (`cervena`→`červená`, `cirznou`→`cizrnou`, `ve.`→`ve`) |
 
 ## Funkce
 
