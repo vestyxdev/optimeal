@@ -219,15 +219,34 @@ export function kategoriePotraviny(p: Potravina): Kategorie {
 /** Skóre = gramy dominujícího makra za 1 Kč (sleva má bonus).
  *  Potraviny bez ceny (0 = neceněné, např. import z OFF) používají
  *  medián ceny své kategorie – jinak by 0,01 Kč strop udělal z každé
- *  neceněné potraviny vítěze a plán by se skládal jen z neceněných. */
+ *  neceněné potraviny vítěze a plán by se skládal jen z neceněných.
+ *  Neceněné navíc dostávají pokutu – plán má preferovat potraviny,
+ *  které si uživatel opravdu koupí za zobrazenou cenu. */
 export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?: number): number {
-  const cena = p.aktualniCena > 0 ? p.aktualniCena : Math.max(vychoziCena ?? 15, 0.01);
+  const nacenena = p.aktualniCena > 0;
+  const cena = nacenena ? p.aktualniCena : Math.max(vychoziCena ?? 15, 0.01);
   const hodnota =
     kategorie === "bilkovinova" ? p.bilkoviny : kategorie === "sacharidova" ? p.sacharidy : p.tuky;
 
   let skore = hodnota / cena;
   if (p.sleva) skore *= BONUS_SLEVY;
+  if (!nacenena) skore *= 0.7;
   return skore;
+}
+
+/**
+ * „Surovinové" potraviny – olej, cukr, mouka, koření, sůl, droždí…
+ * Samy netvoří jídlo (nikdo nesnídaní 33 g krystalu), v tukovém
+ * doplněku ale smysl dávají – 20–30 g oleje nebo másla k pokrmu
+ * je reálné. Regex běží přes názov: slova jako „olej" nebo „máslo"
+ * jen jako samostatná slova (máslový chléb zůstane pečivem).
+ */
+const PRISADA_RE =
+  /\b(olej\b|s[aá]dl|mouk|cukr|sirup|ocet|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|želatin|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|maggi|m[aá]slo\b|med\b|caro\b)/i;
+
+/** Je potravina kuchyňská surovina, ne samostatná složka jídla? */
+export function jePrisada(p: Potravina): boolean {
+  return PRISADA_RE.test(p.nazev);
 }
 
 /* ============================================================
@@ -353,17 +372,19 @@ export function naplanujJidlo(
   // Když jsou všechny bílkovinové potraviny dnes použité (malý katalog,
   // třeba filtr bezlepkovy), ukotvíme jídlo nevyužitou potravinou s nejvyšším
   // obsahem bílkovin z jiných kategorií (sýry, čočka…) – jinak by se kotva
-  // opakovala v každém jídle.
+  // opakovala v každém jídle. Suroviny (droždí…) kotvou být nesmí.
   let kotva: Kandidat | null;
-  if (kategorie.bilkovinova.some((p) => !pouziteId.includes(p.id))) {
-    kotva = vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin);
+  const bilkovinyBezPrisad = kategorie.bilkovinova.filter((p) => !jePrisada(p));
+  const bilkovinyPool = bilkovinyBezPrisad.length > 0 ? bilkovinyBezPrisad : kategorie.bilkovinova;
+  if (bilkovinyPool.some((p) => !pouziteId.includes(p.id))) {
+    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin);
   } else {
     const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
-      .filter((p) => !pouziteId.includes(p.id))
+      .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p))
       .sort((a, b) => b.bilkoviny - a.bilkoviny);
     kotva =
       vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5) ??
-      vyberKandidata(kategorie.bilkovinova, poradi, pouziteId, denniPosun, poolMin) ??
+      vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin) ??
       vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin);
   }
   if (kotva !== null && zbyva.b >= 5) {
@@ -374,7 +395,12 @@ export function naplanujJidlo(
   // Sacharidový doplněk nechceme „přeflakovat" dalšími bílkovinami,
   // proto preferujeme potraviny s nízkým obsahem bílkovin
   // (rýže a vločky, ne čočka), existují-li mezi kandidáty.
+  // Suroviny (cukr, mouka) z výběru vylučujeme – jídlo z nich nesestavíme.
   let kandidatiS = kategorie.sacharidova;
+  const realneSacharidy = kandidatiS.filter((p) => !jePrisada(p));
+  if (realneSacharidy.length > 0) {
+    kandidatiS = realneSacharidy;
+  }
   const nizkoproteinovi = kandidatiS.filter((p) => p.bilkoviny <= 15.0);
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
@@ -385,9 +411,19 @@ export function naplanujJidlo(
   }
 
   // --- 3. doplněk tuků ---
-  const tukovina = vyberKandidata(kategorie.tukova, poradi, pouziteId, denniPosun, poolMin);
+  // Preferujeme skutečné potraviny (ořechy, avokádo, sýry); suroviny
+  // (olej, máslo, sádlo) bereme jen jako rezervu a s užším stropem –
+  // 25 g oleje k pokrmu smysl dává, 90 g už ne.
+  const tukBezPrisad = kategorie.tukova.filter((p) => !jePrisada(p));
+  const tukovina = vyberKandidata(
+    tukBezPrisad.length > 0 ? tukBezPrisad : kategorie.tukova,
+    poradi,
+    pouziteId,
+    denniPosun,
+    poolMin,
+  );
   if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
-    pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, 100));
+    pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100));
   }
 
   return jidla;

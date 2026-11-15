@@ -655,8 +655,8 @@ describe("QA bug hunt – další okrajové případy", () => {
     // bez mediánového skóre by 0.01 Kč strop dával bezCeny skóre 5000 (50x vítěz)
     const sBez = skorePotraviny(bezCeny, "bilkovinova", 10);
     const sCen = skorePotraviny(cenena, "bilkovinova", 10);
-    expect(sBez).toBeCloseTo(5); // 50 / 10 (medián), ne 50 / 0.01
-    expect(sCen).toBeCloseTo(2); // 20 / 10
+    expect(sBez).toBeCloseTo(3.5); // (50 / 10 medián) × 0,7 pokuta za chybějící cenu
+    expect(sCen).toBeCloseTo(2); // 20 / 10 – ceněná položka má přednost
     // a plán s neceněnými položkami stále běží
     const den = vygenerujJidelnicek([bezCeny, cenena], CILE);
     expect(Number.isFinite(den.celkem.kalorie)).toBe(true);
