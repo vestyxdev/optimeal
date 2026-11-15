@@ -124,26 +124,43 @@ class KupiScraper(BaseScraper):
                     self.obchod, strana, r.text.replace("\n", " "),
                 )
                 break
-            for wrap in wraps:
-                nazev_el = wrap.select_one(".product_name strong")
-                if not nazev_el:
+            # .product--wrap a .promo_discounts (s .discount_row) jsou
+            # SOUROZENCI uvnitř .group_discounts – řádek k produktu
+            # kotvíme přes find_previous na nejbližší předchozí produkt.
+            kontext: dict = {}
+            for row in soup.select(".discount_row"):
+                wrap = row.find_previous("div", class_="product--wrap")
+                if wrap is None:
                     continue
-                nazev = re.sub(r"\s+", " ", nazev_el.get_text()).strip()
-                jednotka_el = wrap.select_one(".product_name .nowrap span")
-                jednotka = jednotka_el.get_text(strip=True) if jednotka_el else ""
-                img = wrap.select_one(".product_image img[data-src]")
-                obrazek = img["data-src"] if img and img.get("data-src") else None
-
-                gramy = gramaje_z_jednotky(jednotka) or gramaje_z_nazvu(nazev)
-
-                for row in wrap.select(".discount_row"):
-                    n = self._radek(row, nazev, gramy, obrazek)
-                    if n:
-                        nalezeno_na_strane += 1
-                        self.nalezeno += 1
-                        yield n
+                wid = id(wrap)
+                if wid not in kontext:
+                    kontext[wid] = self._produkt(wrap)
+                info = kontext[wid]
+                if info is None:
+                    continue
+                n = self._radek(row, info["nazev"], info["gramy"], info["obrazek"])
+                if n:
+                    nalezeno_na_strane += 1
+                    self.nalezeno += 1
+                    yield n
             if nalezeno_na_strane < MIN_NABIDEK_NA_STRANU:
                 break  # konec výpisu (nebo prázdná stránka)
+
+    def _produkt(self, wrap) -> Optional[dict]:
+        """Kontext produktu: název, jednotka→gramy, obrázek."""
+        nazev_el = wrap.select_one(".product_name strong")
+        if not nazev_el:
+            return None
+        nazev = re.sub(r"\s+", " ", nazev_el.get_text()).strip()
+        jednotka_el = wrap.select_one(".product_name .nowrap span")
+        jednotka = jednotka_el.get_text(strip=True) if jednotka_el else ""
+        img = wrap.select_one(".product_image img[data-src]")
+        obrazek = img["data-src"] if img and img.get("data-src") else None
+        return {
+            "nazev": nazev,
+            "gramy": gramaje_z_jednotky(jednotka) or gramaje_z_nazvu(nazev),
+            "obrazek": obrazek,
+        }
 
     def _radek(
         self, row, nazev: str, gramy: Optional[float], obrazek: Optional[str]
