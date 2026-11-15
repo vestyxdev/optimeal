@@ -1,0 +1,1 @@
+import pg from 'pg';const{Client}=pg;const heslo=process.env.SUPABASE_DB_PASSWORD??require('fs').readFileSync('.env.local','utf8').match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();

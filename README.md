@@ -101,6 +101,7 @@ Migrace:
 | `0018_deduplikace.sql` | sloučení duplicitního řeckého jogurtu (remap FK), překlad 3 azbukových názvů |
 | `0019_ceske_nazvy.sql` | překlad ~95 cizojazyčných názvů z OFF importů (nápoje, jogurty, omáčky, pomazánky; kvalifikátory kvůli UNIQUE `nazev`) |
 | `0020_kategorie.sql` | oprava kategorií starých importů: pečivo z `ovoce_zelenina` → `peckoviny_obily` (150 → 586 položek), suroviny/omáčky/nápoje → `ostatni`; překlep `Chlèb` → `Chléb` |
+| `0021_cyrilice_a_obecne_nazvy.sql` | překlad 17 cyrilických + řeckého názvu, obecné názvy doplněné podle EAN (`Chocolate` → `Kinder Chocolate`, `Vanilla` → `Coca-Cola Vanilla`, `12%` → `Zlatý Bažant 12%`), oprava HTML entit, kategorie opravených řádků |
 
 ## Funkce
 
