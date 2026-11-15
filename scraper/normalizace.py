@@ -14,11 +14,16 @@ KURZ_EUR_CZK_VYCHOZI = 25.5
 
 
 def normalizuj_nazev(nazev: str) -> str:
-    """Bez diakritiky, malá písmena, sjednocené mezery – pro párování."""
+    """Bez diakritiky, malá písmena, jen [a-z0-9 ] a sjednocené mezery.
+
+    Interpunkce → mezera: „Lay's" → „lay s", „Häagen-Dazs" → „haagen dazs" –
+    shodné tokeny na obou stranách párování, jen čistší tokenizace.
+    """
     bez = "".join(
         c for c in unicodedata.normalize("NFD", nazev) if unicodedata.category(c) != "Mn"
     )
-    return re.sub(r"\s+", " ", bez).strip().lower()
+    bez = re.sub(r"[^a-z0-9 ]+", " ", bez.lower())
+    return re.sub(r"\s+", " ", bez).strip()
 
 
 def mnozstvi_v_gramech(product: dict) -> Optional[float]:

@@ -45,7 +45,20 @@ class SupabaseWriter:
 
     def nacti_potraviny(self) -> list[dict]:
         if self._potraviny is None:
-            self._potraviny = self._get("foods", "id,nazev,ean,baleni_g")
+            # PostgREST vrací max ~1000 řádků na dotaz – stránkujeme,
+            # jinak matcher vidí jen zlomek katalogu (6389 potravin!)
+            self._potraviny = []
+            offset = 0
+            while True:
+                davka = self._get(
+                    "foods", "id,nazev,ean,baleni_g",
+                    offset=offset, limit=1000,
+                )
+                self._potraviny.extend(davka)
+                if len(davka) < 1000:
+                    break
+                offset += 1000
+            log.info("Načteno %d potravin pro párování", len(self._potraviny))
             self._norm_potraviny = [
                 (p["id"], normalizuj_nazev(p["nazev"]), p)
                 for p in self._potraviny
