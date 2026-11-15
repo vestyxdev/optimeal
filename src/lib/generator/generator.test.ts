@@ -224,10 +224,12 @@ describe("vygenerujTydenniPlan", () => {
 
     const prvniJidla = new Set<string>();
     for (const den of Object.values(tyden.dny)) {
-      const snidane = den.jidelnicek["Snídaně"]?.jidla[0]?.id;
-      if (snidane) prvniJidla.add(snidane);
+      const obed = den.jidelnicek["Oběd"]?.jidla[0]?.id;
+      if (obed) prvniJidla.add(obed);
     }
-    // širší rotace (poolMin 0.6) → snídaně se mezi dny mění
+    // širší rotace (poolMin 0.6) → kotva oběda se mezi dny mění
+    // (u Snídaně má tenký testovací katalog jen 1 vhodnou bílkovinu –
+    // tvaroh je tam oprávněně stabilní volba)
     expect(prvniJidla.size).toBeGreaterThan(1);
 
     // týdenní součty sedí na součtu dnů
@@ -707,5 +709,28 @@ describe("QA bug hunt – další okrajové případy", () => {
         if (s.nazev === "Řepkový olej") expect(s.gramy).toBeLessThanOrEqual(30);
       }
     }
+  });
+
+  it("kulinářská vhodnost – snídaně preferuje snídaňové, oběd obědové potraviny", () => {
+    const katalog = [
+      p("jerky", "Beef Jerky", 33, 10, 3, 200, 20),
+      p("jogurt", "Řecký jogurt", 10, 3, 0, 60, 15),
+      p("spagety", "Špagety", 12, 72, 1, 350, 8),
+      p("vlocky", "Ovesné vločky", 13, 60, 7, 370, 8),
+      p("mandle", "Mandle", 21, 10, 52, 580, 60),
+      p("maso", "Kuřecí prsa", 23, 0, 3, 110, 30),
+    ];
+    // 2 jídla: Oběd + Večeře → žádná snídaně, jerky/müsli jsou legitimní
+    const den = vygenerujJidelnicek(katalog, CILE, 1, 0.85, 3);
+    const snidane = den.jidelnicek["Snídaně"];
+    const obed = den.jidelnicek["Oběd"];
+    expect(snidane).toBeDefined();
+    expect(obed).toBeDefined();
+    // snídaně nesmí ukotvit jerky (obědová potravina), měla by dostat jogurt
+    const snidaneNazvy = snidane!.jidla.map((j) => j.nazev);
+    expect(snidaneNazvy.some((n) => /jogurt|vločky/i.test(n))).toBe(true);
+    // oběd nesmí dostat snídaňové potraviny, když existují obědové
+    const obedNazvy = obed!.jidla.map((j) => j.nazev);
+    expect(obedNazvy.some((n) => /prsa|špagety|jerky/i.test(n))).toBe(true);
   });
 });

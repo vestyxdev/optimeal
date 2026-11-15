@@ -249,6 +249,26 @@ export function jePrisada(p: { nazev: string }): boolean {
   return PRISADA_RE.test(p.nazev);
 }
 
+/**
+ * „Kulinářská vhodnost" pro typ jídla – snídaně se nesestavuje
+ * z beef jerky a oběd z müsli. Měkká preference: vhodné potraviny
+ * jdou do výběru první, když žádná nekandiduje, vezme se plný pool
+ * (plán musí fungovat i na malém/filtrovaném katalogu).
+ */
+const SNIDANE_RE =
+  /müsli|musli|granola|vlo[čc]k|ovsen|kaše|jogurt|skyr|ml[eé]k|chl[eé]b|chleba|rohl[íi]k|housk|toast|croissant|veka|pomaz[aá]nk|džem|marmel[aá]d|tvaroh|vaj[íi][čc]|vejce|cornflakes|kornflejk|proteinov|ban[aá]n|jablk|hru[šs]k|bor[ůu]v|jahod|malin|meloun|ananas|smoothie/i;
+
+const OBED_VECERE_RE =
+  /r[ýy]že|risott|t[ěe]stovin|spaget|penne|fusilli|nudl|brambor|knedl|maso|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|jehn[ěe]|telec|ryb|tu[ňn][aá]k|losos|kapr|pstruh|sle[ďd]|makrel|sardink|tresk|tilapi|krevet|kalam[aá]r|krab|fazol|[čc]očk|cizrn|zelenin|sal[aá]t|gul[aá]š|pol[ée]vk|steak|file|prso|prsa|seitan|tofu|tempeh|pizza|tortill|wrap|burg|chilli|curry|quino|bulgur|kuskus|tarho[ňn]|[úu]zen|[šs]unk|jerky|zavin|sv[íi][čc]kov|kan[čc]|tvaroh|s[ýy]r|oliv|avok[aá]d|chl[eé]b|rohl[íi]k|housk/i;
+
+type TypJidla = "snidane" | "obedVecere" | "svacina";
+
+function typJidlaZ_nazvu(nazevJidla: string): TypJidla {
+  if (/snídan/i.test(nazevJidla)) return "snidane";
+  if (/svačin/i.test(nazevJidla)) return "svacina";
+  return "obedVecere"; // Oběd, Večeře i případné vlastní názvy
+}
+
 /* ============================================================
  * VÝBĚR KANDIDÁTA (různorodost + rotace)
  * ============================================================ */
@@ -270,6 +290,7 @@ export function vyberKandidata(
   pouziteId: string[] = [],
   denniPosun: number | null = null,
   poolMin = 0.85,
+  vhodnostRe: RegExp | null = null,
 ): Kandidat | null {
   if (kandidati.length === 0) return null;
 
@@ -279,12 +300,27 @@ export function vyberKandidata(
     kandidati = nove;
   }
 
-  // 2) rotujeme jen mezi cenově srovnatelnými kandidáty
-  const nejlepsi = kandidati[0]?.skore ?? 0;
+  // 2) rotujeme jen mezi cenově srovnatelnými kandidáty.
+  //    vhodnostRe: kulinářsky vhodné potraviny dostanou bonus ×2,5 při
+  //    posuzování srovnatelnosti (vhodná potravina „dotáhne" až 2,5×
+  //    horší poměr cena:makro) a mezi srovnatelnými pak rotují pouze
+  //    vhodné. Nevhodné se vrátí, jen když vhodné nekandidují – plán
+  //    je gastronomický, když to cena dovoluje, a funkční vždy.
+  const BONUS_VHODNOSTI = 2.5;
+  const jeVhodny = (p: Kandidat) => vhodnostRe !== null && vhodnostRe.test(p.nazev);
+  const nejlepsi = kandidati.reduce((m, p) => Math.max(m, p.skore), 0);
   if (nejlepsi > 0) {
-    const srovnatelni = kandidati.filter((p) => p.skore >= nejlepsi * poolMin);
+    const srovnatelni = kandidati.filter(
+      (p) => p.skore * (jeVhodny(p) ? BONUS_VHODNOSTI : 1) >= nejlepsi * poolMin,
+    );
     if (srovnatelni.length > 0) {
       kandidati = srovnatelni;
+    }
+  }
+  if (vhodnostRe !== null) {
+    const vhodni = kandidati.filter(jeVhodny);
+    if (vhodni.length > 0) {
+      kandidati = vhodni;
     }
   }
 
@@ -336,8 +372,13 @@ export function naplanujJidlo(
   pouziteId: string[] = [],
   denniPosun: number | null = null,
   poolMin = 0.85,
+  nazevJidla = "",
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
+  // kulinářská vhodnost pro typ jídla – předává se do vyberKandidata
+  // jako měkká pokuta (nevhodné ×0,6), plný pool pro rotaci zůstává
+  const typJ = typJidlaZ_nazvu(nazevJidla);
+  const vhodnostRe = typJ === "snidane" ? SNIDANE_RE : typJ === "obedVecere" ? OBED_VECERE_RE : null;
   // nezáporné a konečné zbytky – NaN/Infinity cíl nesmí otrávit plán
   const z = (v: number) => (Number.isFinite(v) && v > 0 ? v : 0);
   const zbyva = { b: z(cilB), s: z(cilS), t: z(cilT), k: z(cilK) };
@@ -377,15 +418,15 @@ export function naplanujJidlo(
   const bilkovinyBezPrisad = kategorie.bilkovinova.filter((p) => !jePrisada(p));
   const bilkovinyPool = bilkovinyBezPrisad.length > 0 ? bilkovinyBezPrisad : kategorie.bilkovinova;
   if (bilkovinyPool.some((p) => !pouziteId.includes(p.id))) {
-    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin);
+    kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, vhodnostRe);
   } else {
     const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
       .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p))
       .sort((a, b) => b.bilkoviny - a.bilkoviny);
     kotva =
-      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5) ??
-      vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin) ??
-      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin);
+      vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, vhodnostRe) ??
+      vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, vhodnostRe) ??
+      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, vhodnostRe);
   }
   if (kotva !== null && zbyva.b >= 5) {
     pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
@@ -405,7 +446,7 @@ export function naplanujJidlo(
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
   }
-  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin);
+  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, vhodnostRe);
   if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
     pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
   }
@@ -421,6 +462,7 @@ export function naplanujJidlo(
     pouziteId,
     denniPosun,
     poolMin,
+    vhodnostRe,
   );
   if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
     pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100));
@@ -535,6 +577,7 @@ export function vygenerujJidelnicek(
       pouziteId,
       denniPosun,
       poolMin,
+      nazevJidla,
     );
 
     const souhrn = souhrnJidla(jidla);
@@ -727,6 +770,7 @@ export function vymenJidlo(
     pouziteId,
     null,
     poolMin,
+    nazevJidla,
   );
   // vyberKandidata padá zpět na použité potraviny, když je fond malý –
   // u výměny to porušuje garanci „vždy jiné jídlo", takže takovou

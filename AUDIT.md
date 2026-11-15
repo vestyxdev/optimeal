@@ -1,5 +1,10 @@
 # OptiMeal – Technical Audit & Assessment
 
+> **Historický snapshot** – audit stavu před implementačními fázemi. Body v sekcích
+> 3–4 (chybějící funkce, kritické bugy) jsou od auditního commitu postupně
+> implementovány a opraveny; aktuální stav viz README a git log. Ponecháno jako
+> podklad, ne jako přehled aktuálního stavu.
+
 Date: 2026-11-14 · Codebase: `main` @ `e147d56` (phases 1–6a)
 
 
