@@ -89,6 +89,36 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
   }));
 }
 
+/** Veřejná akce pro landing – úzká projekce z RPC top_akce (funguje i pro anon). */
+export interface VerejnaAkce {
+  nazev: string;
+  obchod: string | null;
+  cena: number;
+  puvodniCena: number | null;
+  slevaProcenta: number | null;
+  platnostDo: string | null;
+  obrazek: string | null;
+  baleniG: number | null;
+}
+
+/** Top slevy přes security-definer RPC – čitelné i nepřihlášeným (landing). */
+export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
+  const klient = supabase;
+  if (!klient) return [];
+  const { data, error } = await klient.rpc("top_akce", { p_limit: limit });
+  if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    nazev: r.nazev as string,
+    obchod: (r.obchod ?? null) as string | null,
+    cena: Number(r.cena),
+    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
+    platnostDo: (r.platnost_do ?? null) as string | null,
+    obrazek: (r.obrazek ?? null) as string | null,
+    baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+  }));
+}
+
 /** Detail jedné potraviny přímo z foods – pro editační formulář (obsahuje i ean). */
 export async function nactiPotravinu(id: string): Promise<{
   id: string;

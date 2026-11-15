@@ -23,7 +23,7 @@ import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
-import { nactiAktualniSlevy } from "@/lib/data/potraviny";
+import { nactiAktualniSlevy, nactiVerejneAkce } from "@/lib/data/potraviny";
 
 const MakroGraf = lazy(() => import("@/components/prehled/MakroGraf"));
 
@@ -102,6 +102,8 @@ function VerejnyPrehled() {
         ))}
       </div>
 
+      <ZiveAkce />
+
       <Card className="text-center">
         <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent-soft text-accent-fg">
           <Leaf className="size-6" />
@@ -119,6 +121,68 @@ function VerejnyPrehled() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/** Živé letákové akce na landing – dokazuje, že ceny v appce jsou reálné (RPC top_akce, i pro anon). */
+function ZiveAkce() {
+  const dotaz = useQuery({ queryKey: ["verejne_akce"], queryFn: () => nactiVerejneAkce(12) });
+  const akce = dotaz.data ?? [];
+  // bez dat (nebo bez Supabase) sekci vůbec nevykreslovat
+  if (!dotaz.isLoading && akce.length === 0) return null;
+  return (
+    <section aria-label="Aktuální slevy">
+      <div className="mb-3 flex items-baseline justify-between gap-4">
+        <h2 className="font-semibold">Dnes ve slevě – živě z letáků</h2>
+        <Link
+          to="/potraviny?slevy=1"
+          className="shrink-0 text-sm font-semibold text-primary hover:underline"
+        >
+          Všechny akce
+        </Link>
+      </div>
+      {dotaz.isLoading ? (
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 w-32 shrink-0" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex snap-x gap-3 overflow-x-auto pb-1">
+          {akce.map((p) => (
+            <Link
+              key={`${p.nazev}-${p.obchod}`}
+              to="/potraviny?slevy=1"
+              className="w-32 shrink-0 snap-start rounded-xl border border-border bg-surface p-2 transition-colors hover:border-primary/60"
+            >
+              <span className="relative mb-1.5 block overflow-hidden rounded-lg bg-surface-2">
+                <MiniaturaPotraviny obrazek={p.obrazek} velikost="aspect-square w-full" />
+                {p.slevaProcenta != null && (
+                  <span className="absolute left-1 top-1 rounded-md bg-accent px-1 py-0.5 text-[10px] font-bold text-accent-ink">
+                    −{p.slevaProcenta} %
+                  </span>
+                )}
+              </span>
+              <span className="block truncate text-xs font-medium">{p.nazev}</span>
+              <span className="mt-0.5 block text-[11px] tabular-nums text-muted">
+                {formatujCenu(p.cena, p.baleniG).hlavni}
+                {p.obchod ? ` · ${p.obchod}` : ""}
+              </span>
+              {p.puvodniCena != null && p.puvodniCena > p.cena && (
+                <span className="block text-[10px] tabular-nums text-muted line-through">
+                  {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
+                </span>
+              )}
+              {formatujPlatnostDo(p.platnostDo) && (
+                <span className="mt-0.5 block text-[10px] text-muted">
+                  {formatujPlatnostDo(p.platnostDo)}
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
