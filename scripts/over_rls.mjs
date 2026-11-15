@@ -91,5 +91,20 @@ await krok("Funkce delete_own_account existuje (anon = odepřen)", async () => {
   return `blokováno (${error.code ?? "grant"})`;
 });
 
+await krok("RPC top_akce vrací úzkou projekci slev i pro anonyma (0016)", async () => {
+  const { data, error } = await klient.rpc("top_akce", { p_limit: 5 });
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) throw new Error("Neočekávaný návratový typ");
+  if (data.length > 24) throw new Error("Limit cap selhal!");
+  const r = data[0];
+  if (r && (!("nazev" in r) || !("cena" in r))) {
+    throw new Error("Řádek nemá očekávané sloupce (nazev/cena)");
+  }
+  if (r && ("food_id" in r || "ean" in r || "kategorie" in r)) {
+    throw new Error("Projekce uniká interní sloupce – top_akce má vracet jen letáková data!");
+  }
+  return `${data.length} řádků`;
+});
+
 console.log(chyby === 0 ? "\n✅ Všechny kontroly prošly." : `\n⚠ ${chyby} kontrol selhalo.`);
 process.exitCode = chyby === 0 ? 0 : 1;
