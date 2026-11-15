@@ -11,6 +11,7 @@ import {
   type SouhrnJidla,
   type TydenniPlan,
 } from "@/lib/generator/generator";
+import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
 
 /**
  * Sdílené renderování výsledků generátoru – používá Jídelníček
@@ -22,7 +23,7 @@ export const DENY: Record<string, string> = {
 };
 
 /** Denní souhrny – metrika cíle vs. realita. */
-function Metrika({ nazev, hodnota, cilyJednotka }: { nazev: string; hodnota: number; cilyJednotka: string }) {
+function Metrika({ nazev, hodnota, cilyJednotka }: { nazev: string; hodnota: string; cilyJednotka: string }) {
   return (
     <Card className="py-4">
       <div className="text-xs font-medium text-muted">{nazev}</div>
@@ -46,7 +47,7 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
       {usetreno > 0 && (
         <div className="flex items-center gap-2 border-b border-border bg-ok-soft px-5 py-2 text-sm text-ok">
           <PiggyBank className="size-4 shrink-0" />
-          Díky dnešním slevám šetříte {usetreno.toFixed(2)} Kč
+          Díky dnešním slevám šetříte {formatujCastku(usetreno)} Kč
         </div>
       )}
       {/* mobil: kompaktní řádky (název, množství, sleva, cena) */}
@@ -65,14 +66,14 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
             <span className="flex shrink-0 items-center gap-2">
               {x.sleva && <Badge tono="warning">SLEVA</Badge>}
               <span className="font-semibold tabular-nums">
-                {x.cenaZa100g !== null ? `${x.cenaCelkem.toFixed(2)} Kč` : "—"}
+                {x.cenaZa100g !== null ? `${formatujCastku(x.cenaCelkem)} Kč` : "—"}
               </span>
             </span>
           </div>
         ))}
         <div className="flex items-center justify-between gap-3 bg-surface-2 px-4 py-2.5 text-sm">
           <span className="font-semibold">{soucetPopisek}</span>
-          <span className="font-extrabold tabular-nums">{celkem.toFixed(2)} Kč</span>
+          <span className="font-extrabold tabular-nums">{formatujCastku(celkem)} Kč</span>
         </div>
       </div>
 
@@ -98,19 +99,19 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
                 {x.sleva && <Badge tono="warning" className="ml-2">SLEVA</Badge>}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">{Math.round(x.gramy)} g</td>
-              <td className="px-2 py-2 text-right tabular-nums">{x.cenaZa100g !== null ? `${x.cenaZa100g.toFixed(2)} Kč` : "—"}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{x.cenaZa100g !== null ? `${formatujCastku(x.cenaZa100g)} Kč` : "—"}</td>
               <td className="px-2 py-2">{x.obchod ?? "—"}</td>
               <td className="px-2 py-2 text-right tabular-nums text-ok">
-                {x.usetreno > 0 ? `−${x.usetreno.toFixed(2)} Kč` : "—"}
+                {x.usetreno > 0 ? `−${formatujCastku(x.usetreno)} Kč` : "—"}
               </td>
-              <td className="px-5 py-2 text-right tabular-nums font-semibold">{x.cenaZa100g !== null ? `${x.cenaCelkem.toFixed(2)} Kč` : "—"}</td>
+              <td className="px-5 py-2 text-right tabular-nums font-semibold">{x.cenaZa100g !== null ? `${formatujCastku(x.cenaCelkem)} Kč` : "—"}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="border-t border-border bg-surface-2">
             <td className="px-5 py-2 text-right font-semibold" colSpan={5}>{soucetPopisek}</td>
-            <td className="px-5 py-2 text-right font-extrabold tabular-nums">{celkem.toFixed(2)} Kč</td>
+            <td className="px-5 py-2 text-right font-extrabold tabular-nums">{formatujCastku(celkem)} Kč</td>
           </tr>
         </tfoot>
       </table>
@@ -134,7 +135,7 @@ function MrizkaJidel({
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="font-semibold">{nazevJidla}</span>
               <span className="flex items-center gap-2">
-                <span className="text-xs text-muted">{Math.round(souhrn.kalorie)} kcal</span>
+                <span className="text-xs text-muted">{formatujKcal(souhrn.kalorie)} kcal</span>
                 {naVymenuJidla && souhrn.jidla.length > 0 && (
                   <button
                     onClick={() => naVymenuJidla(nazevJidla)}
@@ -162,7 +163,7 @@ function MrizkaJidel({
                     </div>
                     <div className="mt-1 flex justify-between gap-2 text-xs text-muted">
                       <span>
-                        B {j.bilkoviny} · S {j.sacharidy} · T {j.tuky} g
+                        B {formatujMakro(j.bilkoviny)} · S {formatujMakro(j.sacharidy)} · T {formatujMakro(j.tuky)} g
                       </span>
                       {j.sleva && <Badge tono="warning">SLEVA {j.obchod}</Badge>}
                     </div>
@@ -171,7 +172,7 @@ function MrizkaJidel({
               </ul>
             )}
             <div className="border-t border-border px-4 py-2 text-xs text-muted">
-              Cena jídla: <strong className="text-fg">{souhrn.cena.toFixed(2)} Kč</strong>
+              Cena jídla: <strong className="text-fg">{formatujCastku(souhrn.cena)} Kč</strong>
             </div>
           </Card>
         ))}
@@ -193,10 +194,10 @@ export function DenniVysledek({
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metrika nazev="Kalorie" hodnota={Math.round(den.celkem.kalorie)} cilyJednotka={`z ${cile.kalorie} kcal`} />
-        <Metrika nazev="Bílkoviny" hodnota={den.celkem.bilkoviny} cilyJednotka={`z ${cile.bilkoviny} g`} />
-        <Metrika nazev="Sacharidy" hodnota={den.celkem.sacharidy} cilyJednotka={`z ${cile.sacharidy} g`} />
-        <Metrika nazev="Tuky" hodnota={den.celkem.tuky} cilyJednotka={`z ${cile.tuky} g`} />
+        <Metrika nazev="Kalorie" hodnota={formatujKcal(den.celkem.kalorie)} cilyJednotka={`z ${formatujKcal(cile.kalorie)} kcal`} />
+        <Metrika nazev="Bílkoviny" hodnota={formatujMakro(den.celkem.bilkoviny)} cilyJednotka={`z ${formatujMakro(cile.bilkoviny)} g`} />
+        <Metrika nazev="Sacharidy" hodnota={formatujMakro(den.celkem.sacharidy)} cilyJednotka={`z ${formatujMakro(cile.sacharidy)} g`} />
+        <Metrika nazev="Tuky" hodnota={formatujMakro(den.celkem.tuky)} cilyJednotka={`z ${formatujMakro(cile.tuky)} g`} />
       </div>
 
       <MrizkaJidel jidelnicek={den.jidelnicek} naVymenuJidla={naVymenu} />
@@ -218,10 +219,10 @@ export function TydennyVysledek({
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metrika nazev="Kalorie za týden" hodnota={Math.round(plan.tyden.kalorie)} cilyJednotka={`z ${cile.kalorie * 7} kcal`} />
-        <Metrika nazev="Bílkoviny za týden" hodnota={Math.round(plan.tyden.bilkoviny)} cilyJednotka={`z ${cile.bilkoviny * 7} g`} />
-        <Metrika nazev="Cena za týden" hodnota={Math.round(plan.tyden.cena)} cilyJednotka="Kč za 7 dní" />
-        <Metrika nazev="Ušetřeno slevami" hodnota={Math.round(plan.tyden.cenaBezna - plan.tyden.cena)} cilyJednotka="Kč v rámci týdne" />
+        <Metrika nazev="Kalorie za týden" hodnota={formatujKcal(plan.tyden.kalorie)} cilyJednotka={`z ${formatujKcal(cile.kalorie * 7)} kcal`} />
+        <Metrika nazev="Bílkoviny za týden" hodnota={formatujMakro(plan.tyden.bilkoviny)} cilyJednotka={`z ${formatujMakro(cile.bilkoviny * 7)} g`} />
+        <Metrika nazev="Cena za týden" hodnota={formatujKc(plan.tyden.cena)} cilyJednotka="Kč za 7 dní" />
+        <Metrika nazev="Ušetřeno slevami" hodnota={formatujKc(plan.tyden.cenaBezna - plan.tyden.cena)} cilyJednotka="Kč v rámci týdne" />
       </div>
 
       <Card className="p-0">
@@ -239,9 +240,9 @@ export function TydennyVysledek({
                   {DENY[Number(den)] ?? den}
                 </span>
                 <span className="flex items-center gap-3 text-xs font-normal text-muted tabular-nums">
-                  <span>{Math.round(vysledek.celkem.kalorie)} kcal</span>
-                  <span>B {vysledek.celkem.bilkoviny} g</span>
-                  <span className="hidden sm:inline">{vysledek.celkem.cena.toFixed(2)} Kč</span>
+                  <span>{formatujKcal(vysledek.celkem.kalorie)} kcal</span>
+                  <span>B {formatujMakro(vysledek.celkem.bilkoviny)} g</span>
+                  <span className="hidden sm:inline">{formatujCastku(vysledek.celkem.cena)} Kč</span>
                 </span>
               </summary>
               <div className="px-4 pb-4">

@@ -46,15 +46,30 @@ export function formatujCenuPolozky(p: {
 }
 
 const makroFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });
+const castkaFmt = new Intl.NumberFormat("cs-CZ", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const kcFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 0 });
 
 /** Makroživiny na max. 1 des. místo, česky s čárkou („7,7"). */
 export function formatujMakro(n: number): string {
   return makroFmt.format(n);
 }
 
-/** Kilokalorie jako celé číslo („453"). */
+/** Kilokalorie jako celé číslo s českým oddělovačem („2 450"). */
 export function formatujKcal(n: number): string {
-  return String(Math.round(n));
+  return kcFmt.format(Math.round(n));
+}
+
+/** Peněžní částka na 2 des. místa česky („45,90"). Bez jednotky. */
+export function formatujCastku(n: number): string {
+  return castkaFmt.format(n);
+}
+
+/** Celé koruny česky s oddělovačem tisíců („2 450"). Bez „Kč". */
+export function formatujKc(n: number): string {
+  return kcFmt.format(n);
 }
 
 const DNY_KRATCE = ["ne", "po", "út", "st", "čt", "pá", "so"];

@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCenu, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
@@ -225,7 +225,7 @@ function PrihlasenyPrehled() {
         vizual={
           uspora > 0 ? (
             <span className="om-cenovka rotate-6 self-center text-sm lg:self-auto">
-              sleva −{uspora.toFixed(0)} Kč
+              sleva −{formatujKc(uspora)} Kč
             </span>
           ) : undefined
         }
@@ -336,9 +336,9 @@ function PrihlasenyPrehled() {
             <Skeleton className="h-24" />
           ) : cile ? (
             <>
-              <div className="text-2xl font-extrabold tabular-nums">{cile.kalorie} kcal</div>
+              <div className="text-2xl font-extrabold tabular-nums">{formatujKcal(cile.kalorie)} kcal</div>
               <div className="mt-1 text-sm text-muted">
-                B {cile.bilkoviny} g · S {cile.sacharidy} g · T {cile.tuky} g
+                B {formatujMakro(cile.bilkoviny)} g · S {formatujMakro(cile.sacharidy)} g · T {formatujMakro(cile.tuky)} g
               </div>
               <div className="mt-2">
                 <Suspense fallback={<p className="text-xs text-muted">Graf…</p>}>
@@ -367,12 +367,12 @@ function PrihlasenyPrehled() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="font-semibold">{TYP_NAZVY[plan.typ] ?? plan.typ}</span>
-                {uspora > 0 && <Badge tono="ok">−{uspora.toFixed(2)} Kč</Badge>}
+                {uspora > 0 && <Badge tono="ok">−{formatujCastku(uspora)} Kč</Badge>}
               </div>
               <p className="text-sm text-muted">
-                Cíl {plan.cil_kalorie} kcal ·{" "}
+                Cíl {formatujKcal(plan.cil_kalorie)} kcal ·{" "}
                 {new Date(plan.vytvoreno).toLocaleDateString("cs-CZ")}
-                {cenaPosledniho > 0 && <> · nákup ≈ {cenaPosledniho.toFixed(0)} Kč</>}
+                {cenaPosledniho > 0 && <> · nákup ≈ {formatujKc(cenaPosledniho)} Kč</>}
               </p>
               <Link
                 to={`/plany/${plan.id}`}
@@ -418,7 +418,7 @@ function PrihlasenyPrehled() {
                 <>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className="font-semibold tabular-nums">
-                      {tydeniCena.toFixed(0)} / {rozpocet.toFixed(0)} Kč
+                      {formatujKc(tydeniCena)} / {formatujKc(rozpocet)} Kč
                     </span>
                     <span className={procentoRozpoctu > 100 ? "font-semibold text-danger" : "text-muted"}>
                       {procentoRozpoctu} %
@@ -438,7 +438,7 @@ function PrihlasenyPrehled() {
                 </>
               ) : (
                 <p className="text-sm text-muted">
-                  Rozpočet {rozpocet.toFixed(0)} Kč/týden – vygenerujte týdenní
+                  Rozpočet {formatujKc(rozpocet)} Kč/týden – vygenerujte týdenní
                   plán a uvidíte, jak mu odpovídá.
                 </p>
               )}

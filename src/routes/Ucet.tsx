@@ -19,6 +19,7 @@ import {
   type Profil,
 } from "@/lib/data/profil";
 import { platnaMakra, spocitejCile, type Cile as CileVyziva } from "@/lib/vyziva/cile";
+import { formatujKcal, formatujMakro } from "@/lib/cena";
 
 /**
  * Můj účet – tělesné údaje, z nichž se počítají denní cíle (TDEE),
@@ -402,7 +403,7 @@ export function Ucet() {
           <div className="mt-4 rounded-card border border-border bg-surface-2 p-4 text-sm">
             <div className="font-semibold">Vypočtený denní cíl</div>
             <div className="mt-1 text-muted">
-              {nahled.kalorie} kcal · B {nahled.bilkoviny} g · S {nahled.sacharidy} g · T {nahled.tuky} g
+              {formatujKcal(nahled.kalorie)} kcal · B {formatujMakro(nahled.bilkoviny)} g · S {formatujMakro(nahled.sacharidy)} g · T {formatujMakro(nahled.tuky)} g
             </div>
             <div className="mt-0.5 text-xs text-muted">
               Bilkoviny 30 % · sacharidy 40 % · tuky 30 % energie
@@ -428,19 +429,19 @@ export function Ucet() {
           <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
             <div className="rounded-card bg-surface-2 p-3">
               <div className="text-xs text-muted">Kalorie</div>
-              <div className="text-lg font-extrabold">{aktivni.kalorie} kcal</div>
+              <div className="text-lg font-extrabold">{formatujKcal(aktivni.kalorie)} kcal</div>
             </div>
             <div className="rounded-card bg-surface-2 p-3">
               <div className="text-xs text-muted">Bílkoviny</div>
-              <div className="text-lg font-extrabold">{aktivni.bilkoviny} g</div>
+              <div className="text-lg font-extrabold">{formatujMakro(aktivni.bilkoviny)} g</div>
             </div>
             <div className="rounded-card bg-surface-2 p-3">
               <div className="text-xs text-muted">Sacharidy</div>
-              <div className="text-lg font-extrabold">{aktivni.sacharidy} g</div>
+              <div className="text-lg font-extrabold">{formatujMakro(aktivni.sacharidy)} g</div>
             </div>
             <div className="rounded-card bg-surface-2 p-3">
               <div className="text-xs text-muted">Tuky</div>
-              <div className="text-lg font-extrabold">{aktivni.tuky} g</div>
+              <div className="text-lg font-extrabold">{formatujMakro(aktivni.tuky)} g</div>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted">

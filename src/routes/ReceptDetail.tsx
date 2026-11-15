@@ -12,7 +12,7 @@ import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
-import { formatujPlatnostDo } from "@/lib/cena";
+import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
 /**
@@ -153,7 +153,7 @@ export function ReceptDetail() {
                       </span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums">
-                      {cena == null ? "—" : `${cena.toFixed(2)} Kč`}
+                      {cena == null ? "—" : `${formatujCastku(cena)} Kč`}
                     </span>
                   </div>
                 );
@@ -202,7 +202,7 @@ export function ReceptDetail() {
                         )}
                       </td>
                       <td className="px-5 py-2 text-right tabular-nums font-semibold">
-                        {cena == null ? "—" : `${cena.toFixed(2)} Kč`}
+                        {cena == null ? "—" : `${formatujCastku(cena)} Kč`}
                       </td>
                     </tr>
                   );
@@ -223,30 +223,30 @@ export function ReceptDetail() {
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Kalorie</div>
-                        <div className="text-lg font-extrabold">{rozbor.naPorci.kalorie} kcal</div>
+                        <div className="text-lg font-extrabold">{formatujKcal(rozbor.naPorci.kalorie)} kcal</div>
                       </div>
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Cena</div>
-                        <div className="text-lg font-extrabold">{rozbor.naPorci.cena.toFixed(2)} Kč</div>
+                        <div className="text-lg font-extrabold">{formatujCastku(rozbor.naPorci.cena)} Kč</div>
                       </div>
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Bílkoviny</div>
-                        <div className="text-lg font-extrabold">{rozbor.naPorci.bilkoviny} g</div>
+                        <div className="text-lg font-extrabold">{formatujMakro(rozbor.naPorci.bilkoviny)} g</div>
                       </div>
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Sacharidy</div>
-                        <div className="text-lg font-extrabold">{rozbor.naPorci.sacharidy} g</div>
+                        <div className="text-lg font-extrabold">{formatujMakro(rozbor.naPorci.sacharidy)} g</div>
                       </div>
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Tuky</div>
-                        <div className="text-lg font-extrabold">{rozbor.naPorci.tuky} g</div>
+                        <div className="text-lg font-extrabold">{formatujMakro(rozbor.naPorci.tuky)} g</div>
                       </div>
                     </div>
                     <p className="mt-3 text-xs text-muted">
                       Celý recept ({recept.porce}{" "}
                       {sklonuj(recept.porce, "porce", "porce", "porcí")}):{" "}
-                      {rozbor.celkem.cena.toFixed(2)} Kč ·{" "}
-                      {rozbor.celkem.kalorie} kcal
+                      {formatujCastku(rozbor.celkem.cena)} Kč ·{" "}
+                      {formatujKcal(rozbor.celkem.kalorie)} kcal
                     </p>
                   </Card>
 

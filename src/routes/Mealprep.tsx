@@ -10,6 +10,7 @@ import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recept
 import { nactiPotravinySeSlevami, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { sestavMealprep, type MealprepVstup } from "@/lib/mealprep/mealprep";
+import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
 /**
@@ -161,7 +162,7 @@ export function Mealprep() {
                     </span>
                   </div>
                   <div className="mt-0.5 text-xs text-muted">
-                    {rozbor.naPorci.kalorie} kcal · {rozbor.naPorci.cena.toFixed(2)} Kč / porci
+                    {formatujKcal(rozbor.naPorci.kalorie)} kcal · {formatujCastku(rozbor.naPorci.cena)} Kč / porci
                   </div>
                 </div>
                 <VolicPorci
@@ -189,25 +190,25 @@ export function Mealprep() {
             <Card className="py-4">
               <div className="text-xs font-medium text-muted">Nakupujte za</div>
               <div className="mt-1 text-xl font-extrabold tabular-nums">
-                {vysledek.soucty.cena.toFixed(2)} Kč
+                {formatujCastku(vysledek.soucty.cena)} Kč
               </div>
               <div className="text-xs text-muted">bez nákupu osobních doplňků</div>
             </Card>
             <Card className="py-4">
               <div className="text-xs font-medium text-muted">Ušetříte slevami</div>
               <div className="mt-1 text-xl font-extrabold tabular-nums text-ok">
-                {Math.round(vysledek.soucty.cenaBezna - vysledek.soucty.cena)} Kč
+                {formatujKc(vysledek.soucty.cenaBezna - vysledek.soucty.cena)} Kč
               </div>
               <div className="text-xs text-muted">proti běžným cenám</div>
             </Card>
             <Card className="py-4">
               <div className="text-xs font-medium text-muted">Výživa celkem</div>
               <div className="mt-1 text-xl font-extrabold tabular-nums">
-                {vysledek.soucty.kalorie} kcal
+                {formatujKcal(vysledek.soucty.kalorie)} kcal
               </div>
               <div className="text-xs text-muted">
-                B {vysledek.soucty.bilkoviny} · S {vysledek.soucty.sacharidy} · T{" "}
-                {vysledek.soucty.tuky} g
+                B {formatujMakro(vysledek.soucty.bilkoviny)} · S {formatujMakro(vysledek.soucty.sacharidy)} · T{" "}
+                {formatujMakro(vysledek.soucty.tuky)} g
               </div>
             </Card>
           </div>
@@ -225,7 +226,7 @@ export function Mealprep() {
                     </span>
                   </span>
                   <span className="tabular-nums text-muted">
-                    {d.kalorie} kcal · {d.cena.toFixed(2)} Kč
+                    {formatujKcal(d.kalorie)} kcal · {formatujCastku(d.cena)} Kč
                   </span>
                 </li>
               ))}

@@ -97,6 +97,9 @@ Migrace:
 | `0014_zakladni_potraviny.sql` | +36 kurátorovaných základních potravin (bez OFF) + opravy nutric/kategorií |
 | `0015_dalsi_zaklady.sql` | další základy (játra, tilápie, káva, víno…) dle nespárovaných nabídek |
 | `0016_verejne_akce.sql` | RPC `top_akce(int)` – veřejný top-N slev pro landing (úzká projekce, max 24) |
+| `0017_preklad_tunaku.sql` | překlad anglických názvů tuňákových produktů (zachován token „(tuna)" pro letákový matcher) |
+| `0018_deduplikace.sql` | sloučení duplicitního řeckého jogurtu (remap FK), překlad 3 azbukových názvů |
+| `0019_ceske_nazvy.sql` | překlad ~95 cizojazyčných názvů z OFF importů (nápoje, jogurty, omáčky, pomazánky; kvalifikátory kvůli UNIQUE `nazev`) |
 
 ## Funkce
 

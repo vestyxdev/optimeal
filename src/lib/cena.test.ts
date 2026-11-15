@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 
 describe("formatujCenu", () => {
   it("balené zboží → cena za balení + jednotková vedlejší", () => {
@@ -74,6 +74,27 @@ describe("formatujKcal", () => {
     expect(formatujKcal(453.33)).toBe("453");
     expect(formatujKcal(61.9)).toBe("62");
     expect(formatujKcal(170)).toBe("170");
+  });
+
+  it("tisíce oddělí česky (nedělitelnou mezerou)", () => {
+    expect(formatujKcal(2450).replace(/\u00a0/g, " ")).toBe("2 450");
+    expect(formatujKcal(17150.4).replace(/\u00a0/g, " ")).toBe("17 150");
+  });
+});
+
+describe("formatujCastku", () => {
+  it("2 des. místa s českou čárkou", () => {
+    expect(formatujCastku(45.9)).toBe("45,90");
+    expect(formatujCastku(33)).toBe("33,00");
+    expect(formatujCastku(8.3)).toBe("8,30");
+  });
+});
+
+describe("formatujKc", () => {
+  it("celé koruny s českým oddělovačem tisíců", () => {
+    expect(formatujKc(2450)).toBe(formatujKcal(2450));
+    expect(formatujKc(33.6)).toBe("34");
+    expect(formatujKc(0)).toBe("0");
   });
 });
 

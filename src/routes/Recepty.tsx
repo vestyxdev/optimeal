@@ -10,6 +10,7 @@ import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { useAuth } from "@/lib/auth";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { formatujCastku, formatujKcal, formatujMakro } from "@/lib/cena";
 
 /**
  * Recepty – katalog receptů s živými cenami a výživovými hodnotami
@@ -133,14 +134,14 @@ export function Recepty() {
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
                   <span className="inline-flex items-center gap-1">
                     <Flame className="size-3 text-warning" />
-                    <strong className="text-fg">{rozbor.naPorci.kalorie}</strong> kcal/porci
+                    <strong className="text-fg">{formatujKcal(rozbor.naPorci.kalorie)}</strong> kcal/porci
                   </span>
                   <span>
-                    B <strong className="text-fg">{rozbor.naPorci.bilkoviny}</strong> g
+                    B <strong className="text-fg">{formatujMakro(rozbor.naPorci.bilkoviny)}</strong> g
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Coins className="size-3 text-ok" />
-                    <strong className="text-fg">{rozbor.naPorci.cena.toFixed(2)}</strong> Kč/porci
+                    <strong className="text-fg">{formatujCastku(rozbor.naPorci.cena)}</strong> Kč/porci
                   </span>
                   {recept.casMinuty != null && (
                     <span className="inline-flex items-center gap-1">

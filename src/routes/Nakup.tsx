@@ -20,6 +20,7 @@ import {
   type PolozkaNakupu,
 } from "@/lib/data/nakup";
 import { sklonuj } from "@/lib/sklonovani";
+import { formatujCastku, formatujKc } from "@/lib/cena";
 
 /**
  * Nákup – uložené nákupní seznamy (z Jídelníčku i Mealprepu).
@@ -168,7 +169,7 @@ export function Nakup() {
                 </span>
                 <span className="tabular-nums text-muted">{Math.round(p.gramy)} g</span>
                 <span className="tabular-nums">
-                  {p.cenaZa100g === null ? "—" : `${((p.cenaZa100g * p.gramy) / 100).toFixed(2)} Kč`}
+                  {p.cenaZa100g === null ? "—" : `${formatujCastku((p.cenaZa100g * p.gramy) / 100)} Kč`}
                 </span>
                 <button
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}
@@ -200,7 +201,7 @@ export function Nakup() {
             return (
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
                 <span className="text-sm font-semibold tabular-nums">
-                  {vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {celkem.toFixed(0)} Kč
+                  {vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {formatujKc(celkem)} Kč
                 </span>
                 <span className="text-xs text-muted">
                   {veSleve > 0 && `${veSleve}× ve slevě`}

@@ -52,8 +52,11 @@ async function pripravTracking(klient) {
   return new Set(rows.map((r) => r.nazev));
 }
 
-/** Chyby, které znamenají "migrace už byla aplikovaná mimo tracking". */
-const UZ_EXISTUJE = /already exists|existuje|duplicate key|duplicate_object/i;
+/** Chyby, které znamenají "migrace už byla aplikovaná mimo tracking".
+ *  POZOR: "duplicate key" (23505) sem nepatří – to je kolize DAT
+ *  (např. unique na foods.nazev), ne existující objekt. Taková migrace
+ *  se rollbackne a nesmí se označit za aplikovanou. */
+const UZ_EXISTUJE = /already exists|existuje|duplicate_object/i;
 
 /** Pustí jeden SQL soubor v transakci; po úspěchu ho zapíše do om_migrace. */
 async function pustMigraci(klient, soubor, nazev, aplikovane) {

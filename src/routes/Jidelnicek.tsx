@@ -13,6 +13,7 @@ import { DenniVysledek, TydennyVysledek } from "@/components/jidelnicek/Vysledky
 import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
+import { formatujKc } from "@/lib/cena";
 import { useAuth } from "@/lib/auth";
 import {
   filtrujPotraviny,
@@ -421,7 +422,7 @@ function RozpocetKarta({ cena, rozpocet }: { cena: number; rozpocet: number }) {
       <CardNadpis>Týdenní rozpočet</CardNadpis>
       <div className="flex items-baseline justify-between text-sm">
         <span className="font-semibold tabular-nums">
-          {cena.toFixed(0)} / {rozpocet.toFixed(0)} Kč
+          {formatujKc(cena)} / {formatujKc(rozpocet)} Kč
         </span>
         <span className={presahuje ? "font-semibold text-danger" : "text-muted"}>
           {procento} %
@@ -435,8 +436,8 @@ function RozpocetKarta({ cena, rozpocet }: { cena: number; rozpocet: number }) {
       </div>
       <p className="mt-2 text-xs text-muted">
         {presahuje
-          ? `Plán překračuje rozpočet o ${(cena - rozpocet).toFixed(0)} Kč – zkuste vyšší podíl slevových potravin.`
-          : `Plán se vejde do rozpočtu – rezerva ${(rozpocet - cena).toFixed(0)} Kč.`}
+          ? `Plán překračuje rozpočet o ${formatujKc(cena - rozpocet)} Kč – zkuste vyšší podíl slevových potravin.`
+          : `Plán se vejde do rozpočtu – rezerva ${formatujKc(rozpocet - cena)} Kč.`}
       </p>
     </Card>
   );

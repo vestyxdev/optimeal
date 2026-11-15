@@ -9,6 +9,7 @@ import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek, KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiPlan, smazPlan } from "@/lib/data/plany";
+import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 import type { Cile, DenVysledek, NakupniPolozka, TydenniPlan } from "@/lib/generator/generator";
 
@@ -156,19 +157,19 @@ function MealprepDetail({ obsah }: { obsah: unknown }) {
         </Card>
         <Card className="py-4">
           <div className="text-xs font-medium text-muted">Nakupujte za</div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums">{m.soucty.cena.toFixed(2)} Kč</div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums">{formatujCastku(m.soucty.cena)} Kč</div>
         </Card>
         <Card className="py-4">
           <div className="text-xs font-medium text-muted">Ušetříte slevami</div>
           <div className="mt-1 text-xl font-extrabold tabular-nums text-ok">
-            {Math.round(m.soucty.cenaBezna - m.soucty.cena)} Kč
+            {formatujKc(m.soucty.cenaBezna - m.soucty.cena)} Kč
           </div>
         </Card>
         <Card className="py-4">
           <div className="text-xs font-medium text-muted">Výživa celkem</div>
-          <div className="mt-1 text-xl font-extrabold tabular-nums">{m.soucty.kalorie} kcal</div>
+          <div className="mt-1 text-xl font-extrabold tabular-nums">{formatujKcal(m.soucty.kalorie)} kcal</div>
           <div className="text-xs text-muted">
-            B {m.soucty.bilkoviny} · S {m.soucty.sacharidy} · T {m.soucty.tuky} g
+            B {formatujMakro(m.soucty.bilkoviny)} · S {formatujMakro(m.soucty.sacharidy)} · T {formatujMakro(m.soucty.tuky)} g
           </div>
         </Card>
       </div>
@@ -186,7 +187,7 @@ function MealprepDetail({ obsah }: { obsah: unknown }) {
                   </span>
                 </span>
                 <span className="tabular-nums text-muted">
-                  {d.kalorie} kcal · {d.cena.toFixed(2)} Kč
+                  {formatujKcal(d.kalorie)} kcal · {formatujCastku(d.cena)} Kč
                 </span>
               </li>
             ))}
