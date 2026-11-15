@@ -14,6 +14,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
+import { formatujCenu } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
@@ -57,14 +58,12 @@ const DIETA_NAZVY: Record<string, string> = {
 
 const DAVKA_ZOBRAZENI = 100;
 
-/** Cena pro zobrazení: za balení, pokud známe hmotnost; vážené zboží za kg. */
+/** Cena buňky: balení ~„25 Kč (400 g)" / vážené „14,90 Kč/kg". */
 function cenaLabel(p: KatalogPotravina, cena: number): string {
-  if (cena <= 0) return "—";
-  if (p.baleniG && p.baleniG > 0) {
-    return `~${Math.round((cena * p.baleniG) / 100)} Kč (${p.baleniG} g)`;
-  }
-  // ceny jsou v DB za 100 g → ×10 = Kč/kg, česká konvence pro vážené zboží
-  return `${(cena * 10).toFixed(2).replace(".", ",")} Kč/kg`;
+  const f = formatujCenu(cena, p.baleniG);
+  if (f.hlavni === "—") return "—";
+  if (p.baleniG && p.baleniG > 0) return `${f.hlavni} (${Math.round(p.baleniG)} g)`;
+  return f.hlavni;
 }
 
 const KATEGORIE_IKONY: Record<string, typeof Apple> = {
