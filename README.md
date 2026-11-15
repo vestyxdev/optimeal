@@ -107,6 +107,7 @@ Migrace:
 | `0024_vyziva_a_kategorie.sql` | oprava nemožné výživy z OFF (chléb 77→7,7 g bílkovin apod.), instantní polévka/chipsy/tyčinka z `ovoce_zelenina` a `maso_ryby` → `ostatni` |
 | `0025_prepchy_v_nazvech.sql` | překlepy `SEmolinové těstoviny` → `Semolinové`, `SMléčná čokoláda … náplni` → `Mléčná čokoláda s jemnou tekutou náplní` |
 | `0026_margariny_kategorie.sql` | 11 margarínů/rostlinných tuků (Hera, Flora, Rama, Sonnenblumen, Zlatá Haná…) z `ovoce_zelenina` → `mlecne_vyrobky` |
+| `0027_ryby_a_seminko.sql` | 11 konzervovaných ryb a jerky z `ostatni` → `maso_ryby` (sardinky, makrely, tuňák, losos v omáčce), `Lněná semínka mletá` z `maso_ryby` → `ostatni` |
 
 ## Funkce
 
