@@ -125,7 +125,11 @@ export function Potraviny() {
   const { uzivatel } = useAuth();
   const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
   const [hledat, setHledat] = useState("");
-  const [kategorie, setKategorie] = useState<string>("vse");
+  // „?kategorie=…" – sdílený odkaz rovnou otevře danou kategorii
+  const [kategorie, setKategorie] = useState<string>(() => {
+    const k = new URLSearchParams(window.location.search).get("kategorie");
+    return k !== null && k in KATEGORIE ? k : "vse";
+  });
   // „?slevy=1" z dashboardu „Aktuální akce" – rovnou ukáže akční zboží
   const [jenSlevy, setJenSlevy] = useState(
     () => new URLSearchParams(window.location.search).get("slevy") === "1",
