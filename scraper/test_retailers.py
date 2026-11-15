@@ -3,6 +3,7 @@
 import unittest
 from datetime import date
 
+from scraper.normalizace import cesky_stem, stem_nazev
 from scraper.retailers.base import BaseScraper, ceny_na_100g, gramaje_z_nazvu
 from scraper.retailers.kupi import (
     _c100_z_jednotkove_ceny,
@@ -115,6 +116,35 @@ class TestNabidka(unittest.TestCase):
         self.assertIsNotNone(n)
         self.assertEqual(n.sleva_procenta, 50)
         self.assertAlmostEqual(n.cena_za_100g, 6.67, places=2)
+
+
+class TestCeskyStem(unittest.TestCase):
+    """Stemmer: letákové skloňované tvary vs. katalogové základní tvary."""
+
+    def test_mnozne_cislo(self):
+        self.assertEqual(cesky_stem("citrony"), cesky_stem("citron"))
+        self.assertEqual(cesky_stem("banany"), cesky_stem("banan"))
+        self.assertEqual(cesky_stem("okurky"), cesky_stem("okurka"))
+        self.assertEqual(cesky_stem("jablka"), cesky_stem("jablko"))
+
+    def test_adjektiva(self):
+        self.assertEqual(cesky_stem("veprova"), cesky_stem("veprove"))
+        self.assertEqual(cesky_stem("kureci"), cesky_stem("kure"))
+
+    def test_nekolapuje(self):
+        self.assertNotEqual(cesky_stem("maso"), cesky_stem("maslo"))
+        self.assertNotEqual(cesky_stem("vino"), cesky_stem("vinna"))
+        self.assertNotEqual(cesky_stem("sul"), cesky_stem("sol"))
+
+    def test_minimalni_delka(self):
+        # krátká slova se nespodsekávají pod 3 znaky
+        self.assertEqual(cesky_stem("syr"), "syr")
+        self.assertEqual(cesky_stem("bio"), "bio")
+
+    def test_stem_nazev(self):
+        self.assertEqual(
+            stem_nazev("Kuřecí čtvrtky"), "kur ctver"
+        )
 
 
 if __name__ == "__main__":

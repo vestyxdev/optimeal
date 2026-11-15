@@ -13,6 +13,24 @@ const pool = new pg.Pool({
 
 const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
+// Zrcadlo cesky_stem ze scraper/normalizace.py
+const KONCOVKY = [
+  "ici", "ice", "eci", "ech", "ich", "umi", "ami", "imi", "emi",
+  "eti", "ata", "etu", "ova", "ove", "ovy", "ovi", "ek", "ik",
+  "ec", "ky", "ka", "ko", "ci", "ce", "ku", "ke", "ov", "ou",
+  "em", "um", "im", "at", "et", "u", "y", "e", "a", "i", "o",
+].sort((a, b) => b.length - a.length);
+const stem = (t) => {
+  let s = t;
+  while (s.length > 3) {
+    const k = KONCOVKY.find((x) => s.endsWith(x) && s.length - x.length >= 3);
+    if (!k) break;
+    s = s.slice(0, -k.length);
+  }
+  return s;
+};
+const stemNazev = (nazev) => norm(nazev).split(" ").map(stem).join(" ");
+
 // Ratcliff–Obershelp (stejně jako difflib.SequenceMatcher.ratio)
 function matchBlocks(a, b) {
   let celkem = 0;
@@ -33,7 +51,11 @@ function matchBlocks(a, b) {
 const ratio = (a, b) => (a.length + b.length) ? (2 * matchBlocks(a, b)) / (a.length + b.length) : 1;
 
 const { rows: foods } = await pool.query("select id, nazev from public.foods");
-const normFoods = foods.map((f) => ({ id: f.id, fn: norm(f.nazev), ft: norm(f.nazev).split(" ") }));
+const normFoods = foods.map((f) => {
+  const fn = norm(f.nazev);
+  const fstem = fn.split(" ").map(stem).join(" ");
+  return { id: f.id, fn, ft: fn.split(" "), fstem, fst: new Set(fstem.split(" ")) };
+});
 const presne = new Map(normFoods.map((f) => [f.fn, f.id]));
 
 function match(nazev) {
@@ -41,15 +63,20 @@ function match(nazev) {
   if (presne.has(cil)) return presne.get(cil);
   const cilT = new Set(cil.split(" "));
   if (!cilT.size) return null;
+  const cilStem = stemNazev(nazev);
+  const cilStemT = new Set(cilStem.split(" "));
   let nejSkore = 0;
   for (const f of normFoods) {
-    // prefilter: bez společného tokenu difflib nikdy nedosáhne 0.8
-    if (!f.ft.some((w) => cilT.has(w))) continue;
+    // prefilter: bez společného (kmenového) tokenu difflib nikdy nedosáhne 0.8
+    if (!f.ft.some((w) => cilT.has(w)) && ![...f.fst].some((w) => cilStemT.has(w))) continue;
     const fts = new Set(f.ft);
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let skore = 0;
     if (f.ft.length >= 1 && [...fts].every((w) => cilT.has(w))) skore = 0.90 + 0.01 * f.ft.length;
-    else if (f.fn.length >= 4 && new RegExp(`\\b${f.fn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(cil)) skore = 0.88;
-    else if (cil.length >= 4 && new RegExp(`\\b${cil.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(f.fn)) skore = 0.85;
+    else if (f.fst.size >= 1 && [...f.fst].every((w) => cilStemT.has(w))) skore = 0.89 + 0.01 * f.fst.size;
+    else if (f.fn.length >= 4 && new RegExp(`\\b${esc(f.fn)}\\b`).test(cil)) skore = 0.88;
+    else if (f.fstem.length >= 4 && new RegExp(`\\b${esc(f.fstem)}\\b`).test(cilStem)) skore = 0.87;
+    else if (cil.length >= 4 && new RegExp(`\\b${esc(cil)}\\b`).test(f.fn)) skore = 0.85;
     else {
       const cl = cil.split(" ");
       let best = ratio(cil, f.fn);

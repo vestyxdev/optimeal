@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 
@@ -76,6 +77,25 @@ def main() -> int:
     )
     writer.purge_scrapera(start, uspesne_zdroje)
     writer.purge_expirovanych()
+
+    # Souhrn pro GitHub Actions – matrix job jinak ukáže jen „failure"
+    # i když zapsal stovky pozorování.
+    souhrn = os.environ.get("GITHUB_STEP_SUMMARY")
+    if souhrn:
+        radky = ["## PriceScraper", "", "| Obchod | Výsledek |", "|---|---|"]
+        radky += [f"| {o} | {v} |" for o, v in vysledky.items()]
+        radky += [
+            "",
+            f"**Zapsáno:** {stat['vlozeno']} pozorování "
+            f"(spárováno {stat['sparovano']}, přeskočeno {stat['preskoceno']})",
+        ]
+        if stat.get("nesparovano_nazvy"):
+            radky += ["", "**Nespárováno (vzorek):** " + ", ".join(stat["nesparovano_nazvy"])]
+        try:
+            with open(souhrn, "a", encoding="utf-8") as f:
+                f.write("\n".join(radky) + "\n")
+        except OSError as e:
+            log.warning("GITHUB_STEP_SUMMARY zápis selhal: %s", e)
 
     # 0 nabídek ze všech řetězců = něco je špatně (síť/WAF změny) → fail
     return 0 if vsechny else 1

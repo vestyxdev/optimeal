@@ -14,7 +14,7 @@ from datetime import date, datetime, timezone
 
 import requests
 
-from .normalizace import normalizuj_nazev
+from .normalizace import normalizuj_nazev, stem_nazev
 from .retailers.base import Nabidka
 
 log = logging.getLogger("scraper.db")
@@ -60,7 +60,7 @@ class SupabaseWriter:
                 offset += 1000
             log.info("Načteno %d potravin pro párování", len(self._potraviny))
             self._norm_potraviny = [
-                (p["id"], normalizuj_nazev(p["nazev"]), p)
+                (p["id"], normalizuj_nazev(p["nazev"]), stem_nazev(p["nazev"]), p)
                 for p in self._potraviny
             ]
         return self._potraviny
@@ -192,17 +192,25 @@ class SupabaseWriter:
         cil_t = set(cil.split())
         if not cil_t:
             return None
+        cil_stem = stem_nazev(nazev)
+        cil_stem_t = set(cil_stem.split())
         self.nacti_potraviny()  # naplní _norm_potraviny
         nej_id, nej_skore = None, 0.0
-        for pid, fn, _p in self._norm_potraviny:
+        for pid, fn, fstem, _p in self._norm_potraviny:
             ft = fn.split()
             fts = set(ft)
+            fst = set(fstem.split())
             skore = 0.0
             if ft and len(ft) >= 1 and fts <= cil_t:
                 # všechna slova názvu potraviny jsou v nabídce
                 skore = 0.90 + 0.01 * len(ft)
+            elif fst and fst <= cil_stem_t:
+                # totéž na kmenech – „citrony" nabídka ≈ „citrón" katalog
+                skore = 0.89 + 0.01 * len(fst)
             elif len(fn) >= 4 and re.search(rf"\b{re.escape(fn)}\b", cil):
                 skore = 0.88 + 0.01 * len(fn)
+            elif len(fstem) >= 4 and re.search(rf"\b{re.escape(fstem)}\b", cil_stem):
+                skore = 0.87 + 0.01 * len(fstem)
             elif len(cil) >= 4 and re.search(rf"\b{re.escape(cil)}\b", fn):
                 skore = 0.85
             else:

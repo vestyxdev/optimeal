@@ -26,6 +26,44 @@ def normalizuj_nazev(nazev: str) -> str:
     return re.sub(r"\s+", " ", bez).strip()
 
 
+# Jednoduchý český stemmer pro párování letákových názvů – nabídky
+# používají skloňované tvary („Citrony", „Banány", „Kuřecí čtvrtky"),
+# katalog drží převážně tvary základní. Iterativně stříhá skloňovací
+# koncovky; kmen má min. 3 znaky. Nenahrazuje lingvistický stemmer –
+# slouží jen k porovnání tokenů v matcheru.
+_KONCOVKY = sorted(
+    (
+        "ici", "ice", "eci", "ech", "ich", "umi", "ami", "imi", "emi",
+        "eti", "ata", "etu", "ova", "ove", "ovy", "ovi", "ek", "ik",
+        "ec", "ky", "ka", "ko", "ci", "ce", "ku", "ke", "ov", "ou",
+        "em", "um", "im", "at", "et", "u", "y", "e", "a", "i", "o",
+    ),
+    key=len,
+    reverse=True,
+)
+
+
+def cesky_stem(token: str) -> str:
+    """Zjednodušený kmen (na výstupu normalizuj_nazev).
+
+    „banany"→„banan", „okurky"→„okur", „kuřecí"→„kur", „jablka"→„jabl".
+    """
+    s = token
+    while len(s) > 3:
+        for konc in _KONCOVKY:
+            if s.endswith(konc) and len(s) - len(konc) >= 3:
+                s = s[: -len(konc)]
+                break
+        else:
+            break
+    return s
+
+
+def stem_nazev(nazev: str) -> str:
+    """normalizuj_nazev + kmen každého tokenu (pro stem-párování)."""
+    return " ".join(cesky_stem(t) for t in normalizuj_nazev(nazev).split())
+
+
 def mnozstvi_v_gramech(product: dict) -> Optional[float]:
     """Vytáhne hmotnost/obsah produktu v g/ml z Open Prices záznamu."""
     for klic in ("product_quantity", "quantity"):
