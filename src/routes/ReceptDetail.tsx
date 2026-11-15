@@ -12,6 +12,7 @@ import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
 /**
@@ -192,6 +193,9 @@ export function ReceptDetail() {
                         {p?.sleva ? (
                           <span className="inline-flex items-center gap-1">
                             {p.obchod} <Tag className="size-3 text-warning" />
+                            {formatujPlatnostDo(p.platnostDo) && (
+                              <span className="text-xs text-muted">({formatujPlatnostDo(p.platnostDo)})</span>
+                            )}
                           </span>
                         ) : (
                           p?.obchod ?? "—"
