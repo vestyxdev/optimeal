@@ -25,4 +25,8 @@ npm-debug.log*
 Thumbs.db
 .vercel
 .env*
-scripts/_ingest_off_state.json  
+
+# docasne analyticke artefakty scraperu (harvest/import vystupy)
+scripts/_*.json
+scripts/_*.txt
+scripts/_*.log

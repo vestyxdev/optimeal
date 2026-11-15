@@ -192,6 +192,42 @@ s uživateli nahrávanými doklady cen, filtrované na ČR.
 - **Lokálně:** `pip install -r scraper/requirements.txt && python -m scraper`
   (vyžaduje `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` v prostředí).
 
+### PriceScraper (slevy z letáků)
+
+Druhý ingest stahuje aktuální **slevové nabídky všech 7 řetězců** (Kaufland,
+Lidl, Albert, Billa, Tesco, Penny, Globus) z agregátoru **kupi.cz** a zapisuje
+je do `price_observations` (`zdroj = scraper:<řetězec>`).
+
+- **Kód:** `scraper/ceniky.py` (orchestrace), `scraper/retailers/kupi.py`
+  (jeden společný parser – `.discount_row` je sourozenec `.product--wrap`,
+  kotví se přes `find_previous`), `scraper/retailers/base.py` (session,
+  UA rotace, backoff, `PAUZA` 2 s + jitter), `scraper/db.py` (párování
+  EAN → přesný název → token-subset → difflib; čtení potravin **stránkuje**,
+  PostgREST jinak vrátí jen 1 000 řádků).
+- **Běh:** `.github/workflows/pricescraper.yml` – **matrix, jeden job na
+  řetězec** (`fail-fast: false`, `max-parallel: 2`), cron 01:00 a 05:00 UTC
+  + ruční dispatch. Každý job má vlastní runner → vlastní egress IP.
+- **Stale purge:** `purge_scrapera` maže stará pozorování jen zdrojů, které v
+  daném běhu skutečně **stáhly alespoň jednu parsovatelnou stránku**
+  (`fetched` = nalezen `.product--wrap`, ne pouhý HTTP 200). 403 ani
+  nečitelná odpověď tedy nikdy nesmaže platná data.
+- **Dedup:** před insertem se batch zredukuje na nejlevnější nabídku na
+  (potravina, řetězec) – unique index `food_id + retailer_id +
+  pozorovano_at` by jinak kolidoval.
+- **Známé omezení:** kupi.cz občas vrací 403 na GitHub datacentrové IP
+  (reputace egress adres, ne podpis requestu – z rezidenční IP odpovídá 200).
+  Matrix + dvě cron okna znamenají, že typicky projde 5–7 řetězců na běh;
+  `--failed` rerun dostane čerstvé IP. Strukturální fix by vyžadoval
+  rezidenční proxy nebo first-party API řetězců.
+- **Pozor na Accept-Encoding:** `requests` nedekóduje `br` (brotli) bez
+  balíčku `brotli` – hlavička proto říká jen `gzip, deflate`. Přidání `br`
+  způsobí nečitelné tělo → 0 nabídek (a bez fetched-gatingu i ztrátu dat).
+- **Analýza párování:** `scripts/_harvest_kupi.mjs` (stáhne reálné názvy
+  nabídek), `scripts/_analyza_shod.mjs` (replay matcheru proti DB),
+  `scripts/import_nesparovanych.mjs` (obohacení katalogu z OpenFoodFacts s
+  non-food filtrem a denylistem `ZAKAZANE` – slabé shody dřív importovaly
+  nesouvisející produkty, proto je kontrola token-overlapu povinná).
+
 ## Architektura
 
 - `src/lib/vyziva/` – čistá výpočetní logika (TDEE, makra, panel shody).
