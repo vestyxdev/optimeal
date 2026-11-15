@@ -202,8 +202,10 @@ je do `price_observations` (`zdroj = scraper:<řetězec>`).
   (jeden společný parser – `.discount_row` je sourozenec `.product--wrap`,
   kotví se přes `find_previous`), `scraper/retailers/base.py` (session,
   UA rotace, backoff, `PAUZA` 2 s + jitter), `scraper/db.py` (párování
-  EAN → přesný název → token-subset → difflib; čtení potravin **stránkuje**,
-  PostgREST jinak vrátí jen 1 000 řádků).
+  EAN → přesný název → token-subset → **kmenový token-subset** –
+  `cesky_stem` v `normalizace.py` srovnává skloňované tvary,
+  „Citrony" ≈ „Citrón" → word-boundary → difflib; čtení potravin
+  **stránkuje**, PostgREST jinak vrátí jen 1 000 řádků).
 - **Běh:** `.github/workflows/pricescraper.yml` – **matrix, jeden job na
   řetězec** (`fail-fast: false`, `max-parallel: 2`), cron 01:00 a 05:00 UTC
   + ruční dispatch. Každý job má vlastní runner → vlastní egress IP.
