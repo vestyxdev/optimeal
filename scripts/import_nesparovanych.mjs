@@ -61,9 +61,28 @@ function podobnyNazev(nabidka, offNazev) {
   return [...a].some((w) => b.has(w) || [...b].some((x) => x.startsWith(w) || w.startsWith(x)));
 }
 
+// obecné potraviny, které OFF zná pod anglickým názvem
+const ALIASY = new Map(Object.entries({
+  "Citrony": "lemon", "Banány": "bananas", "Pomeranče": "orange",
+  "Jablka Golden Delicious": "golden delicious apple", "Jablka červená Gala": "gala apple",
+  "Petržel": "parsley", "Celer bulva": "celeriac", "Kedlubna bílá": "kohlrabi",
+  "Ředkvičky svazek": "radish", "Blumy modré": "plums", "Dýně Hokkaidó": "hokkaido pumpkin",
+  "Husa": "goose", "Kachna mražená": "duck", "Kachna Vodňanská kachna": "duck",
+  "Kuřecí prsní řízky": "chicken breast", "Vepřový bok s kostí": "pork ribs",
+  "Hovězí přední bez kosti - kližka": "beef", "Okurka salátová - hadovka": "cucumber",
+  "Okurky Znojmia": "gherkins", "Donut": "donut", "Kobliha s náplní": "filled doughnut",
+  "Kapsa s náplní": "pastry", "Rybí filé mražené Nowaco": "frozen fish fillet",
+  "Citrony": "lemon", "Mandarinky": "mandarin", "Kiwi": "kiwi",
+}).map(([k, v]) => [normTok(k), v]));
+
 async function offHledej(nazev) {
   const jadro = jadroNazvu(nazev);
-  const dotazy = [...new Set([jadro, jadro.split(" ").slice(0, 2).join(" "), jadro.split(" ")[0]])].filter(Boolean);
+  const dotazy = [...new Set([
+    jadro,
+    jadro.split(" ").slice(0, 2).join(" "),
+    jadro.split(" ")[0],
+    ALIASY.get(normTok(nazev)),
+  ])].filter(Boolean);
   for (const q of dotazy) {
     try {
       const r = await fetch(
@@ -75,16 +94,19 @@ async function offHledej(nazev) {
       for (const p of j.products ?? []) {
         const n = p.nutriments ?? {};
         const kcal = n["energy-kcal_100g"] ?? (n["energy-kj_100g"] ? n["energy-kj_100g"] / 4.184 : null);
-        if (kcal == null || n.proteins_100g == null || n.carbohydrates_100g == null || n.fat_100g == null) continue;
+        // kcal + ≥2 makra stačí – OFF chybějící makra (lihoviny: tuky/bilk. = 0)
+        // neuvádí nulou, ale klíč úplně vynechává
+        const pritomna = [n.proteins_100g, n.carbohydrates_100g, n.fat_100g].filter((v) => v != null).length;
+        if (kcal == null || pritomna < 2) continue;
         const offNazev = p.product_name_cs || p.product_name || p.generic_name_cs || null;
         if (!podobnyNazev(nazev, offNazev) && !podobnyNazev(q, offNazev)) continue;
         return {
           ean: p.code ?? null,
           obrazek: p.image_url ?? null,
           kalorie: Math.round(kcal * 100) / 100,
-          bilkoviny: n.proteins_100g,
-          sacharidy: n.carbohydrates_100g,
-          tuky: n.fat_100g,
+          bilkoviny: n.proteins_100g ?? 0,
+          sacharidy: n.carbohydrates_100g ?? 0,
+          tuky: n.fat_100g ?? 0,
           off_nazev: offNazev,
         };
       }
@@ -94,8 +116,20 @@ async function offHledej(nazev) {
   return null;
 }
 
+// názvy, u kterých OFF systematicky vrací nesouvisející produkty
+// (jednoslovný token jako „relax/stock/jack" matchuje kdeco) – nikdy neimportuj
+const ZAKAZANE = new Set([
+  "cider frisco", "republica exclusive bozkov", "whiskey jameson",
+  "rum reserva exclusiva diplomatico", "whiskey honey jack daniel's",
+  "rum bumbu", "zmrzlina v kelimku manhattan nestle", "paprika mix",
+  "fernet stock", "stara myslivecka", "citrony", "dzus hello",
+  "brandy 5 metaxa", "syr krolewski milkpol", "celer bulva",
+  "dyne hokkaido", "instantni kavy jacobs", "instantni kava jacobs kronung",
+]);
+
+const NEJIDLA = /lego|orchidej|poinsettia|my[čc]k|prac[ií]|sanytol|parodontax|pasty na zuby|zubn[ií]|whiskas|pedigree|felix|purina|kapsl?e? pro (ko[čc]k|ps)|dezinfek[cč]n[ií]|[cč]isti[cč]|krmivo|lovela|perwoll|woolite|jar |platinum|persil|ariel|lenor|silan|domestos|savo |kostým|hra[čc]k|dárek|detská kni|se[šs]it|tužk|fix[ya]|sv[íi][čc]ka|hrnek|láhev na|ta[šs]ka|kv[ěe]tin[áa][čc]|akvári|pelech|podložk|doplňky stravy do/i;
 const kandidati = JSON.parse(readFileSync("scripts/_nesparovano.json", "utf8"))
-  .filter((k) => k.median_c100 > 0); // bez jednotkové ceny nemá smysl importovat
+  .filter((k) => k.median_c100 > 0 && !NEJIDLA.test(k.nazev) && !ZAKAZANE.has(normTok(k.nazev)));
 
 console.log(`Importuji ${kandidati.length} kandidátů${DRY ? " (DRY)" : ""}…`);
 let ok = 0, offMiss = 0, dup = 0;

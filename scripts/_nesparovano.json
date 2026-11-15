@@ -1,0 +1,1958 @@
+[
+ {
+  "nazev": "Mletá káva Standard Jihlavanka",
+  "cetnost": 9,
+  "obchody": [
+   "Kaufland",
+   "Lidl",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 18.99,
+  "median_bezna": 39.11,
+  "jednotky": [
+   "1000 g"
+  ]
+ },
+ {
+  "nazev": "Chipsy Bohemia Chips",
+  "cetnost": 9,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 26.85,
+  "median_bezna": 38.36,
+  "jednotky": [
+   "130 g"
+  ]
+ },
+ {
+  "nazev": "Becherovka",
+  "cetnost": 8,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 32.84,
+  "median_bezna": 49.15,
+  "jednotky": [
+   "0.7 l",
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Kapsle Dolce Gusto Nescafé",
+  "cetnost": 7,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "16 ks",
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Ochucená voda Mattoni",
+  "cetnost": 7,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 0.99,
+  "median_bezna": 1.32,
+  "jednotky": [
+   "1.5 l"
+  ]
+ },
+ {
+  "nazev": "Whiskey Jack Daniel's",
+  "cetnost": 7,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 68.56,
+  "median_bezna": 99.36,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Cider Frisco",
+  "cetnost": 7,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 5.73,
+  "median_bezna": 7.85,
+  "jednotky": [
+   "0.33 l"
+  ]
+ },
+ {
+  "nazev": "Republica Exclusive Božkov",
+  "cetnost": 7,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 39.86,
+  "median_bezna": 67.46,
+  "jednotky": [
+   "0.5 l",
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Prací gel Perwoll",
+  "cetnost": 6,
+  "obchody": [
+   "Kaufland",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "75 dávek",
+   "80 dávek"
+  ]
+ },
+ {
+  "nazev": "Gin London Beefeater",
+  "cetnost": 6,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 52.71,
+  "median_bezna": 72.21,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Zmrzlina v kelímku Häagen-Dazs",
+  "cetnost": 6,
+  "obchody": [
+   "Lidl",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 25.78,
+  "median_bezna": 40.11,
+  "jednotky": [
+   "420 ml"
+  ]
+ },
+ {
+  "nazev": "Cider Strongbow",
+  "cetnost": 6,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 4.52,
+  "median_bezna": 6.75,
+  "jednotky": [
+   "0.44 l"
+  ]
+ },
+ {
+  "nazev": "Kapsle do myčky Platinum Jar",
+  "cetnost": 6,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "113 ks",
+   "81 ks"
+  ]
+ },
+ {
+  "nazev": "Džus Relax",
+  "cetnost": 5,
+  "obchody": [
+   "Kaufland",
+   "Albert"
+  ],
+  "median_c100": 2.69,
+  "median_bezna": 5.98,
+  "jednotky": [
+   "1 l"
+  ]
+ },
+ {
+  "nazev": "Whiskey Jameson",
+  "cetnost": 5,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 49.99,
+  "median_bezna": 69.43,
+  "jednotky": [
+   "0.7 l",
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Kapsle do myčky Jar",
+  "cetnost": 5,
+  "obchody": [
+   "Kaufland",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "41 ks"
+  ]
+ },
+ {
+  "nazev": "Fernet Stock",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Tesco"
+  ],
+  "median_c100": 23.98,
+  "median_bezna": 39.31,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Příkrm masozeleninový Hami",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Tesco"
+  ],
+  "median_c100": 15.95,
+  "median_bezna": 20.92,
+  "jednotky": [
+   "200 g"
+  ]
+ },
+ {
+  "nazev": "Vodka Amundsen",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 33.98,
+  "median_bezna": 47.61,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Oplatky Fidorka Opavia",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 33,
+  "median_bezna": 66,
+  "jednotky": [
+   "30 g"
+  ]
+ },
+ {
+  "nazev": "Tyčinka cereální BIG Corny",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 23.8,
+  "median_bezna": 45.43,
+  "jednotky": [
+   "50 g"
+  ]
+ },
+ {
+  "nazev": "Rum Reserva Exclusiva Diplomatico",
+  "cetnost": 5,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 128.43,
+  "median_bezna": 171.24,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Citrony",
+  "cetnost": 4,
+  "obchody": [
+   "Kaufland",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 3.98,
+  "median_bezna": 7.96,
+  "jednotky": [
+   "1 kg",
+   "0.5 kg"
+  ]
+ },
+ {
+  "nazev": "Stará myslivecká",
+  "cetnost": 4,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 33.8,
+  "median_bezna": 41.73,
+  "jednotky": [
+   "1 l",
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Bonboniéra Toffifee Storck",
+  "cetnost": 4,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 27.92,
+  "median_bezna": 38.25,
+  "jednotky": [
+   "125 g"
+  ]
+ },
+ {
+  "nazev": "Nápoj ovocný Relax",
+  "cetnost": 4,
+  "obchody": [
+   "Kaufland",
+   "Tesco"
+  ],
+  "median_c100": 2.69,
+  "median_bezna": 5.19,
+  "jednotky": [
+   "1 l"
+  ]
+ },
+ {
+  "nazev": "Whiskey Honey Jack Daniel's",
+  "cetnost": 4,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 71.29,
+  "median_bezna": 99.36,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Voda ochucená Ondrášovka",
+  "cetnost": 4,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 0.93,
+  "median_bezna": 1.33,
+  "jednotky": [
+   "1.5 l"
+  ]
+ },
+ {
+  "nazev": "Bonboniéra Merci",
+  "cetnost": 4,
+  "obchody": [
+   "Lidl",
+   "Albert"
+  ],
+  "median_c100": 39.96,
+  "median_bezna": 63.09,
+  "jednotky": [
+   "400 g",
+   "250 g"
+  ]
+ },
+ {
+  "nazev": "Likér vaječný Božkov",
+  "cetnost": 4,
+  "obchody": [
+   "Lidl",
+   "Billa",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 25.98,
+  "median_bezna": 29.98,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Whiskey irská Tullamore Dew",
+  "cetnost": 4,
+  "obchody": [
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": 51.41,
+  "median_bezna": 85.45,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Instantní káva Jacobs Krönung",
+  "cetnost": 4,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 89.5,
+  "median_bezna": 143.22,
+  "jednotky": [
+   "200 g"
+  ]
+ },
+ {
+  "nazev": "Vodka B42V Eccentric",
+  "cetnost": 4,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 33.8,
+  "median_bezna": 43.33,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Gin Pink Beefeater",
+  "cetnost": 4,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 52.71,
+  "median_bezna": 72.21,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Instantní káva Jacobs Velvet",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Tesco"
+  ],
+  "median_c100": 66.63,
+  "median_bezna": null,
+  "jednotky": [
+   "300 g",
+   "350 g",
+   "200 g"
+  ]
+ },
+ {
+  "nazev": "Bohemia Sekt",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 15.99,
+  "median_bezna": 26.27,
+  "jednotky": [
+   "1.5 l",
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Prací gel Woolite",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "75 dávek",
+   "60 dávek"
+  ]
+ },
+ {
+  "nazev": "Energetický nápoj Tiger",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 2.78,
+  "median_bezna": 6.47,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Rum kubánský bílý Aňejo 3 Anos Havana club",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": 49.86,
+  "median_bezna": 66.48,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Sýr Madeland Madeta",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 26.9,
+  "median_bezna": 42.71,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Nektar Relax",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Billa"
+  ],
+  "median_c100": 3.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 l"
+  ]
+ },
+ {
+  "nazev": "Orchidej",
+  "cetnost": 3,
+  "obchody": [
+   "Kaufland",
+   "Lidl"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Božkov Tradiční",
+  "cetnost": 3,
+  "obchody": [
+   "Lidl",
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 19.98,
+  "median_bezna": 37.7,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Ředkvičky svazek",
+  "cetnost": 3,
+  "obchody": [
+   "Lidl",
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Lego Duplo",
+  "cetnost": 3,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Vánoční hvězda - Poinsettia",
+  "cetnost": 3,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Lego City",
+  "cetnost": 3,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Dezert Pribináček",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 15.92,
+  "median_bezna": 23.76,
+  "jednotky": [
+   "125 g",
+   "70 g"
+  ]
+ },
+ {
+  "nazev": "Džus Hello",
+  "cetnost": 3,
+  "obchody": [
+   "Albert"
+  ],
+  "median_c100": 2.49,
+  "median_bezna": 4.98,
+  "jednotky": [
+   "1 l"
+  ]
+ },
+ {
+  "nazev": "Dezinfekční univerzální čistič ve spreji Sanytol",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 13.98,
+  "median_bezna": 15.89,
+  "jednotky": [
+   "500 ml"
+  ]
+ },
+ {
+  "nazev": "Kojenecká výživa Sunar Complex",
+  "cetnost": 3,
+  "obchody": [
+   "Albert"
+  ],
+  "median_c100": 38.17,
+  "median_bezna": 56.13,
+  "jednotky": [
+   "600 g"
+  ]
+ },
+ {
+  "nazev": "Brandy 5* Metaxa",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 45.7,
+  "median_bezna": 68.89,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Kedlubna bílá",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "1 ks"
+  ]
+ },
+ {
+  "nazev": "Termix Mlékárna Kunín",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 9.89,
+  "median_bezna": 17.66,
+  "jednotky": [
+   "90 g"
+  ]
+ },
+ {
+  "nazev": "Sirup Relax",
+  "cetnost": 3,
+  "obchody": [
+   "Albert"
+  ],
+  "median_c100": 5.7,
+  "median_bezna": 11.4,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Vodka Hanácká",
+  "cetnost": 3,
+  "obchody": [
+   "Albert",
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 23.98,
+  "median_bezna": 41.9,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Prací gel Lovela Baby",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Albert"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "32 dávek",
+   "50 dávek"
+  ]
+ },
+ {
+  "nazev": "Vodka Božkov",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Penny"
+  ],
+  "median_c100": 25.98,
+  "median_bezna": 33.74,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Dezinfekční čistič na prádlo Sanytol",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Penny"
+  ],
+  "median_c100": 9.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1000 ml"
+  ]
+ },
+ {
+  "nazev": "Nápoj Caprio",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Penny"
+  ],
+  "median_c100": 1.4,
+  "median_bezna": 2.5,
+  "jednotky": [
+   "2 l"
+  ]
+ },
+ {
+  "nazev": "Vína Viňa Tarapaca",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Billa"
+  ],
+  "median_c100": 14.65,
+  "median_bezna": null,
+  "jednotky": [
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Rum Bumbu",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Billa"
+  ],
+  "median_c100": 117.13,
+  "median_bezna": null,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Donut",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Billa"
+  ],
+  "median_c100": 21.25,
+  "median_bezna": 28.33,
+  "jednotky": [
+   "65 g",
+   "56 g"
+  ]
+ },
+ {
+  "nazev": "Likéry Vaječný sen Palírna U Zeleného Stromu",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Lidl"
+  ],
+  "median_c100": 19.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Sýr Krolewski Milkpol",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland",
+   "Tesco"
+  ],
+  "median_c100": 29.9,
+  "median_bezna": 42.71,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Knedlíky bramborové s uzeným masem mražené Dobroty babičky Kláry",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 8.37,
+  "median_bezna": null,
+  "jednotky": [
+   "680 g"
+  ]
+ },
+ {
+  "nazev": "Čokoláda Toblerone",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 49.9,
+  "median_bezna": null,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Sirup ovocný Hello",
+  "cetnost": 2,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 5.13,
+  "median_bezna": null,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Sirup YO",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": 8.56,
+  "median_bezna": 12.78,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Jablka Golden Delicious",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": 1.99,
+  "median_bezna": 3.98,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Kapsle Cafissimo Tchibo",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "10 ks"
+  ]
+ },
+ {
+  "nazev": "Voda ochucená Korunní",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": 0.86,
+  "median_bezna": 1.32,
+  "jednotky": [
+   "1.5 l"
+  ]
+ },
+ {
+  "nazev": "Sekt nealkoholický dětský Robby Bubble",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Penny"
+  ],
+  "median_c100": 6.65,
+  "median_bezna": 11.27,
+  "jednotky": [
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Petržel",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl",
+   "Billa"
+  ],
+  "median_c100": 5.69,
+  "median_bezna": 7.11,
+  "jednotky": [
+   "1 kg",
+   "0.35 kg"
+  ]
+ },
+ {
+  "nazev": "Blumy modré",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 4.98,
+  "median_bezna": 7.96,
+  "jednotky": [
+   "0.5 kg"
+  ]
+ },
+ {
+  "nazev": "Džem Maribel",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 8.87,
+  "median_bezna": 11.09,
+  "jednotky": [
+   "450 g"
+  ]
+ },
+ {
+  "nazev": "Kapsa s náplní",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 11.33,
+  "median_bezna": 11.44,
+  "jednotky": []
+ },
+ {
+  "nazev": "Víno svařené",
+  "cetnost": 2,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 6.7,
+  "median_bezna": null,
+  "jednotky": []
+ },
+ {
+  "nazev": "Hovězí přední bez kosti - kližka",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 24.9,
+  "median_bezna": 29.64,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Minerální voda Vincentka",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": 4.99,
+  "median_bezna": 6.4,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Čokoládky Kinder",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 39.8,
+  "median_bezna": 59.4,
+  "jednotky": [
+   "150 g",
+   "50 g"
+  ]
+ },
+ {
+  "nazev": "Likér Malibu",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": 42.84,
+  "median_bezna": 50.85,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Jablka červená Gala",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 2.99,
+  "median_bezna": 3.99,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Mletá káva Tchibo Exclusive",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 39.8,
+  "median_bezna": 79.6,
+  "jednotky": [
+   "250 g"
+  ]
+ },
+ {
+  "nazev": "Energetický nápoj Semtex",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Billa"
+  ],
+  "median_c100": 2.98,
+  "median_bezna": 5.96,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Pasty na zuby Parodontax",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Penny"
+  ],
+  "median_c100": 113.2,
+  "median_bezna": 133.18,
+  "jednotky": [
+   "75 ml"
+  ]
+ },
+ {
+  "nazev": "Tuk Omega",
+  "cetnost": 2,
+  "obchody": [
+   "Albert",
+   "Tesco"
+  ],
+  "median_c100": 15.96,
+  "median_bezna": 23.82,
+  "jednotky": [
+   "250 g"
+  ]
+ },
+ {
+  "nazev": "Okurky Znojmia",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 6.71,
+  "median_bezna": 11,
+  "jednotky": [
+   "680 g",
+   "520 g"
+  ]
+ },
+ {
+  "nazev": "Nápoj Capri-Sun",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 3.95,
+  "median_bezna": 4.93,
+  "jednotky": [
+   "0.2 l"
+  ]
+ },
+ {
+  "nazev": "Likér Peprmint Božkov",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 27.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Džem výběrový Extra Schwartau",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 23.5,
+  "median_bezna": 29.36,
+  "jednotky": [
+   "340 g"
+  ]
+ },
+ {
+  "nazev": "Vodka Absolut",
+  "cetnost": 2,
+  "obchody": [
+   "Billa"
+  ],
+  "median_c100": 51.98,
+  "median_bezna": null,
+  "jednotky": []
+ },
+ {
+  "nazev": "Ledový čaj Nestea",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Penny"
+  ],
+  "median_c100": 1.66,
+  "median_bezna": 2.64,
+  "jednotky": [
+   "1.5 l"
+  ]
+ },
+ {
+  "nazev": "Zmrzlina v kelímku Magnum Algida",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 24.98,
+  "median_bezna": 46.33,
+  "jednotky": [
+   "440 ml"
+  ]
+ },
+ {
+  "nazev": "Víno Old Porter",
+  "cetnost": 2,
+  "obchody": [
+   "Billa",
+   "Tesco"
+  ],
+  "median_c100": 21.32,
+  "median_bezna": 28.43,
+  "jednotky": [
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Sýr Romadur Madeta",
+  "cetnost": 2,
+  "obchody": [
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 23.9,
+  "median_bezna": 29.87,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Zmrzlina v kelímku Manhattan Nestlé",
+  "cetnost": 2,
+  "obchody": [
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 6.78,
+  "median_bezna": 14.13,
+  "jednotky": [
+   "1400 ml"
+  ]
+ },
+ {
+  "nazev": "Celer bulva",
+  "cetnost": 2,
+  "obchody": [
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 1.99,
+  "median_bezna": 3.43,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Čaje Teekanne",
+  "cetnost": 2,
+  "obchody": [
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 65.8,
+  "median_bezna": 89.25,
+  "jednotky": [
+   "50 g"
+  ]
+ },
+ {
+  "nazev": "Dezert Bobík",
+  "cetnost": 2,
+  "obchody": [
+   "Tesco",
+   "Penny"
+  ],
+  "median_c100": 14.14,
+  "median_bezna": 26.68,
+  "jednotky": [
+   "130 g",
+   "70 g"
+  ]
+ },
+ {
+  "nazev": "Husa",
+  "cetnost": 2,
+  "obchody": [
+   "Penny"
+  ],
+  "median_c100": 19.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Cukr krupice Korunní",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 1.29,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Kachna mražená",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 7.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Tablety do myčky Finish",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "85 ks"
+  ]
+ },
+ {
+  "nazev": "Paprika mix",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 6.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 kg"
+  ]
+ },
+ {
+  "nazev": "Margaríny Perla",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 6.52,
+  "median_bezna": null,
+  "jednotky": [
+   "950 g"
+  ]
+ },
+ {
+  "nazev": "Olivy Exclusive Franz Josef Kaiser",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 9.97,
+  "median_bezna": null,
+  "jednotky": [
+   "300 g"
+  ]
+ },
+ {
+  "nazev": "Dýně Hokkaidó",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 1.49,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Bourbon Jim Beam",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 42.84,
+  "median_bezna": null,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Mlýnek s kořením Kotányi",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 58.43,
+  "median_bezna": null,
+  "jednotky": [
+   "70 g"
+  ]
+ },
+ {
+  "nazev": "Směs bez lepku Jizerka Jizerské pekárny",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 8.19,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Ochucená voda Mattoni Esence",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 0.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1.5 l"
+  ]
+ },
+ {
+  "nazev": "Sekty Mucha",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 11.99,
+  "median_bezna": null,
+  "jednotky": [
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Tatranský čaj 62% Karloff",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 74.27,
+  "median_bezna": null,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Kuřecí játra",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 7.29,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Karotka",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 1.19,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Tvarohový sýr Almette Hochland",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 21.27,
+  "median_bezna": null,
+  "jednotky": [
+   "150 g"
+  ]
+ },
+ {
+  "nazev": "Vložky dámské Naturella",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "40 ks"
+  ]
+ },
+ {
+  "nazev": "Tyčinka Twix",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 23.96,
+  "median_bezna": null,
+  "jednotky": [
+   "250 g"
+  ]
+ },
+ {
+  "nazev": "Tyčinka Mars",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 23.96,
+  "median_bezna": null,
+  "jednotky": [
+   "250 g"
+  ]
+ },
+ {
+  "nazev": "Jablka Šampion",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 1.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Sirup hustý Hello",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 5.13,
+  "median_bezna": null,
+  "jednotky": [
+   "0.7 l"
+  ]
+ },
+ {
+  "nazev": "Božkov ochucený",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 25.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Brambůrky kotlíkové Bohemia Chips",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 29.9,
+  "median_bezna": null,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Sójové kostky Bonavita",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 19.9,
+  "median_bezna": null,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Kapsle Dolce Gusto Starbucks",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": null,
+  "median_bezna": null,
+  "jednotky": [
+   "16 ks"
+  ]
+ },
+ {
+  "nazev": "Hovězí přední bez kosti - krk podplečí K-Mistři od Fochu z Modletic",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 25.49,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Aperitiv Martini",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 29.32,
+  "median_bezna": null,
+  "jednotky": [
+   "0.75 l"
+  ]
+ },
+ {
+  "nazev": "Hradecké tyčinky Bohemia",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 14.33,
+  "median_bezna": null,
+  "jednotky": [
+   "90 g"
+  ]
+ },
+ {
+  "nazev": "Snack Stix Lay's",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 33.17,
+  "median_bezna": null,
+  "jednotky": [
+   "60 g"
+  ]
+ },
+ {
+  "nazev": "Hrušky zelené Lucasova",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 2.49,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Zrnkové kávy Segafredo",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 34.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1000 g"
+  ]
+ },
+ {
+  "nazev": "Rumy Heffron Panama",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 39.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Husí stehna",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 41.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Mouka bio Pernerka",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 2.49,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Krekry Maretti Bruschette",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 22.79,
+  "median_bezna": null,
+  "jednotky": [
+   "140 g"
+  ]
+ },
+ {
+  "nazev": "Instantní kávy Jacobs",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 89.95,
+  "median_bezna": null,
+  "jednotky": [
+   "200 g"
+  ]
+ },
+ {
+  "nazev": "Zavináče Varmuža",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 16.9,
+  "median_bezna": null,
+  "jednotky": [
+   "100 g"
+  ]
+ },
+ {
+  "nazev": "Pletenec plněný",
+  "cetnost": 1,
+  "obchody": [
+   "Kaufland"
+  ],
+  "median_c100": 11.65,
+  "median_bezna": null,
+  "jednotky": [
+   "85 g"
+  ]
+ },
+ {
+  "nazev": "Kuřecí čtvrtky",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 5.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Tuzemák Jindřichohradecký Fruko Schulz",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 23.98,
+  "median_bezna": null,
+  "jednotky": [
+   "0.5 l"
+  ]
+ },
+ {
+  "nazev": "Mletá káva Standard Marila",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 25.57,
+  "median_bezna": null,
+  "jednotky": [
+   "70 g"
+  ]
+ },
+ {
+  "nazev": "Vepřová panenská svíčková",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 14.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 kg"
+  ]
+ },
+ {
+  "nazev": "Čokoláda Sport Ritter",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 36.65,
+  "median_bezna": null,
+  "jednotky": [
+   "218 g"
+  ]
+ },
+ {
+  "nazev": "Dezinfekční univerzální čistič na podlahy Sanytol",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 6.99,
+  "median_bezna": null,
+  "jednotky": [
+   "1 l"
+  ]
+ },
+ {
+  "nazev": "Víno perlivé Secco Bianco Allini",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 6.64,
+  "median_bezna": 9.91,
+  "jednotky": [
+   "0.2 l"
+  ]
+ },
+ {
+  "nazev": "Sýr Mini Babybel Veselá kráva",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 49.94,
+  "median_bezna": null,
+  "jednotky": [
+   "20 g"
+  ]
+ },
+ {
+  "nazev": "Víno perlivé Frizzante Secco Rosato Allini",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 6.64,
+  "median_bezna": 9.91,
+  "jednotky": [
+   "0.2 l"
+  ]
+ },
+ {
+  "nazev": "Trubičky bez lepku Alaska",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 13.61,
+  "median_bezna": 27.22,
+  "jednotky": [
+   "18 g"
+  ]
+ },
+ {
+  "nazev": "Křen čerstvý",
+  "cetnost": 1,
+  "obchody": [
+   "Lidl"
+  ],
+  "median_c100": 14.9,
+  "median_bezna": 19.87,
+  "jednotky": [
+   "0.1 kg"
+  ]
+ }
+]
