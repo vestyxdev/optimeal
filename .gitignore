@@ -30,3 +30,4 @@ Thumbs.db
 scripts/_*.json
 scripts/_*.txt
 scripts/_*.log
+pycache/  
