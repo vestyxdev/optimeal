@@ -1,0 +1,11 @@
+import pg from "pg";
+import fs from "node:fs";
+const { Client } = pg;
+const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+const c = new Client({ host: "aws-0-eu-west-2.pooler.supabase.com", port: 6543, user: "postgres.gduquvqofcohbjzzsicb", password: heslo, database: "postgres", ssl: { rejectUnauthorized: false } });
+await c.connect();
+const cols = await c.query("select column_name from information_schema.columns where table_name='price_observations' order by ordinal_position");
+console.log("price_observations:", cols.rows.map(r => r.column_name).join(", "));
+const g = await c.query("select count(*)::int s_gramy from price_observations where gramy is not null").catch(e => ({ err: e.message }));
+console.log("pozorování s gramy:", g.rows ? g.rows[0] : g.err);
+await c.end();
