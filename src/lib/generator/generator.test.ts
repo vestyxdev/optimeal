@@ -8,6 +8,7 @@ import {
   panelTik,
   podilyProPocetJidel,
   sestavNakupniSeznam,
+  SNIDANE_KOTVA_ANTI_RE,
   vymenJidlo,
   vymenJidloVTydnu,
   skorePotraviny,
@@ -175,6 +176,35 @@ describe("naplanujJidlo", () => {
     for (const j of jidla) {
       expect(j.gramy).toBeGreaterThanOrEqual(20);
       expect(j.gramy).toBeLessThanOrEqual(400);
+    }
+  });
+});
+
+describe("snídaně – ryby nekothví", () => {
+  // tuňákové vločky mají slovo „vločky" → SNIDANE_RE je chybně hodnotí
+  // jako snídaňově vhodné; SNIDANE_KOTVA_ANTI_RE je kompenzace
+  it("regex chytá ryby, nechává rybí pomazánky", () => {
+    for (const nazev of ["Tuňákové vločky v olivovém oleji", "Losos uzený", "Sardinky v oleji", "Krabí tyčky"])
+      expect(SNIDANE_KOTVA_ANTI_RE.test(nazev)).toBe(true);
+    for (const nazev of ["Tuňáková pomazánka Rybex", "Krabí pomazánka", "Tvaroh polotučný"])
+      expect(SNIDANE_KOTVA_ANTI_RE.test(nazev)).toBe(false);
+  });
+
+  it("ryba prohraje kotvu snídaně i se srovnatelným skóre", () => {
+    const skore = (x: Potravina) => ({ ...x, skore: skorePotraviny(x, "bilkovinova") });
+    const kat = {
+      // tvaroh má lepší cenu:bílkoviny (5,0 vs 4,0) – tuňák drží jen
+      // vhodnost ×2,5; s malusem ×0,4 klesne pod práh srovnatelnosti
+      bilkovinova: [
+        skore(p("f1", "Tuňákové vločky v olivovém oleji", 24, 0, 9, 200, 6)),
+        skore(p("f2", "Tvaroh polotučný", 12, 4, 1.5, 85, 2.4)),
+      ],
+      sacharidova: [skore(p("f3", "Rohlík", 9, 50, 2, 270, 5, 3.5))],
+      tukova: [skore(p("f4", "Máslo", 0.5, 0.5, 82, 750, 10, 8))],
+    } as never;
+    for (let den = 1; den <= 7; den++) {
+      const jidla = naplanujJidlo(kat, 0, 30, 40, 15, 500, [], den, 0.85, "Snídaně");
+      expect(jidla[0]?.id).toBe("f2");
     }
   });
 });

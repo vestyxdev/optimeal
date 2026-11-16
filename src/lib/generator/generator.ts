@@ -306,6 +306,14 @@ const TUK_ANTI_RE =
 const DEZERT_ANTI_RE =
   /cheesecake|z[áa]kusk|dort|zmrzlin|tiramisu|cr[èe]me|panna cotta|tartalet|škub[áa]nk|mazanec|v[áa]no[cč]k|halva|rahat/i;
 
+/**
+ * Ryby a mořské plody – nekothví snídani (tuňákové vločky k snídani
+ * nejsou česká snídaně). Výjimka: rybí pomazánky („Tuňáková pomazánka")
+ * jsou legitimní snídaňová potravina – proto zápor lookahead na „pomaz".
+ */
+export const SNIDANE_KOTVA_ANTI_RE =
+  /(?:tu[ňn][aá]k|losos|makrel|sle[ďd]|sardink|tresk|pstruh|kapr|tilapi|krevet|kalam[aá]r|krab)(?!.*pomaz)/i;
+
 type TypJidla = "snidane" | "obedVecere" | "svacina";
 
 function typJidlaZ_nazvu(nazevJidla: string): TypJidla {
@@ -454,7 +462,9 @@ export function naplanujJidlo(
   const antiKotva =
     typJ === "obedVecere"
       ? new RegExp(`(?:${SVACINA_ANCHOR_ANTI_RE.source})|(?:${DEZERT_ANTI_RE.source})`, "i")
-      : DEZERT_ANTI_RE;
+      : typJ === "snidane"
+        ? new RegExp(`(?:${SNIDANE_KOTVA_ANTI_RE.source})|(?:${DEZERT_ANTI_RE.source})`, "i")
+        : DEZERT_ANTI_RE;
   const rePriloha = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : PRILOHA_RE;
   const antiPriloha =
     typJ === "svacina" ? TEPLE_PRILOHY_RE : typJ === "obedVecere" ? SNIDANOVA_PRILOHA_ANTI_RE : null;
