@@ -51,7 +51,7 @@ class SupabaseWriter:
             offset = 0
             while True:
                 davka = self._get(
-                    "foods", "id,nazev,ean,baleni_g",
+                    "foods", "id,nazev,ean,baleni_g,obrazek",
                     offset=offset, limit=1000,
                 )
                 self._potraviny.extend(davka)
@@ -246,6 +246,8 @@ class SupabaseWriter:
                     patch["baleni_g"] = nabidka.gramy
                 if nabidka.ean and not p.get("ean"):
                     patch["ean"] = nabidka.ean
+                if nabidka.obrazek and not p.get("obrazek"):
+                    patch["obrazek"] = nabidka.obrazek
                 break
         if not patch:
             return
