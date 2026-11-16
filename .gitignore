@@ -15,7 +15,7 @@ npm-debug.log*
 .idea/
 *.suo
 
-# env – klíče nikdy do repa!
+# env â€“ klĂ­ÄŤe nikdy do repa!
 .env
 .env.*
 !.env.vzor
@@ -30,4 +30,4 @@ Thumbs.db
 scripts/_*.json
 scripts/_*.txt
 scripts/_*.log
-pycache/  
+__pycache__/
