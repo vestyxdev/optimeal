@@ -30,7 +30,9 @@ UA_POOL = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
 ]
 
-POKUSY = 3
+POKUSY = 4   # 3 s + 9 s + 27 s ≈ 40 s okno – krátkodobý IP rate-limit
+             # kupi.cz tak stihne pominout; delší blok přežije jen nová IP
+             # (druhý cron běh workflowu)
 PAUZA = 2.0  # základní pauza mezi požadavky (s jitterem) – kupi.cz
              # začne po rychlé sérii vracet 403; ~2 s + jitter drží tempo
 
