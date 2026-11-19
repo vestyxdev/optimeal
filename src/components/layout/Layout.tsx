@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { titulekProCestu } from "@/lib/titulky";
 import { useAuth } from "@/lib/auth";
 import { useMotiv } from "@/lib/motiv";
@@ -169,7 +170,11 @@ export function Layout() {
         </header>
 
         <main id="obsah" className="om-kontejner w-full flex-1 py-6">
-          <Outlet />
+          {/* hranice per-routa: pád jedné stránky nezabije navigaci;
+              key=pathname hranici při přechodu resetuje */}
+          <ErrorBoundary key={pathname} kompaktni>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

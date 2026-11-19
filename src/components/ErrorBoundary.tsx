@@ -11,7 +11,10 @@ interface Stav {
  * ukáže ovladatelný stav s možností načíst aplikaci znovu.
  * Chybu vypíše do konzole pro ladění (v produkci by šla do Sentry apod.).
  */
-export class ErrorBoundary extends Component<{ children: ReactNode }, Stav> {
+export class ErrorBoundary extends Component<
+  { children: ReactNode; kompaktni?: boolean },
+  Stav
+> {
   state: Stav = { chyba: null };
 
   static getDerivedStateFromError(chyba: Error): Stav {
@@ -25,6 +28,30 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, Stav> {
 
   render() {
     if (!this.state.chyba) return this.props.children;
+
+    // kompaktní varianta pro hranici uvnitř shellu (routa) –
+    // zbytek aplikace (navigace, hlavička) zůstane živý
+    if (this.props.kompaktni) {
+      return (
+        <div className="mx-auto max-w-md rounded-card border border-border bg-surface p-6 text-center">
+          <div className="mx-auto grid size-10 place-items-center rounded-full bg-danger-soft text-danger">
+            <TriangleAlert className="size-5" />
+          </div>
+          <h1 className="mt-3 text-lg font-extrabold tracking-tight">Něco se pokazilo</h1>
+          <p className="mt-1 text-sm text-muted">
+            Tato část aplikace narazila na chybu – ostatní sekce fungují dál.
+          </p>
+          <p className="mt-3 rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs text-muted">
+            {this.state.chyba.message}
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            <Button varianta="outline" onClick={() => this.setState({ chyba: null })}>
+              Zkusit znovu
+            </Button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="grid min-h-dvh place-items-center bg-bg p-6">
