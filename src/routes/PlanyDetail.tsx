@@ -9,9 +9,15 @@ import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek, KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiPlan, smazPlan } from "@/lib/data/plany";
+import {
+  dnesISO,
+  jidloPlanuNaPoznamku,
+  typJidlaZNazvu,
+  zapisDoDeniku,
+} from "@/lib/data/denik";
 import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
-import type { Cile, DenVysledek, NakupniPolozka, TydenniPlan } from "@/lib/generator/generator";
+import type { Cile, DenVysledek, Jidlo, NakupniPolozka, TydenniPlan } from "@/lib/generator/generator";
 
 /**
  * Mé plány – detail uloženého plánu (JSONB obsah). RLS zaručuje,
@@ -38,6 +44,22 @@ export function PlanyDetail() {
       void naviguj("/jidelnicek");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  // „Snědeno“ – jídlo z plánu jedním klikem do dnešního deníku
+  const mutaceZapisDenik = useMutation({
+    mutationFn: ({ nazevJidla, jidla }: { nazevJidla: string; jidla: Jidlo[] }) =>
+      zapisDoDeniku(
+        typJidlaZNazvu(nazevJidla),
+        dnesISO(),
+        new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }),
+        jidla.map(jidloPlanuNaPoznamku),
+      ),
+    onSuccess: (_d, v) => {
+      toast.success(`${v.nazevJidla} zapsáno do dnešního deníku.`);
+      void klientQ.invalidateQueries({ queryKey: ["denik"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis do deníku selhal."),
   });
 
   if (dotaz.isLoading) {
@@ -111,9 +133,23 @@ export function PlanyDetail() {
       ) : plan.typ === "mealprep" ? (
         <MealprepDetail obsah={obsah} />
       ) : plan.typ === "den" ? (
-        <DenniVysledek den={obsah as DenVysledek} cile={cile} />
+        <DenniVysledek
+          den={obsah as DenVysledek}
+          cile={cile}
+          naZapisDoDeniku={(nazevJidla) => {
+            const s = (obsah as DenVysledek).jidelnicek[nazevJidla];
+            if (s) mutaceZapisDenik.mutate({ nazevJidla, jidla: s.jidla });
+          }}
+        />
       ) : (
-        <TydennyVysledek plan={obsah as TydenniPlan} cile={cile} />
+        <TydennyVysledek
+          plan={obsah as TydenniPlan}
+          cile={cile}
+          naZapisDoDeniku={(denIndex, nazevJidla) => {
+            const s = (obsah as TydenniPlan).dny[denIndex]?.jidelnicek[nazevJidla];
+            if (s) mutaceZapisDenik.mutate({ nazevJidla, jidla: s.jidla });
+          }}
+        />
       )}
     </div>
   );

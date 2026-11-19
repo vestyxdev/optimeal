@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   dnesISO,
+  jidloPlanuNaPoznamku,
   makraProMnozstvi,
   podilNaCili,
   posunDen,
   sectiPrijem,
   nazevTypuJidla,
+  typJidlaZNazvu,
   type NovaPoznamka,
 } from "./denik";
 
@@ -102,5 +104,59 @@ describe("nazevTypuJidla", () => {
   it("mapuje klíč na český název", () => {
     expect(nazevTypuJidla("snidane")).toBe("Snídaně");
     expect(nazevTypuJidla("odpoledne")).toBe("Odpolední svačina");
+  });
+});
+
+describe("typJidlaZNazvu", () => {
+  it("mapuje názvy jídel z generátoru plánu", () => {
+    expect(typJidlaZNazvu("Snídaně")).toBe("snidane");
+    expect(typJidlaZNazvu("Dopolední svačina")).toBe("svacina");
+    expect(typJidlaZNazvu("Oběd")).toBe("obed");
+    expect(typJidlaZNazvu("Večeře")).toBe("vecere");
+    expect(typJidlaZNazvu("Druhá večeře")).toBe("vecere");
+    expect(typJidlaZNazvu("Před spaním")).toBe("vecere");
+    expect(typJidlaZNazvu("Cokoliv jiného")).toBe("ostatni");
+  });
+
+  it("odpolední a pozdní svačina vyhrají před obecnou svačinou", () => {
+    expect(typJidlaZNazvu("Odpolední svačina")).toBe("odpoledne");
+    expect(typJidlaZNazvu("Pozdní svačina")).toBe("odpoledne");
+  });
+});
+
+describe("jidloPlanuNaPoznamku", () => {
+  it("přepočte makra za porci na snapshot /100 g", () => {
+    // 200 g porce, 330 kcal za porci → 165 kcal/100 g
+    const p = jidloPlanuNaPoznamku({
+      id: "f1",
+      nazev: "Kuřecí prsa",
+      gramy: 200,
+      kalorie: 330,
+      bilkoviny: 62,
+      sacharidy: 0,
+      tuky: 7.2,
+      obrazek: null,
+    });
+    expect(p.foodId).toBe("f1");
+    expect(p.mnozstviG).toBe(200);
+    expect(p.kalorie).toBeCloseTo(165, 1);
+    expect(p.bilkoviny).toBeCloseTo(31, 1);
+    // zpětný přepočet = původní porce
+    const m = makraProMnozstvi(p, p.mnozstviG);
+    expect(m.kalorie).toBeCloseTo(330, 0);
+    expect(m.bilkoviny).toBeCloseTo(62, 0);
+  });
+
+  it("nulová gramáž nespadne na dělení nulou", () => {
+    const p = jidloPlanuNaPoznamku({
+      id: "f2",
+      nazev: "X",
+      gramy: 0,
+      kalorie: 10,
+      bilkoviny: 1,
+      sacharidy: 1,
+      tuky: 1,
+    });
+    expect(p.mnozstviG).toBe(1);
   });
 });

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CalendarDays, PiggyBank, RefreshCw, ShoppingBasket } from "lucide-react";
+import { CalendarDays, NotebookPen, PiggyBank, RefreshCw, ShoppingBasket } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -131,9 +131,12 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
 function MrizkaJidel({
   jidelnicek,
   naVymenuJidla,
+  naZapisDoDeniku,
 }: {
   jidelnicek: Record<string, SouhrnJidla>;
   naVymenuJidla?: ((nazevJidla: string) => void) | undefined;
+  /** zapíše celé jídlo do dnešního deníku (detail uloženého plánu) */
+  naZapisDoDeniku?: ((nazevJidla: string) => void) | undefined;
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -143,6 +146,16 @@ function MrizkaJidel({
               <span className="font-semibold">{nazevJidla}</span>
               <span className="flex items-center gap-2">
                 <span className="text-xs text-muted">{formatujKcal(souhrn.kalorie)} kcal</span>
+                {naZapisDoDeniku && souhrn.jidla.length > 0 && (
+                  <button
+                    onClick={() => naZapisDoDeniku(nazevJidla)}
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
+                    title={`Zapsat ${nazevJidla.toLowerCase()} do dnešního deníku`}
+                    aria-label={`Zapsat ${nazevJidla.toLowerCase()} do deníku`}
+                  >
+                    <NotebookPen className="size-4" />
+                  </button>
+                )}
                 {naVymenuJidla && souhrn.jidla.length > 0 && (
                   <button
                     onClick={() => naVymenuJidla(nazevJidla)}
@@ -191,10 +204,12 @@ export function DenniVysledek({
   den,
   cile,
   naVymenu,
+  naZapisDoDeniku,
 }: {
   den: DenVysledek;
   cile: Cile;
   naVymenu?: ((nazevJidla: string) => void) | undefined;
+  naZapisDoDeniku?: ((nazevJidla: string) => void) | undefined;
 }) {
   const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
 
@@ -207,7 +222,11 @@ export function DenniVysledek({
         <Metrika nazev="Tuky" hodnota={formatujMakro(den.celkem.tuky)} cilyJednotka={`z ${formatujMakro(cile.tuky)} g`} />
       </div>
 
-      <MrizkaJidel jidelnicek={den.jidelnicek} naVymenuJidla={naVymenu} />
+      <MrizkaJidel
+        jidelnicek={den.jidelnicek}
+        naVymenuJidla={naVymenu}
+        naZapisDoDeniku={naZapisDoDeniku}
+      />
 
       <KartaNakupu polozky={nakup} soucetPopisek="Celkem za den" />
     </div>
@@ -218,10 +237,12 @@ export function TydennyVysledek({
   plan,
   cile,
   naVymenu,
+  naZapisDoDeniku,
 }: {
   plan: TydenniPlan;
   cile: Cile;
   naVymenu?: ((denIndex: number, nazevJidla: string) => void) | undefined;
+  naZapisDoDeniku?: ((denIndex: number, nazevJidla: string) => void) | undefined;
 }) {
   return (
     <div className="space-y-5">
@@ -257,6 +278,11 @@ export function TydennyVysledek({
                   jidelnicek={vysledek.jidelnicek}
                   naVymenuJidla={
                     naVymenu ? (nazevJidla) => naVymenu(Number(den), nazevJidla) : undefined
+                  }
+                  naZapisDoDeniku={
+                    naZapisDoDeniku
+                      ? (nazevJidla) => naZapisDoDeniku(Number(den), nazevJidla)
+                      : undefined
                   }
                 />
               </div>

@@ -33,6 +33,21 @@ export function nazevTypuJidla(klic: TypJidla): string {
   return TYPY_JIDLA.find((t) => t.klic === klic)?.nazev ?? "Ostatní";
 }
 
+/**
+ * Název jídla z uloženého plánu (jsonb, české názvy generátoru)
+ * na klíč deníku. „Odpolední svačina“ i „Pozdní svačina“ musí
+ * vyhrát před obecným „svačin“ – pořadí podmínek je důležité.
+ */
+export function typJidlaZNazvu(nazev: string): TypJidla {
+  const n = nazev.toLowerCase();
+  if (n.includes("snídan")) return "snidane";
+  if (n.includes("oběd")) return "obed";
+  if (n.includes("odpoledn") || n.includes("pozdní")) return "odpoledne";
+  if (n.includes("večeř") || n.includes("před spaním")) return "vecere";
+  if (n.includes("svačin") || n.includes("dopoledn")) return "svacina";
+  return "ostatni";
+}
+
 /** Makra na 100 g – měřítko tabulky foods i snapshotu v deníku. */
 export interface Makra100 {
   kalorie: number;
@@ -66,6 +81,36 @@ export interface NovaPoznamka extends Makra100 {
   nazev: string;
   obrazek: string | null;
   mnozstviG: number;
+}
+
+/**
+ * Jídlo z uloženého plánu (makra za celou porci) → řádek deníku
+ * (snapshot na 100 g + gramáž). Strukturálně kompatibilní se
+ * `Jidlo` z generátoru, bez importu (žádný cyklus).
+ */
+export function jidloPlanuNaPoznamku(j: {
+  id: string;
+  nazev: string;
+  gramy: number;
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  obrazek?: string | null;
+}): NovaPoznamka {
+  const g = Math.max(1, j.gramy);
+  const f = 100 / g;
+  const r = (n: number) => Math.round(n * f * 100) / 100;
+  return {
+    foodId: j.id,
+    nazev: j.nazev,
+    obrazek: j.obrazek ?? null,
+    mnozstviG: Math.round(g * 10) / 10,
+    kalorie: r(j.kalorie),
+    bilkoviny: r(j.bilkoviny),
+    sacharidy: r(j.sacharidy),
+    tuky: r(j.tuky),
+  };
 }
 
 /* ------------------------------------------------------------------
