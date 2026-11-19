@@ -1,0 +1,111 @@
+<!doctype html>
+<!--
+  OptiMeal – potvrzovací e-mail (Supabase Auth › Email Templates › Confirm signup)
+  ----------------------------------------------------------------------------
+  Předmět:  Potvrďte e-mail · OptiMeal
+  Proměnné: {{ .ConfirmationURL }}  {{ .SiteURL }}
+  Celý obsah vložit do pole "Message body" v dashboardu Supabase.
+-->
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Potvrďte e-mail · OptiMeal</title>
+</head>
+<body style="margin:0;padding:0;background:#f8f7f1;">
+<!-- preheader (skrytý náhled v doručené poště) -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+  Ještě jeden krok a jídelníček je váš – potvrďte svou e-mailovou adresu.
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f7f1;">
+<tr><td align="center" style="padding:32px 16px 48px;">
+
+  <!-- „cenovka“ visačka nad kartou -->
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 0;">
+    <tr>
+      <td style="background:#a8bd45;border-radius:10px 10px 0 0;padding:7px 22px 7px 14px;font:700 11px/1 Arial,Helvetica,sans-serif;letter-spacing:2px;color:#3d4313;">
+        &#8226;&nbsp;CENOVKA&nbsp;&#8226;
+      </td>
+    </tr>
+  </table>
+
+  <!-- kartička účtenky -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border:1px solid #e6e3d4;border-radius:0 0 18px 18px;">
+
+    <!-- logo -->
+    <tr><td align="center" style="padding:34px 32px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" width="40" height="40" style="width:40px;height:40px;background:#1d5c36;border-radius:10px;color:#ffffff;font:800 22px/40px Georgia,serif;">O</td>
+          <td style="padding-left:11px;font:800 21px/1 'Arial Black',Arial,Helvetica,sans-serif;color:#161a12;">OptiMeal</td>
+        </tr>
+      </table>
+    </td></tr>
+
+    <!-- nadpis -->
+    <tr><td align="center" style="padding:18px 32px 0;">
+      <p style="margin:0;font:800 30px/1.15 'Arial Black',Arial,Helvetica,sans-serif;color:#161a12;">
+        Potvrďte svůj e-mail
+      </p>
+    </td></tr>
+
+    <!-- text -->
+    <tr><td align="center" style="padding:14px 44px 0;">
+      <p style="margin:0;font:400 15px/1.6 Arial,Helvetica,sans-serif;color:#4a4f42;">
+        Ještě jeden krok a účet je hotový. Klikněte na tlačítko
+        a můžete skládat jídelníček podle dnešních slev.
+      </p>
+    </td></tr>
+
+    <!-- CTA -->
+    <tr><td align="center" style="padding:26px 32px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+        <tr><td align="center" style="background:#a8bd45;border-radius:999px;">
+          <a href="{{ .ConfirmationURL }}" target="_blank"
+             style="display:block;padding:15px 28px;font:800 16px/1 Arial,Helvetica,sans-serif;color:#3d4313;text-decoration:none;">
+            Potvrdit e-mail
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td align="center" style="padding:8px 44px 4px;">
+      <p style="margin:0;font:400 12.5px/1.5 Arial,Helvetica,sans-serif;color:#8a8f7d;">
+        Odkaz platí 24&nbsp;hodin. Pokud jste účet nezakládali,
+        tento e-mail prostě ignorujte.
+      </p>
+    </td></tr>
+
+    <!-- perforace účtenky -->
+    <tr><td style="padding:22px 32px 0;">
+      <div style="border-top:2px dashed #d8d4bf;font-size:0;line-height:0;">&nbsp;</div>
+    </td></tr>
+
+    <!-- záložní odkaz -->
+    <tr><td align="center" style="padding:14px 44px 6px;">
+      <p style="margin:0;font:400 12px/1.5 Arial,Helvetica,sans-serif;color:#8a8f7d;">
+        Tlačítko nefunguje? Zkopírujte odkaz do prohlížeče:
+      </p>
+      <p style="margin:6px 0 0;font:400 11.5px/1.5 Arial,Helvetica,sans-serif;word-break:break-all;">
+        <a href="{{ .ConfirmationURL }}" style="color:#1d5c36;">{{ .ConfirmationURL }}</a>
+      </p>
+    </td></tr>
+
+    <!-- patička účtenky -->
+    <tr><td align="center" style="padding:20px 32px 26px;">
+      <p style="margin:0;font:700 11px/1.5 Arial,Helvetica,sans-serif;letter-spacing:1.5px;color:#8a8f7d;">
+        ··· OPTIMEAL · JÍDELNÍČEK PODLE ČESKÝCH SLEV ···
+      </p>
+      <p style="margin:8px 0 0;font:400 11px/1.5 Arial,Helvetica,sans-serif;color:#a9ad9c;">
+        <a href="{{ .SiteURL }}" style="color:#a9ad9c;text-decoration:underline;">{{ .SiteURL }}</a>
+      </p>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>
