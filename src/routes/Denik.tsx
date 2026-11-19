@@ -286,7 +286,7 @@ export function Denik() {
                     type="button"
                     onClick={() => setZapisOtevren(t.klic)}
                     aria-label={`Zapsat ${t.nazev.toLowerCase()}`}
-                    className="grid size-8 place-items-center rounded-full bg-primary text-primary-fg transition-transform hover:scale-105"
+                    className="grid size-10 place-items-center rounded-full bg-primary text-primary-fg transition-transform hover:scale-105"
                   >
                     <Plus className="size-4" />
                   </button>

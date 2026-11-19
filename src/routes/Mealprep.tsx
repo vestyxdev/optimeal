@@ -36,7 +36,7 @@ function VolicPorci({
     <div className="flex items-center gap-1">
       <button
         onClick={() => nastav(Math.max(0, porce - 1))}
-        className="grid size-8 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+        className="grid size-10 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
         aria-label={`Snížit porce – ${nazev}`}
       >
         <Minus className="size-4" />
@@ -49,7 +49,7 @@ function VolicPorci({
       </span>
       <button
         onClick={() => nastav(Math.min(MAX_PORCI, porce + 1))}
-        className="grid size-8 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+        className="grid size-10 place-items-center rounded-lg border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg"
         aria-label={`Zvětšit porce – ${nazev}`}
       >
         <Plus className="size-4" />

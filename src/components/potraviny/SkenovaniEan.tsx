@@ -100,7 +100,7 @@ export function SkenovaniEan({
         <button
           type="button"
           onClick={naZavreni}
-          className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface"
+          className="inline-flex size-10 items-center justify-center rounded-lg text-muted hover:bg-surface"
           aria-label="Zavřít skenování"
         >
           <X className="size-4" />

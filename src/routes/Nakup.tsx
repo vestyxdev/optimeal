@@ -252,7 +252,7 @@ export function Nakup() {
                   type="checkbox"
                   checked={p.koupeno}
                   onChange={(e) => mutaceKoupeno.mutate({ id: p.id, koupeno: e.target.checked })}
-                  className="size-4 accent-primary"
+                  className="size-5 shrink-0 accent-primary"
                   aria-label={`Označit ${p.nazev} jako koupené`}
                 />
                 <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" />
@@ -279,7 +279,7 @@ export function Nakup() {
                 </span>
                 <button
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}
-                  className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  className="rounded-lg p-2.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat položku"
                   aria-label={`Smazat ${p.nazev}`}
                 >

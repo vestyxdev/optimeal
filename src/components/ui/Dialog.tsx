@@ -61,7 +61,7 @@ export function Dialog({
           type="button"
           onClick={naZavreni}
           aria-label="Zavřít"
-          className="grid size-8 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
+          className="grid size-10 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
         >
           <X className="size-4" />
         </button>

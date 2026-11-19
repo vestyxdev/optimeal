@@ -288,10 +288,14 @@ export function Potraviny() {
             />
           ))}
         {!dotaz.isLoading && filtrovane.length === 0 && (
-          <Card className="py-8 text-center text-muted">
-            <Carrot className="mx-auto mb-2 size-6" />
-            Nic tu není – zkuste jiný dotaz nebo kategorii.
-          </Card>
+          <PrazdnyStav
+            onReset={() => {
+              setHledat("");
+              setKategorie("vse");
+              setJenSlevy(false);
+              setRazeni("relevance");
+            }}
+          />
         )}
       </div>
 
@@ -332,9 +336,15 @@ export function Potraviny() {
             ))}
             {!dotaz.isLoading && filtrovane.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted">
-                  <Carrot className="mx-auto mb-2 size-6" />
-                  Nic tu není – zkuste jiný dotaz nebo kategorii.
+                <td colSpan={8}>
+                  <PrazdnyStav
+                    onReset={() => {
+                      setHledat("");
+                      setKategorie("vse");
+                      setJenSlevy(false);
+                      setRazeni("relevance");
+                    }}
+                  />
                 </td>
               </tr>
             )}
@@ -349,6 +359,19 @@ export function Potraviny() {
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Prázdný stav katalogu s resetem filtrů – jednotný pro kartu i tabulku. */
+function PrazdnyStav({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="py-8 text-center text-muted">
+      <Carrot className="mx-auto mb-2 size-6" />
+      <p>Žádné produkty neodpovídají filtru.</p>
+      <Button varianta="outline" velikost="sm" className="mt-3" onClick={onReset}>
+        Resetovat filtry
+      </Button>
     </div>
   );
 }
@@ -377,7 +400,7 @@ function AkcePotraviny({
       <button
         type="button"
         onClick={naUpravu}
-        className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground"
+        className="inline-flex size-10 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground"
         title="Upravit vlastní potravinu"
         aria-label={`Upravit ${p.nazev}`}
       >
@@ -386,7 +409,7 @@ function AkcePotraviny({
       <button
         type="button"
         onClick={() => setPotvrdit(true)}
-        className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
+        className="inline-flex size-10 items-center justify-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
         title="Smazat vlastní potravinu"
         aria-label={`Smazat ${p.nazev}`}
       >
@@ -730,7 +753,7 @@ function FormNovePotraviny({
         <button
           type="button"
           onClick={naZavreni}
-          className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
+          className="inline-flex size-10 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
           aria-label="Zavřít formulář"
         >
           <X className="size-4" />
