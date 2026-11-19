@@ -33,10 +33,10 @@ jobs:
       fail-fast: false   # zablokovaný/zhasnutý řetězec neruší ostatní joby
       max-parallel: 2    # max 2 souběžné IP proti kupi.cz – působí přirozeně
       matrix:
-        # dispatch s --obchod = matrix o jednom prvku, jinak všech 7
+        # dispatch s --obchod = matrix o jednom prvku, jinak všech 16
         obchod: ${{ github.event.inputs.obchod != ''
                     && fromJSON(format('["{0}"]', github.event.inputs.obchod))
-                    || fromJSON('["Kaufland","Lidl","Albert","Billa","Tesco","Penny","Globus"]') }}
+                    || fromJSON('["Kaufland","Lidl","Albert","Billa","Tesco","Penny","Globus","Coop","Hruška","Flop TOP","CBA","Košík.cz","dm","Rossmann","Teta drogerie","Zeman"]') }}
     steps:
       - uses: actions/checkout@v6
 

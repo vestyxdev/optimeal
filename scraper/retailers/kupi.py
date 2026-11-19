@@ -246,3 +246,48 @@ class PennyScraper(KupiScraper):
 class GlobusScraper(KupiScraper):
     obchod = "Globus"
     slug = "globus"
+
+
+class CoopScraper(KupiScraper):
+    obchod = "Coop"
+    slug = "coop"
+
+
+class HruskaScraper(KupiScraper):
+    obchod = "Hruška"
+    slug = "hruska"
+
+
+class FlopTopScraper(KupiScraper):
+    obchod = "Flop TOP"
+    slug = "flop-top"
+
+
+class CbaScraper(KupiScraper):
+    obchod = "CBA"
+    slug = "cba"
+
+
+class KosikScraper(KupiScraper):
+    obchod = "Košík.cz"
+    slug = "kosik-cz"
+
+
+class DmScraper(KupiScraper):
+    obchod = "dm"
+    slug = "dm-drogerie"
+
+
+class RossmannScraper(KupiScraper):
+    obchod = "Rossmann"
+    slug = "rossmann"
+
+
+class TetaScraper(KupiScraper):
+    obchod = "Teta drogerie"
+    slug = "teta-drogerie"
+
+
+class ZemanScraper(KupiScraper):
+    obchod = "Zeman"
+    slug = "zeman-maso-uzeniny"

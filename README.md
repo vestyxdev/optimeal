@@ -230,9 +230,10 @@ s uživateli nahrávanými doklady cen, filtrované na ČR.
 
 ### PriceScraper (slevy z letáků)
 
-Druhý ingest stahuje aktuální **slevové nabídky všech 7 řetězců** (Kaufland,
-Lidl, Albert, Billa, Tesco, Penny, Globus) z agregátoru **kupi.cz** a zapisuje
-je do `price_observations` (`zdroj = scraper:<řetězec>`).
+Druhý ingest stahuje aktuální **slevové nabídky všech 16 řetězců** (Kaufland,
+Lidl, Albert, Billa, Tesco, Penny, Globus, Coop, Hruška, Flop TOP, CBA,
+Košík.cz, dm, Rossmann, Teta drogerie, Zeman) z agregátoru **kupi.cz**
+a zapisuje je do `price_observations` (`zdroj = scraper:<řetězec>`).
 
 - **Kód:** `scraper/ceniky.py` (orchestrace), `scraper/retailers/kupi.py`
   (jeden společný parser – `.discount_row` je sourozenec `.product--wrap`,

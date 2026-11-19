@@ -3,11 +3,20 @@
 from .kupi import (
     AlbertScraper,
     BillaScraper,
+    CbaScraper,
+    CoopScraper,
+    DmScraper,
+    FlopTopScraper,
     GlobusScraper,
+    HruskaScraper,
     KauflandScraper,
+    KosikScraper,
     LidlScraper,
     PennyScraper,
+    RossmannScraper,
     TescoScraper,
+    TetaScraper,
+    ZemanScraper,
 )
 
 SCRAPERY = [
@@ -18,9 +27,21 @@ SCRAPERY = [
     TescoScraper,
     PennyScraper,
     GlobusScraper,
+    CoopScraper,
+    HruskaScraper,
+    FlopTopScraper,
+    CbaScraper,
+    KosikScraper,
+    DmScraper,
+    RossmannScraper,
+    TetaScraper,
+    ZemanScraper,
 ]
 
 __all__ = [
-    "AlbertScraper", "BillaScraper", "GlobusScraper", "KauflandScraper",
-    "LidlScraper", "PennyScraper", "SCRAPERY", "TescoScraper",
+    "AlbertScraper", "BillaScraper", "CbaScraper", "CoopScraper",
+    "DmScraper", "FlopTopScraper", "GlobusScraper", "HruskaScraper",
+    "KauflandScraper", "KosikScraper", "LidlScraper", "PennyScraper",
+    "RossmannScraper", "SCRAPERY", "TescoScraper", "TetaScraper",
+    "ZemanScraper",
 ]
