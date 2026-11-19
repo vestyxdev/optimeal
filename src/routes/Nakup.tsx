@@ -80,8 +80,23 @@ export function Nakup() {
   });
   const mutaceSmazatPolozku = useMutation({
     mutationFn: smazPolozku,
-    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["nakupni_seznam", vybrany] }),
-    onError: neplatneMutace,
+    // optimisticky – řádek zmizí hned, chyba ho vrátí zpět
+    onMutate: async (id) => {
+      const klic = ["nakupni_seznam", vybrany];
+      await klientQ.cancelQueries({ queryKey: klic });
+      const pred = klientQ.getQueryData<PolozkaNakupu[]>(klic);
+      klientQ.setQueryData<PolozkaNakupu[]>(klic, (stare) =>
+        stare?.filter((x) => x.id !== id),
+      );
+      return { pred };
+    },
+    onError: (e, _id, ctx) => {
+      if (ctx?.pred) {
+        klientQ.setQueryData(["nakupni_seznam", vybrany], ctx.pred);
+      }
+      neplatneMutace(e);
+    },
+    onSettled: () => void klientQ.invalidateQueries({ queryKey: ["nakupni_seznam", vybrany] }),
   });
   const mutacePridat = useMutation({
     mutationFn: () => pridejVlastniPolozku(vybrany as string, novaPolozka.trim()),
@@ -196,8 +211,42 @@ export function Nakup() {
 
         {!dotazPolozky.isLoading && (
         <Card className="p-0">
-          <ul className="divide-y divide-border">
-            {polozky.map((p) => (
+          {(() => {
+            // seskupení podle obchodu – v každé sekci nekoupené napřed,
+            // zápatí skupiny ukazuje mezisoučet (praktické v regále)
+            const skupiny = new Map<string, PolozkaNakupu[]>();
+            for (const p of [...polozky].sort(
+              (a, b) => Number(a.koupeno) - Number(b.koupeno),
+            )) {
+              const k = p.obchod ?? "";
+              skupiny.set(k, [...(skupiny.get(k) ?? []), p]);
+            }
+            const sekce = [...skupiny.entries()].sort(
+              (a, b) =>
+                (a[0] === "" ? 1 : 0) - (b[0] === "" ? 1 : 0) ||
+                a[0].localeCompare(b[0], "cs"),
+            );
+            const mezisoucet = (seznam: PolozkaNakupu[]) =>
+              seznam
+                .filter((p) => !p.koupeno && p.cenaZa100g !== null)
+                .reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
+            const viceSkupin = sekce.length > 1;
+            return sekce.map(([obchod, seznam]) => (
+              <div key={obchod || "ostatni"}>
+                {viceSkupin && (
+                  <div className="flex items-baseline justify-between border-b border-border bg-surface-2/60 px-4 py-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      {obchod || "Bez obchodu"}
+                    </span>
+                    {mezisoucet(seznam) > 0 && (
+                      <span className="text-xs tabular-nums text-muted">
+                        ≈ {formatujKc(mezisoucet(seznam))} Kč
+                      </span>
+                    )}
+                  </div>
+                )}
+                <ul className="divide-y divide-border">
+            {seznam.map((p) => (
               <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                 <input
                   type="checkbox"
@@ -241,7 +290,10 @@ export function Nakup() {
             {polozky.length === 0 && (
               <li className="px-4 py-6 text-center text-sm text-muted">Seznam je prázdný.</li>
             )}
-          </ul>
+                </ul>
+              </div>
+            ));
+          })()}
 
           {/* účet – součet známých cen, přepočet na gramy */}
           {(() => {

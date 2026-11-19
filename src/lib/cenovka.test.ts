@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
+import { deduplikujPolozky } from "@/lib/data/nakup";
 import type { CenaObchodu } from "@/lib/data/nakup";
 
 function cena(
@@ -52,5 +53,61 @@ describe("porovnejObchody", () => {
   it("obchod bez ceny se vůbec neobjeví", () => {
     const v = porovnejObchody([{ foodId: "f3", gramy: 10 }], hladiny);
     expect(v).toHaveLength(0);
+  });
+});
+
+describe("deduplikujPolozky", () => {
+  const pol = (
+    foodId: string | null,
+    nazev: string,
+    gramy: number,
+    cenaZa100g: number | null = null,
+    obchod: string | null = null,
+    jeSleva = false,
+  ) => ({ foodId, nazev, gramy, cenaZa100g, obchod, jeSleva });
+
+  it("stejná potravina (foodId) se sečte přes gramy", () => {
+    const v = deduplikujPolozky([
+      pol("f1", "Kuřecí prsa", 200, 10, "Lidl"),
+      pol("f1", "Kuřecí prsa", 300, 10, "Lidl"),
+      pol("f2", "Rýže", 100, 4, "Penny"),
+    ]);
+    expect(v).toHaveLength(2);
+    expect(v[0]).toMatchObject({ foodId: "f1", gramy: 500 });
+  });
+
+  it("u duplicit drží levnější nabídku + její obchod", () => {
+    const v = deduplikujPolozky([
+      pol("f1", "Kuřecí prsa", 200, 12, "Kaufland"),
+      pol("f1", "Kuřecí prsa", 100, 8, "Lidl", true),
+    ]);
+    expect(v[0]).toMatchObject({ gramy: 300, cenaZa100g: 8, obchod: "Lidl", jeSleva: true });
+  });
+
+  it("oceněná položka doplní cenu neoceněné duplicity", () => {
+    const v = deduplikujPolozky([
+      pol("f1", "Kuřecí prsa", 200, null, null),
+      pol("f1", "Kuřecí prsa", 100, 9, "Lidl"),
+    ]);
+    expect(v[0]).toMatchObject({ gramy: 300, cenaZa100g: 9, obchod: "Lidl" });
+  });
+
+  it("ruční položky bez foodId se slučují podle normalizovaného názvu", () => {
+    const v = deduplikujPolozky([
+      pol(null, "Sůl", 50),
+      pol(null, "  sůl  ", 30),
+      pol(null, "Pepř", 10),
+    ]);
+    expect(v).toHaveLength(2);
+    expect(v[0]).toMatchObject({ nazev: "Sůl", gramy: 80 });
+  });
+
+  it("různé potraviny zůstanou oddělené", () => {
+    const v = deduplikujPolozky([
+      pol("f1", "A", 100),
+      pol("f2", "B", 100),
+      pol("f3", "C", 100),
+    ]);
+    expect(v).toHaveLength(3);
   });
 });

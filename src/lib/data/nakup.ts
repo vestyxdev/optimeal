@@ -50,6 +50,39 @@ export async function nactiMeNakupniSeznamy(): Promise<NakupniSeznam[]> {
   return data ?? [];
 }
 
+/**
+ * Sloučí duplicitní položky před uložením – stejná potravina
+ * (foodId, případně stejný normalizovaný název) se sečte přes gramy.
+ * U sloučených oceněných řádků držíme levnější nabídku (reálná cena,
+ * kterou uživatel zvolil při generování seznamu).
+ */
+export function deduplikujPolozky<
+  T extends { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean },
+>(polozky: T[]): T[] {
+  const mapa = new Map<string, T>();
+  const vysledek: T[] = [];
+  for (const p of polozky) {
+    const klic = p.foodId ?? `nazev:${p.nazev.trim().toLowerCase()}`;
+    const stavajici = mapa.get(klic);
+    if (!stavajici) {
+      mapa.set(klic, p);
+      vysledek.push(p);
+      continue;
+    }
+    stavajici.gramy += p.gramy;
+    // levnější nabídka vyhrává (oba řádky jsou reálné ceny z katalogu)
+    if (
+      stavajici.cenaZa100g === null ||
+      (p.cenaZa100g !== null && p.cenaZa100g < stavajici.cenaZa100g)
+    ) {
+      stavajici.cenaZa100g = p.cenaZa100g;
+      stavajici.obchod = p.obchod;
+      stavajici.jeSleva = p.jeSleva;
+    }
+  }
+  return vysledek;
+}
+
 /** Vytvoří seznam z položek (gramy, cena, obchod, sleva); volitelně vázaný na plán. */
 export async function ulozNakupniSeznam(
   nazev: string,
@@ -61,6 +94,9 @@ export async function ulozNakupniSeznam(
 
   const { data: uzivatel } = await klient.auth.getUser();
   if (!uzivatel.user) throw new Error("Není přihlášen.");
+
+  // stejná potravina z více receptů/jídel se sečte na jeden řádek
+  polozky = deduplikujPolozky(polozky);
 
   // atomická RPC (migrace 0008) – seznam + položky v transakci
   const { data: rpcId, error: errRpc } = await klient.rpc("uloz_nakupni_seznam", {
