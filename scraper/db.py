@@ -32,6 +32,8 @@ class SupabaseWriter:
         }
         self._potraviny: list[dict] | None = None
         self._retailery: dict[str, str] | None = None
+        self._norm_potraviny: list[tuple] = []
+        self._token_index: dict[str, set[int]] | None = None
 
     def _get(self, tabulka: str, sloupce: str = "*", **params) -> list[dict]:
         r = requests.get(
@@ -63,6 +65,14 @@ class SupabaseWriter:
                 (p["id"], normalizuj_nazev(p["nazev"]), stem_nazev(p["nazev"]), p)
                 for p in self._potraviny
             ]
+        if self._token_index is None:
+            # invertovaný index token→idx pro fuzzy match – bez něj běží
+            # difflib proti ~7 tis. potravinám na KAŽDÝ produkt (minuty);
+            # s ním jen proti desítkám kandidátů se společným tokenem
+            self._token_index = {}
+            for idx, (_pid, fn, fstem, _p) in enumerate(self._norm_potraviny):
+                for t in set(fn.split()) | set(fstem.split()):
+                    self._token_index.setdefault(t, set()).add(idx)
         return self._potraviny
 
     def _retailer_id(self, nazev: str) -> str | None:
@@ -194,9 +204,17 @@ class SupabaseWriter:
             return None
         cil_stem = stem_nazev(nazev)
         cil_stem_t = set(cil_stem.split())
-        self.nacti_potraviny()  # naplní _norm_potraviny
+        self.nacti_potraviny()  # naplní _norm_potraviny + _token_index
+        # kandidáti = potraviny sdílející aspoň jeden token/kmen s nabídkou;
+        # prázdná množina → žádná lexikálně podobná potravina neexistuje
+        kandidati: set[int] = set()
+        for t in cil_t | cil_stem_t:
+            kandidati |= self._token_index.get(t, set())
+        if not kandidati:
+            return None
         nej_id, nej_skore = None, 0.0
-        for pid, fn, fstem, _p in self._norm_potraviny:
+        for idx in kandidati:
+            pid, fn, fstem, _p = self._norm_potraviny[idx]
             ft = fn.split()
             fts = set(ft)
             fst = set(fstem.split())
@@ -357,10 +375,13 @@ class SupabaseWriter:
                 nova = {"id": fid, "nazev": radka["nazev"], "ean": n.ean,
                         "baleni_g": n.gramy, "obrazek": n.obrazek}
                 self._potraviny.append(nova)
-                self._norm_potraviny.append(
-                    (fid, normalizuj_nazev(nova["nazev"]),
-                     stem_nazev(nova["nazev"]), nova)
-                )
+                fn = normalizuj_nazev(nova["nazev"])
+                fstem = stem_nazev(nova["nazev"])
+                idx = len(self._norm_potraviny)
+                self._norm_potraviny.append((fid, fn, fstem, nova))
+                if self._token_index is not None:
+                    for t in set(fn.split()) | set(fstem.split()):
+                        self._token_index.setdefault(t, set()).add(idx)
                 return fid
             # duplicitní název → dohledej existující
             for p in self.nacti_potraviny():
