@@ -285,13 +285,19 @@ class SupabaseWriter:
         if not patch:
             return
         try:
-            requests.patch(
+            r = requests.patch(
                 f"{self.url}/rest/v1/foods",
                 headers={**self._hlavicky, "Prefer": "return=minimal"},
                 params={"id": f"eq.{food_id}"},
                 json=patch,
                 timeout=30,
             )
+            if r.ok:
+                # in-memory taky – jinak se totáž potravina patchuje
+                # znovu u každé další nabídky (stovky zbytečných PATCH)
+                p.update(patch)
+                if "ean" in patch:
+                    self._ean_index[patch["ean"]] = food_id
         except requests.RequestException as e:
             log.warning("Doplnění metadat na %s selhalo: %s", food_id, e)
 
