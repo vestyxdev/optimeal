@@ -281,12 +281,23 @@ class SupabaseWriter:
                     stat["nesparovano_nazvy"].append(n.nazev)
                 continue
             self._dopln_baleni_a_obrazek(food_id, n)
+            # sanity: cena mimo reálné meze Kč/100 g = parse chyba
+            # (migrace 0040 má stejný CHECK jako pojistku)
+            if not n.cena_za_100g or not (0.3 <= n.cena_za_100g < 400):
+                stat["preskoceno"] += 1
+                stat.setdefault("anomalie_ceny", []).append(
+                    f"{n.nazev} {n.cena_za_100g}"
+                )
+                continue
+            puvodni = n.puvodni_cena_za_100g
+            if puvodni is not None and puvodni < n.cena_za_100g:
+                puvodni = None  # "původní" pod akční = nesmysl
             klic = (food_id, retailer_id)
             radek = {
                 "food_id": food_id,
                 "retailer_id": retailer_id,
                 "cena": n.cena_za_100g,
-                "puvodni_cena": n.puvodni_cena_za_100g,
+                "puvodni_cena": puvodni,
                 "je_sleva": True,
                 "platnost_do": n.platnost_do,
                 "zdroj": f"scraper:{n.obchod.lower()}",
@@ -298,7 +309,12 @@ class SupabaseWriter:
         if stat["preskoceno"]:
             log.info(
                 "Nespárováno %d nabídek, vzorek: %s",
-                stat["preskoceno"], stat["nesparovano_nazvy"],
+                stat["preskoceno"], stat.get("nesparovano_nazvy", []),
+            )
+        if stat.get("anomalie_ceny"):
+            log.warning(
+                "Přeskočeno %d anomálních cen, vzorek: %s",
+                len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8],
             )
         radky_list = list(radky.values())
         if radky_list:

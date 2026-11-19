@@ -120,6 +120,7 @@ Migrace:
 | `0037_ostatni_cistka.sql` | ~90 položek: 25 džemů/moštů/candy + 33 polévek a směsí + 17 chipsů z `ovoce_zelenina` → `ostatni`, 12 lupínků + 6 kaší → `peckoviny_obily`; 16 oříškových „másel"/pomazánek + polévky/chipsy/čokolády z `mlecne_vyrobky` → `ostatni`, 5 máslových sušenek a sýrových tyčinek → `suchary`; skutečná másla a margaríny zůstávají; 4 překlepy |
 | `0038_pernicky.sql` | 5 perníčků z `ovoce_zelenina` → `suchary_testoviny` (plurál unikl vzoru 0037), `Relax černý rybíz` nápoj → `ostatni` |
 | `0039_denik.sql` | tabulka `diary_entries` (jídelní deník: typ jídla, gramáž, snapshot makra na 100 g, den+čas) + RLS |
+| `0040–0043` | opravy cen: CHECK limity na `price_observations` (0–400 Kč/100 g, `puvodni_cena ≥ cena`), doplnění `bezna_cena` pro ~6 tis. potravin (odhady podle názvu/kategorie), český potravinový systém (~200 položek `seed-cz`: pečivo, mléčné speciality, uzeniny, typické pokrmy, sladkosti, konzervy, nápoje) s alergeny/dietami, opravy dietních flagů |
 
 ## Funkce
 
