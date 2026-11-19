@@ -43,6 +43,39 @@ ALERGENY_MAPA = {
 }
 
 
+STATS = {"chyby": 0}
+
+
+def _off_get(url: str, params: dict) -> dict | None:
+    """GET na OFF s retry při 429/5xx – OFF z datacenter IP throttluje
+    agresivně; bez retry se položka spálí jako „bez shody", i když
+    šlo jen o přetížení API."""
+    for pokus in range(4):
+        try:
+            r = requests.get(url, params=params, headers=UA, timeout=20)
+        except requests.RequestException as e:
+            if pokus == 3:
+                log.warning("OFF %s selhal: %s", url.split("/")[-1][:40],
+                            e.__class__.__name__)
+                STATS["chyby"] += 1
+                return None
+            time.sleep(2**pokus)
+            continue
+        if r.status_code in (429, 500, 502, 503, 504):
+            time.sleep(min(5 * (2**pokus), 60))
+            continue
+        if not r.ok:
+            STATS["chyby"] += 1
+            return None
+        try:
+            return r.json()
+        except ValueError:
+            STATS["chyby"] += 1
+            return None
+    STATS["chyby"] += 1
+    return None
+
+
 def _nutri(produkt: dict) -> dict | None:
     n = produkt.get("nutriments") or {}
     kcal = n.get("energy-kcal_100g") or n.get("energy-kcal_value") or 0
@@ -61,14 +94,10 @@ def _bez_diakritiky(s: str) -> str:
 
 
 def off_ean(ean: str) -> dict | None:
-    try:
-        r = requests.get(f"{OFF}/api/v2/product/{ean}.json",
-                         params={"fields": "code,product_name,nutriments,image_url,allergens_tags"},
-                         headers=UA, timeout=20)
-        if r.ok and r.json().get("status") == 1:
-            return r.json()["product"]
-    except requests.RequestException as e:
-        log.warning("OFF ean %s selhal: %s", ean, e.__class__.__name__)
+    d = _off_get(f"{OFF}/api/v2/product/{ean}.json",
+                 {"fields": "code,product_name,nutriments,image_url,allergens_tags"})
+    if d and d.get("status") == 1:
+        return d["product"]
     return None
 
 
@@ -84,26 +113,22 @@ def _prekryv(cil: str, jmeno: str) -> float:
 def off_hledat(nazev: str) -> dict | None:
     """Jmenové hledání – bere jen kandidáty s ≥60% překryvem tokenů,
     jinak by slabá shoda automaticky schválila špatná makra."""
-    try:
-        r = requests.get(f"{OFF}/cgi/search.pl", params={
-            "search_terms": nazev, "search_simple": 1, "action": "process",
-            "json": 1, "page_size": 5, "cc": "cz",
-            "fields": "code,product_name,nutriments,image_url,allergens_tags",
-        }, headers=UA, timeout=20)
-        if not r.ok:
-            return None
-        nej, nej_skore = None, 0.6
-        for p in (r.json().get("products") or []):
-            jmeno = p.get("product_name") or ""
-            if not jmeno or not _nutri(p):
-                continue
-            skore = _prekryv(nazev, jmeno)
-            if skore >= nej_skore:
-                nej, nej_skore = p, skore
-        return nej
-    except requests.RequestException as e:
-        log.warning("OFF hledání '%s' selhalo: %s", nazev[:40], e.__class__.__name__)
-    return None
+    d = _off_get(f"{OFF}/cgi/search.pl", {
+        "search_terms": nazev, "search_simple": 1, "action": "process",
+        "json": 1, "page_size": 5, "cc": "cz",
+        "fields": "code,product_name,nutriments,image_url,allergens_tags",
+    })
+    if not d:
+        return None
+    nej, nej_skore = None, 0.6
+    for p in (d.get("products") or []):
+        jmeno = p.get("product_name") or ""
+        if not jmeno or not _nutri(p):
+            continue
+        skore = _prekryv(nazev, jmeno)
+        if skore >= nej_skore:
+            nej, nej_skore = p, skore
+    return nej
 
 
 def patch_z_off(food: dict, produkt: dict) -> dict:
@@ -178,7 +203,8 @@ def main() -> int:
         else:
             log.warning("PATCH %s selhal: %s", food["id"], pr.text[:120])
 
-    log.info("Hotovo: doplněno %d, schváleno %d z %d", doplneno, schvaleno, len(foods))
+    log.info("Hotovo: doplněno %d, schváleno %d z %d (OFF chyb: %d)",
+             doplneno, schvaleno, len(foods), STATS["chyby"])
     return 0
 
 
