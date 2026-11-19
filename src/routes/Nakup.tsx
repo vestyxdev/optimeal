@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Printer, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Store, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -10,6 +10,7 @@ import { PotvrdDialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Nacitani";
 import {
+  nactiCenoveHladiny,
   nactiMeNakupniSeznamy,
   nactiPolozkySeznamu,
   prepnoutHotovo,
@@ -19,6 +20,7 @@ import {
   smazPolozku,
   type PolozkaNakupu,
 } from "@/lib/data/nakup";
+import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
 import { sklonuj } from "@/lib/sklonovani";
 import { formatujCastku, formatujKc } from "@/lib/cena";
 
@@ -94,6 +96,21 @@ export function Nakup() {
   const polozky = dotazPolozky.data ?? [];
   const aktualniSeznam = seznamy.find((s) => s.id === vybrany) ?? null;
 
+  // Cenovka – živé ceny položek napříč obchody (price_observations)
+  const foodIds = useMemo(
+    () => polozky.map((p) => p.foodId).filter((id): id is string => Boolean(id)),
+    [polozky],
+  );
+  const dotazCeny = useQuery({
+    queryKey: ["cenove_hladiny", [...foodIds].sort().join(",")],
+    queryFn: () => nactiCenoveHladiny(foodIds),
+    enabled: vybrany !== null && foodIds.length > 0,
+  });
+  const souhrnyObchodu = useMemo(
+    () => porovnejObchody(polozky, dotazCeny.data ?? new Map()),
+    [polozky, dotazCeny.data],
+  );
+
   if (vybrany !== null && aktualniSeznam) {
     // ---------- detail seznamu ----------
     const zbyva = polozky.filter((p) => !p.koupeno).length;
@@ -149,6 +166,34 @@ export function Nakup() {
         </div>
 
         {dotazPolozky.isLoading && <Skeleton className="h-40" />}
+
+        {/* Cenovka – kde se stejný košík vyplatí nejvíc */}
+        {!dotazPolozky.isLoading && souhrnyObchodu.length > 0 && (
+          <Card className="p-0">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Store className="size-4 text-muted" aria-hidden />
+                Kde nakoupit nejlevněji
+              </h2>
+              <span className="text-xs text-muted">živé ceny z posledních 30 dnů</span>
+            </div>
+            <ul className="divide-y divide-border/60">
+              {souhrnyObchodu.slice(0, 4).map((s, i) => (
+                <li key={s.obchodId} className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-sm">
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className={i === 0 ? "font-semibold" : "font-medium"}>{s.obchod}</span>
+                    {i === 0 && <Badge tono="ok">nejlevnější</Badge>}
+                    <span className="text-xs text-muted">
+                      ceny u {s.pokryti} z {polozky.filter((p) => p.foodId).length} položek
+                    </span>
+                  </span>
+                  <span className="tabular-nums font-semibold">≈ {formatujKc(s.celkem)} Kč</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+
         {!dotazPolozky.isLoading && (
         <Card className="p-0">
           <ul className="divide-y divide-border">
@@ -168,8 +213,20 @@ export function Nakup() {
                   {p.jeSleva && <Badge tono="warning" className="ml-2">SLEVA {p.obchod}</Badge>}
                 </span>
                 <span className="tabular-nums text-muted">{Math.round(p.gramy)} g</span>
-                <span className="tabular-nums">
+                <span className="tabular-nums text-right">
                   {p.cenaZa100g === null ? "—" : `${formatujCastku((p.cenaZa100g * p.gramy) / 100)} Kč`}
+                  {(() => {
+                    const tip = p.foodId ? nejlevnejsiObchod(dotazCeny.data?.get(p.foodId)) : null;
+                    if (!tip) return null;
+                    // ukazujeme jen když živá nabídka podbíjí uloženou cenu,
+                    // nebo když položka cenu vůbec neměla
+                    if (p.cenaZa100g !== null && tip.cena >= p.cenaZa100g - 0.001) return null;
+                    return (
+                      <span className="block text-xs font-medium text-primary">
+                        nejlevněji {tip.obchod}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <button
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}

@@ -20,7 +20,17 @@ export function filtrujKatalog(
   );
   // u „jen slevy" řadíme podle % slevy – nejvýhodnější nahoře
   if (jenSlevy) {
-    vybrane.sort((a, b) => (b.slevaProcenta ?? -1) - (a.slevaProcenta ?? -1));
+    vybrane.sort(
+      (a, b) =>
+        (b.slevaProcenta ?? -1) - (a.slevaProcenta ?? -1) ||
+        Number(b.kalorie > 0) - Number(a.kalorie > 0),
+    );
+    return vybrane;
   }
-  return vybrane;
+  // eshopové položky bez nutričních údajů (kalorie=0) jdou až za
+  // potraviny s makry – jinak by nespárovaný eshopový sortiment
+  // překryl ověřený katalog (sort je stabilní, název zůstane)
+  return vybrane.sort(
+    (a, b) => Number(b.kalorie > 0) - Number(a.kalorie > 0),
+  );
 }

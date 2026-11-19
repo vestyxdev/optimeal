@@ -63,4 +63,27 @@ describe("filtrujKatalog", () => {
     const v = filtrujKatalog(kat, "", "vse", true);
     expect(v.map((x) => x.nazev)).toEqual(["C", "A", "D"]);
   });
+
+  it("potraviny bez nutric (kalorie=0) jdou až za položky s makry", () => {
+    const kat = [
+      { ...p("Eshop chléb"), kalorie: 0 },
+      { ...p("Ověřený chléb"), kalorie: 250 },
+      { ...p("Eshop jogurt"), kalorie: 0 },
+    ];
+    const v = filtrujKatalog(kat, "", "vse");
+    expect(v.map((x) => x.nazev)).toEqual([
+      "Ověřený chléb",
+      "Eshop chléb",
+      "Eshop jogurt",
+    ]);
+  });
+
+  it("u jenSlevy má % slevy přednost před nutricemi", () => {
+    const kat = [
+      { ...p("A"), sleva: true, slevaProcenta: 50, kalorie: 0 },
+      { ...p("B"), sleva: true, slevaProcenta: 10, kalorie: 300 },
+    ];
+    const v = filtrujKatalog(kat, "", "vse", true);
+    expect(v.map((x) => x.nazev)).toEqual(["A", "B"]);
+  });
 });

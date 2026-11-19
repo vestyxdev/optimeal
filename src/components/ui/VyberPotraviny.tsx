@@ -410,7 +410,9 @@ function Radek({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-fg">{p.nazev}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-            <span className="tabular-nums">{formatujKcal(p.kalorie)} kcal / 100 g</span>
+            <span className="tabular-nums">
+              {p.kalorie > 0 ? `${formatujKcal(p.kalorie)} kcal / 100 g` : "bez nutric"}
+            </span>
             {p.sleva && (
               <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
                 {p.slevaProcenta != null ? `−${p.slevaProcenta} %` : "SLEVA"}
@@ -452,7 +454,7 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
       </div>
       <span className="block truncate text-xs font-medium text-fg">{p.nazev}</span>
       <span className="mt-0.5 block text-[11px] tabular-nums text-muted">
-        {formatujKcal(p.kalorie)} kcal / 100 g
+        {p.kalorie > 0 ? `${formatujKcal(p.kalorie)} kcal / 100 g` : "bez nutric"}
         {formatujCenu(p.aktualniCena, p.baleniG).vedlejsi && p.aktualniCena > 0
           ? ` · ${formatujCenu(p.aktualniCena, p.baleniG).vedlejsi}`
           : ""}

@@ -23,6 +23,17 @@ export interface PolozkaNakupu {
   vlastni: boolean;
   kategorie: string;
   obrazek?: string | null;
+  /** vazba na katalog – ruční položky ji nemají (nelze porovnávat) */
+  foodId?: string | null;
+}
+
+/** Jedna aktuální cena potraviny u konkrétního obchodu. */
+export interface CenaObchodu {
+  obchodId: string;
+  obchod: string;
+  cena: number;
+  jeSleva: boolean;
+  pozorovanoAt: string;
 }
 
 /** Načte seznamy přihlášeného uživatele (novější první). */
@@ -108,14 +119,14 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
 
   let { data, error } = await klient
     .from("shopping_list_items")
-    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, potravina:foods(obrazek)")
+    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id, potravina:foods(obrazek)")
     .eq("list_id", idSeznamu)
     .order("id");
   // před migrací 0009 foods.obrazek neexistuje → fallback bez joinu
   if (error && /obrazek/i.test(error.message)) {
     const znovu = await klient
       .from("shopping_list_items")
-      .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie")
+      .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id")
       .eq("list_id", idSeznamu)
       .order("id");
     data = znovu.data as unknown as typeof data;
@@ -135,7 +146,51 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
       ? (p.potravina[0]?.obrazek ?? null)
       : ((p.potravina as { obrazek?: string | null } | null)?.obrazek ?? null)) as string | null,
     kategorie: p.kategorie,
+    foodId: (p.food_id ?? null) as string | null,
   }));
+}
+
+/**
+ * Aktuální ceny napříč obchody pro dané potraviny – základ Cenovky.
+ * price_observations čte authenticated (ceny_cteni); posledních 30 dní
+ * drží objem dotazu malý i při denním scrapingu. Redukce na nejnovější
+ * obs na dvojici (potravina, obchod) – řadíme sestupně, první výskyt vyhrává.
+ */
+export async function nactiCenoveHladiny(
+  foodIds: string[],
+): Promise<Map<string, CenaObchodu[]>> {
+  const vysledek = new Map<string, CenaObchodu[]>();
+  const klient = supabase;
+  const ids = [...new Set(foodIds.filter((id): id is string => Boolean(id)))];
+  if (!klient || ids.length === 0) return vysledek;
+
+  const { data, error } = await klient
+    .from("price_observations")
+    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, obchod:retailers(nazev)")
+    .in("food_id", ids)
+    .gte("pozorovano_at", new Date(Date.now() - 30 * 86400e3).toISOString())
+    .order("pozorovano_at", { ascending: false });
+  if (error) throw new Error(`Ceny obchodů se nenačetly: ${error.message}`);
+
+  const videno = new Set<string>();
+  for (const r of data ?? []) {
+    const klic = `${r.food_id}:${r.retailer_id}`;
+    if (videno.has(klic)) continue;
+    videno.add(klic);
+    const naz = r.obchod as { nazev?: string } | { nazev?: string }[] | null;
+    const obchod = (Array.isArray(naz) ? naz[0]?.nazev : naz?.nazev) ?? "Obchod";
+    const radka: CenaObchodu = {
+      obchodId: r.retailer_id as string,
+      obchod,
+      cena: Number(r.cena),
+      jeSleva: Boolean(r.je_sleva),
+      pozorovanoAt: r.pozorovano_at as string,
+    };
+    const seznam = vysledek.get(r.food_id as string) ?? [];
+    seznam.push(radka);
+    vysledek.set(r.food_id as string, seznam);
+  }
+  return vysledek;
 }
 
 /** Přepne stav seznamu (hotovo/nehotovo). */

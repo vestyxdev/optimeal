@@ -35,7 +35,9 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     kalorie: Number(r.kalorie),
     beznaCena: Number(r.bezna_cena),
     aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
-    obchod: (r.sleva ? r.obchod : null) as string | null,
+    // obchod ukazujeme i u běžné ceny – asortimentní cena eshopu
+    // je pro Cenovku stejně důležitá jako letáková sleva
+    obchod: (r.obchod ?? null) as string | null,
     sleva: Boolean(r.sleva),
     vytvoril: (r.vytvoril ?? null) as string | null,
     zdroj: (r.zdroj_potraviny as string) ?? "manual",

@@ -386,6 +386,7 @@ function RadekPotraviny({
             </Badge>
           )}
           {vlastni && <Badge tono="primary">Vlastní</Badge>}
+          {p.kalorie <= 0 && <Badge tono="neutral">bez nutric</Badge>}
           {(p.diety ?? []).map((d) => (
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
           ))}
@@ -408,16 +409,23 @@ function RadekPotraviny({
           );
         })()}
       </td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{formatujKcal(p.kalorie)}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.bilkoviny)}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.sacharidy)}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{formatujMakro(p.tuky)}</td>
+      {/* eshopové položky bez nutric (kalorie=0) – nulová hodnota by lživě */}
+      {/* tvrdila „0 kcal", proto neutrální „bez údajů" */}
+      <td className="px-4 py-2.5 text-right tabular-nums">
+        {p.kalorie > 0 ? formatujKcal(p.kalorie) : <span className="text-muted">bez údajů</span>}
+      </td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.bilkoviny) : "–"}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.sacharidy) : "–"}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.tuky) : "–"}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
         {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
           <span className="ml-1 text-xs text-muted line-through">
             {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
           </span>
+        )}
+        {p.obchod && !p.sleva && (
+          <span className="block text-xs font-normal text-muted">{p.obchod}</span>
         )}
       </td>
       {uzivatelId !== null && (
@@ -468,6 +476,7 @@ function KartaPotraviny({
               </Badge>
             )}
             {vlastni && <Badge tono="primary">Vlastní</Badge>}
+            {p.kalorie <= 0 && <Badge tono="neutral">bez nutric</Badge>}
             {(p.diety ?? []).map((d) => (
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
             ))}
@@ -480,7 +489,9 @@ function KartaPotraviny({
           <PasekMakro p={p} />
           <div className="mt-2 flex items-baseline justify-between text-sm">
             <span className="tabular-nums text-muted">
-              {formatujKcal(p.kalorie)} kcal · B {formatujMakro(p.bilkoviny)} · S {formatujMakro(p.sacharidy)} · T {formatujMakro(p.tuky)}
+              {p.kalorie > 0
+                ? `${formatujKcal(p.kalorie)} kcal · B ${formatujMakro(p.bilkoviny)} · S ${formatujMakro(p.sacharidy)} · T ${formatujMakro(p.tuky)}`
+                : "bez nutričních údajů"}
             </span>
             <span className="tabular-nums font-semibold">
               {cenaLabel(p, p.aktualniCena)}
@@ -488,6 +499,9 @@ function KartaPotraviny({
                 <span className="ml-1 text-xs font-normal text-muted line-through">
                   {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
                 </span>
+              )}
+              {p.obchod && !p.sleva && (
+                <span className="ml-1 text-xs font-normal text-muted">{p.obchod}</span>
               )}
             </span>
           </div>
