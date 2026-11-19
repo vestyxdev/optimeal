@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import "./index.css";
 import App from "./App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { logChyba } from "@/lib/logChyba";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +15,15 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
+});
+
+// produkční observabilita – nezachycené chyby a odmítnuté promise
+// jdou přes centrální logChyba (připraveno pro Sentry/error tabulku)
+window.addEventListener("error", (e) => {
+  logChyba(e.error ?? e.message, { zdroj: "window", misto: e.filename });
+});
+window.addEventListener("unhandledrejection", (e) => {
+  logChyba(e.reason, { zdroj: "unhandled-rejection" });
 });
 
 createRoot(document.getElementById("root") as HTMLElement).render(

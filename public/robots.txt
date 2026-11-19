@@ -5,3 +5,5 @@ Disallow: /nastaveni
 Disallow: /nakup
 Disallow: /mealprep
 Disallow: /plany/
+
+Sitemap: https://optimeal.app/sitemap.xml

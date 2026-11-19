@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { logChyba } from "@/lib/logChyba";
 
 interface Stav {
   chyba: Error | null;
@@ -22,8 +23,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(chyba: Error, info: { componentStack: string }) {
-    // eslint-disable-next-line no-console -- zachycená chyba patří do konzole
-    console.error("Nechycená chyba v Reactu:", chyba, info.componentStack);
+    logChyba(chyba, { zdroj: "error-boundary", stack: info.componentStack });
   }
 
   render() {

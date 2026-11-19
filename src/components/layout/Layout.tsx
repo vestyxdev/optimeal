@@ -176,6 +176,25 @@ export function Layout() {
             <Outlet />
           </ErrorBoundary>
         </main>
+
+        {/* minimalistická patička – transparentnost dat + právní odkazy */}
+        <footer className="border-t border-border px-4 py-4 text-xs text-muted md:px-6">
+          <div className="om-kontejner flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <p className="max-w-xl">
+              Ceny a slevy agregujeme z veřejných zdrojů obchodů (letáky, e-shopy,
+              Kupi.cz, OpenFoodFacts). Skutečná cena v konkrétní prodejně se může lišit –
+              před nákupem ověřte cenovku na regálu.
+            </p>
+            <nav className="flex gap-4" aria-label="Právní odkazy">
+              <NavLink to="/soukromi" className="hover:text-fg hover:underline">
+                Ochrana soukromí
+              </NavLink>
+              <NavLink to="/podminky" className="hover:text-fg hover:underline">
+                Podmínky použití
+              </NavLink>
+            </nav>
+          </div>
+        </footer>
       </div>
 
       {/* ---- mobil: spodní navigace ---- */}
