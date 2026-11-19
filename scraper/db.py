@@ -15,7 +15,7 @@ from datetime import date, datetime, timezone
 import requests
 
 from .normalizace import normalizuj_nazev, stem_nazev
-from .retailers.base import Nabidka
+from .retailers.base import Nabidka, je_potravina
 
 log = logging.getLogger("scraper.db")
 
@@ -391,9 +391,10 @@ class SupabaseWriter:
         return stat
 
     def vytvor_potravinu(self, n: Nabidka) -> str | None:
-        """Založí potravinu z eshopové nabídky (schvaleno=false, nulová
-        makra) – obohaceni.py ji později doplní z Open Food Facts
-        a teprve pak schválí. Vrací foods.id nebo None."""
+        """Založí potravinu z eshopové nabídky – schválenou hned
+        (zdroj je důvěryhodný eshop; jen makra chybí a ty doplní
+        obohaceni.py z Open Food Facts – kalorie=0 generátor ignoruje).
+        Vrací foods.id nebo None."""
         radka = {
             "nazev": n.nazev[:200],
             "kategorie": n.kategorie or "ostatni",
@@ -403,7 +404,7 @@ class SupabaseWriter:
             "ean": n.ean,
             "obrazek": n.obrazek,
             "zdroj": f"eshop:{n.obchod.lower()}",
-            "schvaleno": False,
+            "schvaleno": True,
         }
         try:
             r = requests.post(
@@ -498,6 +499,9 @@ class SupabaseWriter:
             radky = {}
 
         for n in nabidky:
+            if not je_potravina(n.nazev):
+                stat["preskoceno"] += 1
+                continue
             food_id = self._food_id_fuzzy(n.ean, n.nazev)
             if not food_id and vytvarej:
                 food_id = self.vytvor_potravinu(n)

@@ -44,7 +44,9 @@ TOP_SLUGY = {
     "c1083-mrazene": "ostatni",
     "c1107-napoje": "ostatni",
     "c36779-zdravi-a-zivotni-styl": "ostatni",
-    "c1455-drogerie": "ostatni",
+    # nepotravinové topy – leaf se nestahuje (drogerie by zakládala
+    # "potraviny" jako prací gel v potravinovém katalogu)
+    "c1455-drogerie": "nepotravina",
 }
 
 _JEDNOTKY_G = {"g": 1.0, "kg": 1000.0, "ml": 1.0, "cl": 10.0, "l": 1000.0}
@@ -267,7 +269,8 @@ class KosikScraper(BaseScraper):
 
     def stahni_slevy(self) -> Iterator[Nabidka]:
         # fetched až po prvním reálném produktu (stejná pojistka jako Rohlík)
-        leaf = self._listove_slugy()
+        leaf = {s: k for s, k in self._listove_slugy().items()
+                if k != "nepotravina"}
         if self.max_kategorii:
             leaf = dict(sorted(leaf.items())[: self.max_kategorii])
         self.leaf_celkem = len(leaf)

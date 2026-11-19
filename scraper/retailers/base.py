@@ -100,6 +100,32 @@ def ceny_na_100g(cena: float, gramy: Optional[float]) -> Optional[float]:
     return None
 
 
+# Konzervativní filtr nepotravinového zboží – Košík i Rohlík míchají
+# drogerii do produktových listů potravinových kategorií; bez filtru by
+# se "prací gel" zakládal jako potravina. Jen jednoznačné výrazy.
+RE_NEPOTRAVINA = re.compile(
+    r"prací (gel|prášek|kapsl|prostřed|tablet|sod[au])|aviváž|"
+    r"šampon|šampón|sprchový (gel|krém|olej|balzám)|tělov(ý|é|á|ého) |"
+    r"deodorant|antiperspirant|zubní (pasta|kartáč)|"
+    r"ústní vod|toaletní papír|papírové kapesn|kuchyňské utěrk|houbičk|"
+    r"houba na nádobí|\bsavo\b|domestos|fixinela|čistič|"
+    r"(prostředek|gel|tablety?) na nádobí|tekuté mýdlo|mýdlo|"
+    r"\bvložky\b|tampon|plenk|\bpleny\b|intimní|bateri|svíčk[aeuy]\b|svíček|"
+    r"odpuzovač|repelent|lepidl|wc (gel|kostk|blok|čistič|kachlíčk)|"
+    r"osvěžovač|vonn(á|é|ý) (tyčink|svíčk|vosk)|žárovk|"
+    r"pytle? na (odpad|smeti)|gumové rukavice|latexové rukavice|"
+    r"nitrilov|ubrousk|navlék|mop\b|kbelík|vědro|\blufa\b|"
+    r"krmivo pro|granule pro (psy|kočk)|pro psy\b|pro kočky\b|"
+    r"kočičí (stelivo|wc|toaleta)|stelivo|hovinko|pamlse?k|"
+    r"dentální (pasta|kartáč|voda)|vlhčený toaletní|inkontinenčn",
+    re.IGNORECASE)
+
+
+def je_potravina(nazev: str) -> bool:
+    """False pro zjevně nepotravinové položky (drogerie, zverimex)."""
+    return not RE_NEPOTRAVINA.search(nazev or "")
+
+
 class BaseScraper:
     """Společný základ: session, retry, tempo. Potomek = 1 řetězec."""
 

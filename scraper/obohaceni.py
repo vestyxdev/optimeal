@@ -2,8 +2,9 @@
 
 python -m scraper.obohaceni [--limit N] [--vse]
 
-Cíl: foods zdroj='eshop:*' se schvaleno=false (založené asortimentním
-scraperem bez maker) a foods s kalorie=0. Postup pro každou potravinu:
+Cíl: foods s kalorie=0 nebo schvaleno=false – eshopové potraviny se
+zakládají schválené s nulovými makry, takže sem padají přes kalorie=0.
+Postup pro každou potravinu:
 
 1. EAN → GET /api/v2/product/{ean}.json (nejspolehlivější shoda)
 2. jinak → GET /cgi/search.pl?search_terms=<název>&country=česko
@@ -165,16 +166,14 @@ def main() -> int:
     h = {"apikey": klic, "Authorization": f"Bearer {klic}",
          "Content-Type": "application/json"}
 
-    # cílové potraviny: neschválené z eshopů + schválené s kalorie=0
+    # cílové potraviny: cokoliv bez maker (kalorie=0) nebo neschválené –
+    # eshopové řádky se zakládají schválené, takže filtr kalorie=0
     params: dict = {
         "select": "id,nazev,ean,obrazek,alergeny,kalorie,zdroj",
         "limit": args.limit,
         "order": "vytvoreno.asc",
+        "or": "(schvaleno.eq.false,kalorie.eq.0)",
     }
-    if args.vse:
-        params["or"] = "(schvaleno.eq.false,kalorie.eq.0)"
-    else:
-        params["schvaleno"] = "eq.false"
     r = requests.get(f"{url}/rest/v1/foods", headers=h, params=params, timeout=30)
     r.raise_for_status()
     foods = r.json()

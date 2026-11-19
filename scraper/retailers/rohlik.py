@@ -54,6 +54,10 @@ TOP_KATEGORIE = {
     300121429: "Plant-based",
 }
 
+# topy, které nejsou jídlo – leaf se ani nestahuje (drogerie by jinak
+# založila "potraviny" jako prací gel v potravinovém katalogu)
+NEPOTRAVINY_TOP = {300109000}
+
 # Rohlík top kategorie → naše kategorie
 TOP_MAPA = {
     300101000: "peckoviny_obily",
@@ -259,6 +263,8 @@ class RohlikScraper(BaseScraper):
         # fetched označíme až po prvním reálném produktu – prázdná/dohozená
         # odezva API nesmí spustit stale purge (vymazal by platnou historii)
         leaf_top = self._listove_kategorie()
+        leaf_top = {k: v for k, v in leaf_top.items()
+                    if v not in NEPOTRAVINY_TOP}
         if self.max_kategorii:
             leaf_top = dict(sorted(leaf_top.items())[: self.max_kategorii])
         self.leaf_celkem = len(leaf_top)

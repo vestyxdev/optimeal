@@ -6,8 +6,8 @@ python -m scraper.asortiment [--dry-run] [--obchod rohlik|kosik]
 - Projede eshopy; selhání jednoho neshodí druhý.
 - Ceny se upsertují do price_observations (zdroj='asortiment:<obchod>'),
   je_sleva=false pro běžné ceny / true u eshopových akcí.
-- Nespárované produkty se zakládají jako foods se schvaleno=false –
-  obohaceni.py je pak doplní o makra z Open Food Facts.
+- Nespárované produkty se zakládají jako foods se schvaleno=true (zdroj
+  je ověřený eshop); makra jim doplní obohaceni.py (filtr kalorie=0).
 - Stale purge smaže asortimentní pozorování neobnovená v tomto běhu
   (jen u eshopů, které skutečně doběhly) + expirovaná pozorování.
 - Exit 0 i při částečném selhání; při TOTÁLNÍM selhání → 1.
