@@ -7,7 +7,7 @@ import type { Recept } from "@/lib/data/recepty";
 const potravinyy: Potravina[] = [
   {
     id: "p-kuze", nazev: "Kuřecí prsa", bilkoviny: 31, sacharidy: 0, tuky: 3.5, kalorie: 165,
-    beznaCena: 12, aktualniCena: 9.49, obchod: "Billa", sleva: true, kategorie: "maso_ryby",
+    beznaCena: 12, aktualniCena: 9.49, obchod: "Billa", sleva: true, kategorie: "maso_ryby", puvodniCena: 12,
   },
   {
     id: "p-ryze", nazev: "Rýže basmati", bilkoviny: 7, sacharidy: 78, tuky: 1, kalorie: 350,
@@ -15,11 +15,11 @@ const potravinyy: Potravina[] = [
   },
   {
     id: "p-brambory", nazev: "Brambory", bilkoviny: 2, sacharidy: 17, tuky: 0.1, kalorie: 77,
-    beznaCena: 2, aktualniCena: 1.49, obchod: "Billa", sleva: true, kategorie: "ovoce_zelenina",
+    beznaCena: 2, aktualniCena: 1.49, obchod: "Billa", sleva: true, kategorie: "ovoce_zelenina", puvodniCena: 2,
   },
   {
     id: "p-tvaroh", nazev: "Tvaroh polotučný", bilkoviny: 12, sacharidy: 4, tuky: 1.5, kalorie: 85,
-    beznaCena: 6, aktualniCena: 4.49, obchod: "Tesco", sleva: true, kategorie: "mlecne_vyrobky",
+    beznaCena: 6, aktualniCena: 4.49, obchod: "Tesco", sleva: true, kategorie: "mlecne_vyrobky", puvodniCena: 6,
   },
   {
     id: "p-bezceny", nazev: "Bez ceny", bilkoviny: 10, sacharidy: 10, tuky: 10, kalorie: 200,

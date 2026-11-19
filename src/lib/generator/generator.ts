@@ -426,7 +426,12 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     sacharidy: Math.round(p.sacharidy * k * 10) / 10,
     tuky: Math.round(p.tuky * k * 10) / 10,
     cena: Math.round(p.aktualniCena * k * 100) / 100,
-    cenaBezna: Math.round(p.beznaCena * k * 100) / 100,
+    // úspora se počítá jen ze zdrojem ověřené původní ceny – bez ní
+    // cenaBezna = aktuální cena (ušetřeno 0, žádný odhad z mediánu)
+    cenaBezna: Math.round(
+      (p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
+        ? p.puvodniCena
+        : p.aktualniCena) * k * 100) / 100,
     obchod: p.sleva ? p.obchod : null,
     sleva: p.sleva,
     obrazek: p.obrazek ?? null,

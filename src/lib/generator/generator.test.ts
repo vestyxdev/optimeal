@@ -48,6 +48,9 @@ function p(
     aktualniCena,
     obchod,
     sleva: aktualniCena < beznaCena,
+    // v testovacím katalogu slouží beznaCena zároveň jako zdrojem
+    // zveřejněná původní cena – bez ní by se úspora nepočítala
+    puvodniCena: aktualniCena < beznaCena ? beznaCena : null,
   };
 }
 

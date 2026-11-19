@@ -99,24 +99,17 @@ describe("formatujKc", () => {
 });
 
 describe("referencniCena", () => {
-  it("reálná původní cena má přednost před běžnou", () => {
-    expect(referencniCena(0.99, 2.02, 4.99)).toEqual({ cena: 2.02, jePuvodni: true });
+  it("vrátí zdrojem ověřenou původní cenu nad aktuální", () => {
+    expect(referencniCena(0.99, 2.02)).toBe(2.02);
+    expect(referencniCena(1.33, 2.01)).toBe(2.01);
   });
-  it("bez původní ceny → běžná cena jako reference", () => {
-    expect(referencniCena(1.33, null, 2.01)).toEqual({ cena: 2.01, jePuvodni: false });
-  });
-  it("běžná cena nižší než akční → žádná reference (nesmí lhát)", () => {
-    expect(referencniCena(19.75, null, 4.49)).toBeNull();
-  });
-  it("běžná rovna akční → žádná reference", () => {
-    expect(referencniCena(43.89, null, 43.89)).toBeNull();
-  });
-  it("původní nižší než akční → ignoruje se, bere se běžná", () => {
-    expect(referencniCena(5, 4, 8)).toEqual({ cena: 8, jePuvodni: false });
-  });
-  it("ani jedna reference → null", () => {
-    expect(referencniCena(5, null, null)).toBeNull();
+  it("bez původní ceny → null (žádný odhad z mediánu)", () => {
+    expect(referencniCena(1.33, null)).toBeNull();
     expect(referencniCena(5)).toBeNull();
+  });
+  it("původní cena nevyšší než akční → null", () => {
+    expect(referencniCena(19.75, 4.49)).toBeNull();
+    expect(referencniCena(43.89, 43.89)).toBeNull();
   });
 });
 

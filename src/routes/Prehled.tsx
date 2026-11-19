@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, referencniCena } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
@@ -168,15 +168,11 @@ function ZiveAkce() {
                 {formatujCenu(p.cena, p.baleniG).hlavni}
                 {p.obchod ? ` · ${p.obchod}` : ""}
               </span>
-              {(() => {
-                const ref = referencniCena(p.cena, p.puvodniCena, p.beznaCena);
-                return ref ? (
-                  <span className="block text-[10px] tabular-nums text-muted">
-                    {!ref.jePuvodni && "běžně "}
-                    <span className="line-through">{formatujCenu(ref.cena, p.baleniG).hlavni}</span>
-                  </span>
-                ) : null;
-              })()}
+              {p.puvodniCena != null && p.puvodniCena > p.cena && (
+                <span className="block text-[10px] tabular-nums text-muted line-through">
+                  {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
+                </span>
+              )}
               {formatujPlatnostDo(p.platnostDo) && (
                 <span className="mt-0.5 block text-[10px] text-muted">
                   {formatujPlatnostDo(p.platnostDo)}
@@ -316,15 +312,11 @@ function PrihlasenyPrehled() {
                   {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
                   {p.obchod ? ` · ${p.obchod}` : ""}
                 </span>
-                {(() => {
-                  const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
-                  return ref ? (
-                    <span className="block text-[10px] tabular-nums text-muted">
-                      {!ref.jePuvodni && "běžně "}
-                      <span className="line-through">{formatujCenu(ref.cena, p.baleniG).hlavni}</span>
-                    </span>
-                  ) : null;
-                })()}
+                {p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
+                  <span className="block text-[10px] tabular-nums text-muted line-through">
+                    {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
+                  </span>
+                )}
                 {formatujPlatnostDo(p.platnostDo) && (
                   <span className="mt-0.5 block text-[10px] text-muted">
                     {formatujPlatnostDo(p.platnostDo)}

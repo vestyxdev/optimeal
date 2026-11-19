@@ -95,7 +95,10 @@ export function sestavMealprep(
 
       if (p.aktualniCena > 0) {
         cena += (p.aktualniCena * gramy) / 100;
-        cenaBezna += (p.beznaCena * gramy) / 100;
+        // úspora jen ze zdrojem ověřené původní ceny – nikdy z mediánu
+        cenaBezna += ((p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
+          ? p.puvodniCena
+          : p.aktualniCena) * gramy) / 100;
       } else {
         chybejiciCeny.add(p.nazev);
       }
@@ -112,7 +115,9 @@ export function sestavMealprep(
           nazev: p.nazev,
           gramy,
           cenaZa100g: p.aktualniCena > 0 ? p.aktualniCena : null,
-          cenaBeznaZa100g: p.beznaCena > 0 ? p.beznaCena : null,
+          cenaBeznaZa100g: p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
+            ? p.puvodniCena
+            : (p.aktualniCena > 0 ? p.aktualniCena : null),
           obchod: p.aktualniCena > 0 ? p.obchod : null,
           sleva: p.aktualniCena > 0 && p.sleva,
           obrazek: p.obrazek ?? null,

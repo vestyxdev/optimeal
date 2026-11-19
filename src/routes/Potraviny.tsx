@@ -14,7 +14,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo, referencniCena } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { filtrujKatalog } from "@/lib/katalog";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
@@ -419,15 +419,11 @@ function RadekPotraviny({
       <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.tuky) : "–"}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
-        {p.sleva && (() => {
-          const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
-          return ref ? (
-            <span className="ml-1 text-xs text-muted">
-              {!ref.jePuvodni && "běžně "}
-              <span className="line-through">{cenaLabel(p, ref.cena)}</span>
-            </span>
-          ) : null;
-        })()}
+        {p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
+          <span className="ml-1 text-xs text-muted line-through">
+            {cenaLabel(p, p.puvodniCena)}
+          </span>
+        )}
         {p.obchod && !p.sleva && (
           <span className="block text-xs font-normal text-muted">{p.obchod}</span>
         )}
@@ -499,15 +495,11 @@ function KartaPotraviny({
             </span>
             <span className="tabular-nums font-semibold">
               {cenaLabel(p, p.aktualniCena)}
-              {p.sleva && (() => {
-                const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
-                return ref ? (
-                  <span className="ml-1 text-xs font-normal text-muted">
-                    {!ref.jePuvodni && "běžně "}
-                    <span className="line-through">{cenaLabel(p, ref.cena)}</span>
-                  </span>
-                ) : null;
-              })()}
+              {p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
+                <span className="ml-1 text-xs font-normal text-muted line-through">
+                  {cenaLabel(p, p.puvodniCena)}
+                </span>
+              )}
               {p.obchod && !p.sleva && (
                 <span className="ml-1 text-xs font-normal text-muted">{p.obchod}</span>
               )}

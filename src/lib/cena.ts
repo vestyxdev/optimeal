@@ -45,34 +45,18 @@ export function formatujCenuPolozky(p: {
   return formatujCenu(p.aktualniCena, p.baleniG);
 }
 
-export interface ReferencniCena {
-  /** referenční cena za 100 g (přeškrtnutá u slevy) */
-  cena: number;
-  /** true = reálně zveřejněná původní cena obchodu; false = běžná cena (medián reálných pozorování) */
-  jePuvodni: boolean;
-}
-
 /**
- * Přeškrtnutá referenční cena u slevy.
- * 1) puvodni_cena – skutečná přeškrtnutá cena z letáku/obchodu (včetně
- *    Kupi „běžně stojí"), když ji zdroj zveřejnil.
- * 2) jinak bezna_cena – medián reálně pozorovaných cen produktu,
- *    zobrazuje se jako „běžně ~X" (nejde o původní cenu obchodu).
- * Referenční cena se ukazuje jen když je nad aktuální – jinak by
- * „sleva" vizuálně lživě vypadala jako zdražení.
+ * Přeškrtnutá původní cena u slevy (Kč/100 g) – pouze ta, kterou
+ * zdroj skutečně zveřejnil (letákové % / přeškrtnutá cena, e-shopová
+ * was-price, Kupi „běžně stojí"). Nikdy žádný odhad z mediánu
+ * ani historie – bez zdrojové ceny se vrací null a UI ukáže
+ * holou aktuální cenu.
  */
 export function referencniCena(
   aktualniCena: number,
   puvodniCena?: number | null,
-  beznaCena?: number | null,
-): ReferencniCena | null {
-  if (puvodniCena != null && puvodniCena > aktualniCena) {
-    return { cena: puvodniCena, jePuvodni: true };
-  }
-  if (beznaCena != null && beznaCena > aktualniCena) {
-    return { cena: beznaCena, jePuvodni: false };
-  }
-  return null;
+): number | null {
+  return puvodniCena != null && puvodniCena > aktualniCena ? puvodniCena : null;
 }
 
 const makroFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });
