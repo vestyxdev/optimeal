@@ -7,7 +7,7 @@
 const STRANA = 1000;
 
 /** Strukturální minimum, co potřebujeme od PostgREST dotazu. */
-interface StrankovatelnyDotaz<T> {
+export interface StrankovatelnyDotaz<T> {
   range(od: number, do_: number): PromiseLike<{
     data: T[] | null;
     error: { message: string } | null;

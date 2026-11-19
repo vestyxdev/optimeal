@@ -169,6 +169,9 @@ export async function nactiCenoveHladiny(
     .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, obchod:retailers(nazev)")
     .in("food_id", ids)
     .gte("pozorovano_at", new Date(Date.now() - 30 * 86400e3).toISOString())
+    // expirované letákové slevy nikdy nepovrchují jako aktivní –
+    // stejné pravidlo jako view aktualni_ceny
+    .or("je_sleva.eq.false,platnost_do.is.null,platnost_do.gte." + new Date().toISOString().slice(0, 10))
     .order("pozorovano_at", { ascending: false });
   if (error) throw new Error(`Ceny obchodů se nenačetly: ${error.message}`);
 

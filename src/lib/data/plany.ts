@@ -1,6 +1,7 @@
 import type { Cile, Potravina } from "@/lib/generator/generator";
 import { supabase } from "@/lib/supabase";
-import { nactiVse } from "@/lib/data/strankovani";
+import { nactiVse, type StrankovatelnyDotaz } from "@/lib/data/strankovani";
+import { SLOUPCE_AKTUALNI_CENY } from "@/lib/data/potraviny";
 
 /**
  * Načtení potravin s AKTUÁLNÍMI cenami z view `aktualni_ceny`
@@ -61,11 +62,12 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
-  const data = await nactiVse<RadkaAktualniCeny>(() =>
-    klient
-      .from("aktualni_ceny")
-      .select("*")
-      .order("nazev"),
+  const data = await nactiVse<RadkaAktualniCeny>(
+    () =>
+      klient
+        .from("aktualni_ceny")
+        .select(SLOUPCE_AKTUALNI_CENY)
+        .order("nazev") as unknown as StrankovatelnyDotaz<RadkaAktualniCeny>,
   );
 
   return data.map(mapAktualniCeny);
@@ -84,10 +86,10 @@ export async function nactiPotravinyPodleId(ids: string[]): Promise<Potravina[]>
   for (let i = 0; i < unik.length; i += 100) {
     const { data, error } = await klient
       .from("aktualni_ceny")
-      .select("*")
+      .select(SLOUPCE_AKTUALNI_CENY)
       .in("food_id", unik.slice(i, i + 100));
     if (error) throw new Error(`Ceny se nenačetly: ${error.message}`);
-    radky.push(...(data ?? []));
+    radky.push(...((data ?? []) as unknown as RadkaAktualniCeny[]));
   }
   return radky.map(mapAktualniCeny);
 }
