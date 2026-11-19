@@ -199,6 +199,14 @@ def main() -> int:
             f"{url}/rest/v1/foods", headers=h,
             params={"id": f"eq.{food['id']}"}, json=patch, timeout=30,
         )
+        if not pr.ok and '"code":"23505"' in pr.text and "ean" in patch:
+            # OFF EAN už nese jiná potravina → opakovat bez EANu,
+            # ať se makra aspoň zapíší (jinak přijdeme i o ně)
+            patch.pop("ean", None)
+            pr = requests.patch(
+                f"{url}/rest/v1/foods", headers=h,
+                params={"id": f"eq.{food['id']}"}, json=patch, timeout=30,
+            )
         if pr.ok:
             doplneno += 1
             schvaleno += 1 if patch.get("schvaleno") else 0
