@@ -42,7 +42,9 @@ RE_BEZNA = re.compile(
     r"běžně\s+stojí[^<]{0,80}?<[^>]*>\s*([\d\s\xa0]+[,\.]?\d*)\s*(?:&nbsp;|\s|&\w+;)*Kč",
     re.IGNORECASE,
 )
-MAX_NASOBEK = 20  # běžná cena > 20× akční = zjevně jiné balení/chyba
+# Stejné meze jako view aktualni_ceny: původní musí znamenat aspoň
+# ~1 % slevu a nesmí přesáhnout 4× akční (nad tím pack-mismatch artefakt).
+MAX_NASOBEK = 4
 
 
 def _get(session: requests.Session, url: str, pokusy: int = 3) -> requests.Response | None:
@@ -151,7 +153,7 @@ def main() -> int:
                 continue
             p100 = round(bezna * 100 / baleni, 2)
             cena = float(o["cena"])
-            if not (cena < p100 <= cena * MAX_NASOBEK):
+            if not (cena * 1.01 <= p100 <= cena * MAX_NASOBEK):
                 stat["nesmysl"] += 1
                 continue
             if args.dry:
@@ -163,7 +165,7 @@ def main() -> int:
                     f"{url}/rest/v1/price_observations",
                     headers={**hlavicky, "Prefer": "return=minimal"},
                     params={"id": f"eq.{o['id']}"},
-                    json={"puvodni_cena": p100},
+                    json={"puvodni_cena": p100, "puvodni_zdroj": "kupi"},
                     timeout=30,
                 )
                 if pr.ok:

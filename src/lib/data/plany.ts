@@ -24,7 +24,12 @@ interface RadkaAktualniCeny {
   pozorovano_at: string | null;
   baleni_g: number | null;
   puvodni_cena: number | null;
+  puvodni_zdroj?: "letak" | "eshop" | "kupi" | null;
   sleva_procenta: number | null;
+  platnost_do?: string | null;
+  obrazek?: string | null;
+  alergeny?: string[] | null;
+  diety?: string[] | null;
 }
 
 function mapAktualniCeny(r: RadkaAktualniCeny): Potravina {
@@ -40,13 +45,15 @@ function mapAktualniCeny(r: RadkaAktualniCeny): Potravina {
     aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
     obchod: r.sleva ? r.obchod : null,
     sleva: Boolean(r.sleva),
-    alergeny: (r as { alergeny?: string[] }).alergeny ?? [],
-    diety: (r as { diety?: string[] }).diety ?? [],
-    obrazek: (r as { obrazek?: string | null }).obrazek ?? null,
+    alergeny: r.alergeny ?? [],
+    diety: r.diety ?? [],
+    obrazek: r.obrazek ?? null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    puvodniZdroj: r.puvodni_zdroj ?? null,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
-    platnostDo: (r as { platnost_do?: string | null }).platnost_do ?? null,
+    platnostDo: r.platnost_do ?? null,
+    pozorovanoAt: r.pozorovano_at ?? null,
   };
 }
 

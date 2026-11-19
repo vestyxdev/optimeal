@@ -56,7 +56,29 @@ export function referencniCena(
   aktualniCena: number,
   puvodniCena?: number | null,
 ): number | null {
-  return puvodniCena != null && puvodniCena > aktualniCena ? puvodniCena : null;
+  if (!Number.isFinite(aktualniCena) || aktualniCena <= 0) return null;
+  if (puvodniCena == null || !Number.isFinite(puvodniCena)) return null;
+  // Stejné meze jako view aktualni_ceny: původní cena musí znamenat
+  // aspoň ~1 % slevu a nesmí přesáhnout 4× aktuální – nad tím jde
+  // o pack-mismatch artefakt, ne o reálnou přeškrtnutou cenu.
+  if (puvodniCena < aktualniCena * 1.01 || puvodniCena > aktualniCena * 4) {
+    return null;
+  }
+  return puvodniCena;
+}
+
+/**
+ * Ověřené procento slevy – stejný výpočet jako view
+ * (`round((1 - cena/původní) * 100)`). Vrací null, když původní
+ * cena sanity mezemi neprojde.
+ */
+export function slevaProcenta(
+  aktualniCena: number,
+  puvodniCena?: number | null,
+): number | null {
+  const puvodni = referencniCena(aktualniCena, puvodniCena);
+  if (puvodni == null) return null;
+  return Math.round(Math.max(0, 1 - aktualniCena / puvodni) * 100);
 }
 
 const makroFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });

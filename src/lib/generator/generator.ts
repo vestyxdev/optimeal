@@ -42,12 +42,16 @@ export interface Potravina {
   obchod: string | null;
   /** je právě ve slevě? */
   sleva: boolean;
-  /** původní (přeškrtnutá) cena za 100 g z letáku/seedu – může se lišit od beznaCena */
+  /** původní (přeškrtnutá) cena za 100 g – jen zdrojem ověřená */
   puvodniCena?: number | null;
+  /** odkud původní cena pochází: letákové %, was-price eshopu, Kupi „běžně stojí“ */
+  puvodniZdroj?: "letak" | "eshop" | "kupi" | null;
   /** % slevy spočítaná z původní ceny (badge „-30 %“) */
   slevaProcenta?: number | null;
   /** poslední den platnosti akční ceny (ISO) – „sleva do út 18. 11.“ */
   platnostDo?: string | null;
+  /** kdy byla cena naposledy pozorována scraperem (ISO) – „aktualizováno dnes“ */
+  pozorovanoAt?: string | null;
   /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
   kategorie?: string;
   /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) */

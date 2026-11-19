@@ -12,7 +12,7 @@ from scraper.normalizace import (
     obchod_z_location,
 )
 from scraper import open_prices
-from scraper.db import SupabaseWriter
+from scraper.db import SupabaseWriter, _platna_puvodni
 
 
 class TestFoodId(unittest.TestCase):
@@ -222,6 +222,31 @@ class TestKurzEurCnb(unittest.TestCase):
     def test_poskozeny_radek_vychozi(self, mock_get):
         mock_get.return_value = MagicMock(text="EMU|euro|1|EUR|neplatné\n")
         self.assertEqual(open_prices.kurz_eur_cnb(), 25.5)
+
+
+class TestPlatnaPuvodni(unittest.TestCase):
+    """Sanity ověřené původní ceny – stejné meze jako view aktualni_ceny."""
+
+    def test_platna_sleva_projde(self):
+        self.assertTrue(_platna_puvodni(2.02, 0.99))
+        self.assertTrue(_platna_puvodni(11.0, 7.7))
+
+    def test_pod_akcni_nebo_rovna_zamitnuto(self):
+        self.assertFalse(_platna_puvodni(4.49, 19.75))
+        self.assertFalse(_platna_puvodni(43.89, 43.89))
+
+    def test_sleva_pod_jedno_procento_zamitnuta(self):
+        self.assertFalse(_platna_puvodni(10.05, 10.0))
+        self.assertTrue(_platna_puvodni(10.1, 10.0))
+
+    def test_nad_ctyrnasobek_artefakt(self):
+        self.assertFalse(_platna_puvodni(20.13, 5.03))  # −75 %+ = pack mismatch
+        self.assertTrue(_platna_puvodni(20.12, 5.03))
+
+    def test_nuly_a_zapory(self):
+        self.assertFalse(_platna_puvodni(0, 5))
+        self.assertFalse(_platna_puvodni(10, 0))
+        self.assertFalse(_platna_puvodni(-5, 5))
 
 
 if __name__ == "__main__":

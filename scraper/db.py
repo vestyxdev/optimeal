@@ -20,6 +20,18 @@ from .retailers.base import Nabidka, je_potravina
 log = logging.getLogger("scraper.db")
 
 
+def _platna_puvodni(puvodni: float, cena: float) -> bool:
+    """Sanity ověřené původní ceny – stejné meze jako view aktualni_ceny:
+    musí znamenat aspoň ~1 % slevu a nesmí přesáhnout 4× akční cenu
+    (nad tím jde o pack-mismatch artefakt, ne o reálnou přeškrtnutou cenu)."""
+    return (
+        puvodni > 0
+        and cena > 0
+        and puvodni >= cena * 1.01
+        and puvodni <= cena * 4
+    )
+
+
 class SupabaseWriter:
     def __init__(self, url: str | None = None, klic: str | None = None):
         # strip(): secrets v GitHub Actions můžou mít trailing whitespace
@@ -342,14 +354,17 @@ class SupabaseWriter:
                 )
                 continue
             puvodni = n.puvodni_cena_za_100g
-            if puvodni is not None and puvodni < n.cena_za_100g:
-                puvodni = None  # "původní" pod akční = nesmysl
+            if puvodni is not None and not _platna_puvodni(puvodni, n.cena_za_100g):
+                stat.setdefault("anomalie_puvodni", []).append(
+                    f"{n.nazev} {puvodni}>{n.cena_za_100g}")
+                puvodni = None
             klic = (food_id, retailer_id)
             radek = {
                 "food_id": food_id,
                 "retailer_id": retailer_id,
                 "cena": n.cena_za_100g,
                 "puvodni_cena": puvodni,
+                "puvodni_zdroj": "letak" if puvodni is not None else None,
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
                 "baleni_g": n.gramy,
@@ -369,6 +384,11 @@ class SupabaseWriter:
             log.warning(
                 "Přeskočeno %d anomálních cen, vzorek: %s",
                 len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8],
+            )
+        if stat.get("anomalie_puvodni"):
+            log.warning(
+                "Zahozeno %d neplatných původních cen, vzorek: %s",
+                len(stat["anomalie_puvodni"]), stat["anomalie_puvodni"][:8],
             )
         radky_list = list(radky.values())
         if radky_list:
@@ -537,7 +557,9 @@ class SupabaseWriter:
                     f"{n.nazev} {n.cena_za_100g}")
                 continue
             puvodni = n.puvodni_cena_za_100g
-            if puvodni is not None and puvodni < n.cena_za_100g:
+            if puvodni is not None and not _platna_puvodni(puvodni, n.cena_za_100g):
+                stat.setdefault("anomalie_puvodni", []).append(
+                    f"{n.nazev} {puvodni}>{n.cena_za_100g}")
                 puvodni = None
             klic = (food_id, retailer_id)
             radek = {
@@ -545,6 +567,7 @@ class SupabaseWriter:
                 "retailer_id": retailer_id,
                 "cena": n.cena_za_100g,
                 "puvodni_cena": puvodni,
+                "puvodni_zdroj": "eshop" if puvodni is not None else None,
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
                 "baleni_g": n.gramy,
@@ -566,6 +589,10 @@ class SupabaseWriter:
         if stat.get("anomalie_ceny"):
             log.warning("Anomální ceny %d, vzorek: %s",
                         len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8])
+        if stat.get("anomalie_puvodni"):
+            log.warning("Zahozeno %d neplatných původních cen, vzorek: %s",
+                        len(stat["anomalie_puvodni"]),
+                        stat["anomalie_puvodni"][:8])
         flush()
         if stat.get("odmitnute"):
             log.error("Odmítnuto %d řádků, vzorek: %s",

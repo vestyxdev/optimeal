@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, referencniCena } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, referencniCena, slevaProcenta } from "@/lib/cena";
 
 describe("formatujCenu", () => {
   it("balené zboží → cena za balení + jednotková vedlejší", () => {
@@ -110,6 +110,36 @@ describe("referencniCena", () => {
   it("původní cena nevyšší než akční → null", () => {
     expect(referencniCena(19.75, 4.49)).toBeNull();
     expect(referencniCena(43.89, 43.89)).toBeNull();
+  });
+  it("sleva pod ~1 % → null (stejně jako view)", () => {
+    expect(referencniCena(10, 10.05)).toBeNull();
+    expect(referencniCena(10, 10.1)).toBe(10.1);
+  });
+  it("původní nad 4× akční → null (pack-mismatch artefakt)", () => {
+    expect(referencniCena(5.03, 20.13)).toBeNull(); // −75 %+
+    expect(referencniCena(5.03, 20.12)).toBe(20.12); // těsně pod hranicí
+  });
+  it("neplatná aktuální cena → null", () => {
+    expect(referencniCena(0, 10)).toBeNull();
+    expect(referencniCena(-1, 10)).toBeNull();
+    expect(referencniCena(NaN, 10)).toBeNull();
+  });
+  it("neplatná původní cena → null", () => {
+    expect(referencniCena(1, NaN)).toBeNull();
+    expect(referencniCena(1, Infinity)).toBeNull();
+  });
+});
+
+describe("slevaProcenta", () => {
+  it("stejný výpočet jako view: round((1 − cena/původní)·100)", () => {
+    expect(slevaProcenta(0.99, 2.02)).toBe(51);
+    expect(slevaProcenta(9.9, 19.8)).toBe(50);
+    expect(slevaProcenta(7.7, 11)).toBe(30);
+  });
+  it("bez ověřené původní → null", () => {
+    expect(slevaProcenta(1.33, null)).toBeNull();
+    expect(slevaProcenta(0, 10)).toBeNull();
+    expect(slevaProcenta(5.03, 20.13)).toBeNull(); // artefakt nad 4×
   });
 });
 

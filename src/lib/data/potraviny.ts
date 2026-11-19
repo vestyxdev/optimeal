@@ -1,10 +1,10 @@
-import { supabase } from "@/lib/supabase";
+﻿import { supabase } from "@/lib/supabase";
 import { nactiVse } from "@/lib/data/strankovani";
 import type { Potravina } from "@/lib/generator/generator";
 
 /**
- * Katalog potravin – načítá view `aktualni_ceny` (efektivní ceny)
- * a rozšiřuje o vlastnictví (vytvoril / zdroj = 'uzivatel').
+ * Katalog potravin â€“ naÄŤĂ­tĂˇ view `aktualni_ceny` (efektivnĂ­ ceny)
+ * a rozĹˇiĹ™uje o vlastnictvĂ­ (vytvoril / zdroj = 'uzivatel').
  */
 
 export interface KatalogPotravina extends Potravina {
@@ -16,7 +16,7 @@ export interface KatalogPotravina extends Potravina {
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
 
   const data = await nactiVse<Record<string, unknown>>(() =>
     klient
@@ -35,8 +35,8 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     kalorie: Number(r.kalorie),
     beznaCena: Number(r.bezna_cena),
     aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
-    // obchod ukazujeme i u běžné ceny – asortimentní cena eshopu
-    // je pro Cenovku stejně důležitá jako letáková sleva
+    // obchod ukazujeme i u bÄ›ĹľnĂ© ceny â€“ asortimentnĂ­ cena eshopu
+    // je pro Cenovku stejnÄ› dĹŻleĹľitĂˇ jako letĂˇkovĂˇ sleva
     obchod: (r.obchod ?? null) as string | null,
     sleva: Boolean(r.sleva),
     vytvoril: (r.vytvoril ?? null) as string | null,
@@ -47,15 +47,17 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     ean: (r.ean ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r.platnost_do ?? null) as string | null,
+    pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
   }));
 }
 
-/** Top akční nabídky živě z view – pro dashboard „Aktuální akce“. */
+/** Top akÄŤnĂ­ nabĂ­dky ĹľivÄ› z view â€“ pro dashboard â€žAktuĂˇlnĂ­ akceâ€ś. */
 export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
 
   const { data, error } = await klient
     .from("aktualni_ceny")
@@ -64,7 +66,7 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
     .order("sleva_procenta", { ascending: false, nullsFirst: false })
     .order("pozorovano_at", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
+  if (error) throw new Error(`Slevy se nepodaĹ™ilo naÄŤĂ­st: ${error.message}`);
 
   return (data ?? []).map((r) => ({
     id: r.food_id as string,
@@ -86,12 +88,14 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
     ean: (r.ean ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r.platnost_do ?? null) as string | null,
+    pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
   }));
 }
 
-/** Veřejná akce pro landing – úzká projekce z RPC top_akce (funguje i pro anon). */
+/** VeĹ™ejnĂˇ akce pro landing â€“ ĂşzkĂˇ projekce z RPC top_akce (funguje i pro anon). */
 export interface VerejnaAkce {
   nazev: string;
   obchod: string | null;
@@ -103,12 +107,12 @@ export interface VerejnaAkce {
   baleniG: number | null;
 }
 
-/** Top slevy přes security-definer RPC – čitelné i nepřihlášeným (landing). */
+/** Top slevy pĹ™es security-definer RPC â€“ ÄŤitelnĂ© i nepĹ™ihlĂˇĹˇenĂ˝m (landing). */
 export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
   const klient = supabase;
   if (!klient) return [];
   const { data, error } = await klient.rpc("top_akce", { p_limit: limit });
-  if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
+  if (error) throw new Error(`Slevy se nepodaĹ™ilo naÄŤĂ­st: ${error.message}`);
   return (data ?? []).map((r: Record<string, unknown>) => ({
     nazev: r.nazev as string,
     obchod: (r.obchod ?? null) as string | null,
@@ -121,7 +125,7 @@ export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
   }));
 }
 
-/** Detail jedné potraviny přímo z foods – pro editační formulář (obsahuje i ean). */
+/** Detail jednĂ© potraviny pĹ™Ă­mo z foods â€“ pro editaÄŤnĂ­ formulĂˇĹ™ (obsahuje i ean). */
 export async function nactiPotravinu(id: string): Promise<{
   id: string;
   nazev: string;
@@ -135,13 +139,13 @@ export async function nactiPotravinu(id: string): Promise<{
   baleniG: number | null;
 }> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
   const { data, error } = await klient
     .from("foods")
     .select("id, nazev, kategorie, kalorie, bilkoviny, sacharidy, tuky, bezna_cena, ean, baleni_g")
     .eq("id", id)
     .single();
-  if (error) throw new Error(`Potravinu se nepodařilo načíst: ${error.message}`);
+  if (error) throw new Error(`Potravinu se nepodaĹ™ilo naÄŤĂ­st: ${error.message}`);
   return {
     id: data.id as string,
     nazev: data.nazev as string,
@@ -156,7 +160,7 @@ export async function nactiPotravinu(id: string): Promise<{
   };
 }
 
-/** Upraví vlastní potravinu (RLS dovolí jen autor – zdroj='uzivatel'). */
+/** UpravĂ­ vlastnĂ­ potravinu (RLS dovolĂ­ jen autor â€“ zdroj='uzivatel'). */
 export async function upravPotravinu(
   id: string,
   p: {
@@ -173,7 +177,7 @@ export async function upravPotravinu(
   },
 ): Promise<void> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
 
   const payload: Record<string, unknown> = {
     nazev: p.nazev.trim(),
@@ -189,7 +193,7 @@ export async function upravPotravinu(
   if (p.obrazek !== undefined) payload.obrazek = p.obrazek;
 
   let { error } = await klient.from("foods").update(payload).eq("id", id);
-  // Schéma bez migrace 0009 nezná sloupec obrazek – zkusit znovu bez něj.
+  // SchĂ©ma bez migrace 0009 neznĂˇ sloupec obrazek â€“ zkusit znovu bez nÄ›j.
   if (error && payload.obrazek !== undefined && /obrazek|PGRST204/i.test(`${error.code} ${error.message}`)) {
     delete payload.obrazek;
     ({ error } = await klient.from("foods").update(payload).eq("id", id));
@@ -197,28 +201,28 @@ export async function upravPotravinu(
 
   if (error) {
     if (error.message.includes("duplicate") || error.code === "23505") {
-      throw new Error("Potravina s tímto názvem už v katalogu existuje.");
+      throw new Error("Potravina s tĂ­mto nĂˇzvem uĹľ v katalogu existuje.");
     }
-    throw new Error(`Potravinu se nepodařilo upravit: ${error.message}`);
+    throw new Error(`Potravinu se nepodaĹ™ilo upravit: ${error.message}`);
   }
 }
 
-/** Najde potravinu v katalogu podle uloženého čárového kódu (lokální hit před OFF). */
+/** Najde potravinu v katalogu podle uloĹľenĂ©ho ÄŤĂˇrovĂ©ho kĂłdu (lokĂˇlnĂ­ hit pĹ™ed OFF). */
 export async function hledejPodleEanLokalne(
   ean: string,
 ): Promise<{ id: string; nazev: string } | null> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
   const { data, error } = await klient
     .from("foods")
     .select("id, nazev")
     .eq("ean", ean)
     .maybeSingle();
-  if (error) throw new Error(`Hledání podle kódu selhalo: ${error.message}`);
+  if (error) throw new Error(`HledĂˇnĂ­ podle kĂłdu selhalo: ${error.message}`);
   return data ? { id: data.id as string, nazev: data.nazev as string } : null;
 }
 
-/** Vloží vlastní potravinu přihlášeného uživatele (RLS: zdroj='uzivatel' + vytvoril=auth.uid()). */
+/** VloĹľĂ­ vlastnĂ­ potravinu pĹ™ihlĂˇĹˇenĂ©ho uĹľivatele (RLS: zdroj='uzivatel' + vytvoril=auth.uid()). */
 export async function pridejPotravinu(p: {
   nazev: string;
   kategorie: string;
@@ -232,13 +236,13 @@ export async function pridejPotravinu(p: {
   baleniG?: number | null;
 }): Promise<string> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
 
   const {
     data: { user },
     error: authChyba,
   } = await klient.auth.getUser();
-  if (authChyba || !user) throw new Error("Pro přidání potraviny se musíte přihlásit.");
+  if (authChyba || !user) throw new Error("Pro pĹ™idĂˇnĂ­ potraviny se musĂ­te pĹ™ihlĂˇsit.");
 
   const payload: Record<string, unknown> = {
     nazev: p.nazev.trim(),
@@ -261,7 +265,7 @@ export async function pridejPotravinu(p: {
     .insert(payload)
     .select("id")
     .single();
-  // Schéma bez migrace 0009 nezná sloupec obrazek – zkusit znovu bez něj.
+  // SchĂ©ma bez migrace 0009 neznĂˇ sloupec obrazek â€“ zkusit znovu bez nÄ›j.
   if (error && payload.obrazek !== undefined && /obrazek|PGRST204/i.test(`${error.code} ${error.message}`)) {
     delete payload.obrazek;
     ({ data, error } = await klient.from("foods").insert(payload).select("id").single());
@@ -269,25 +273,25 @@ export async function pridejPotravinu(p: {
 
   if (error) {
     if (error.message.includes("duplicate") || error.code === "23505") {
-      throw new Error("Potravina s tímto názvem už v katalogu existuje.");
+      throw new Error("Potravina s tĂ­mto nĂˇzvem uĹľ v katalogu existuje.");
     }
-    throw new Error(`Potravinu se nepodařilo uložit: ${error.message}`);
+    throw new Error(`Potravinu se nepodaĹ™ilo uloĹľit: ${error.message}`);
   }
-  if (!data) throw new Error("Potravina se uložila, ale server nevrátil id.");
+  if (!data) throw new Error("Potravina se uloĹľila, ale server nevrĂˇtil id.");
   return data.id as string;
 }
 
-/** Smaže vlastní potravinu (RLS dovolí jen autor). */
+/** SmaĹľe vlastnĂ­ potravinu (RLS dovolĂ­ jen autor). */
 export async function smazPotravinu(id: string): Promise<void> {
   const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
+  if (!klient) throw new Error("Supabase nenĂ­ pĹ™ipojeno.");
   const { error } = await klient.from("foods").delete().eq("id", id);
-  if (error) throw new Error(`Potravinu se nepodařilo smazat: ${error.message}`);
+  if (error) throw new Error(`Potravinu se nepodaĹ™ilo smazat: ${error.message}`);
 }
 
 /* ============================================================
- * OpenFoodFacts – dohledání výživových hodnot podle názvu
- * (veřejné API, nutriments za 100 g odpovídají našemu formátu).
+ * OpenFoodFacts â€“ dohledĂˇnĂ­ vĂ˝ĹľivovĂ˝ch hodnot podle nĂˇzvu
+ * (veĹ™ejnĂ© API, nutriments za 100 g odpovĂ­dajĂ­ naĹˇemu formĂˇtu).
  * ============================================================ */
 
 export interface OffNalezenaPotravina {
@@ -312,11 +316,11 @@ const cisloOff = (v: unknown) => {
   return Number.isFinite(c) && c >= 0 ? Math.round(c * 10) / 10 : null;
 };
 
-/** Převede jeden OFF produkt na potravinu; null když chybí název nebo kladné kcal. */
+/** PĹ™evede jeden OFF produkt na potravinu; null kdyĹľ chybĂ­ nĂˇzev nebo kladnĂ© kcal. */
 function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
   const n = p.nutriments;
   if (!n) return null;
-  // energy-kcal_100g je kcal; energy_100g je kJ → převést (1 kcal = 4,184 kJ)
+  // energy-kcal_100g je kcal; energy_100g je kJ â†’ pĹ™evĂ©st (1 kcal = 4,184 kJ)
   const kcalRaw = n["energy-kcal_100g"];
   const kcal =
     kcalRaw != null
@@ -338,14 +342,14 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
 }
 
 /**
- * Z JSON odpovědi OFF vybere první produkt s kompletními nutrienty.
- * Čistá funkce – testovatelná bez sítě.
+ * Z JSON odpovÄ›di OFF vybere prvnĂ­ produkt s kompletnĂ­mi nutrienty.
+ * ÄŚistĂˇ funkce â€“ testovatelnĂˇ bez sĂ­tÄ›.
  */
 export function parsujOffProdukty(produkty: OffProdukt[]): OffNalezenaPotravina | null {
   return parsujOffProduktyVice(produkty)[0] ?? null;
 }
 
-/** Všechny použitelné produkty z OFF odpovědi – pro výběr z více kandidátů. */
+/** VĹˇechny pouĹľitelnĂ© produkty z OFF odpovÄ›di â€“ pro vĂ˝bÄ›r z vĂ­ce kandidĂˇtĹŻ. */
 export function parsujOffProduktyVice(produkty: OffProdukt[]): OffNalezenaPotravina[] {
   const vysledky: OffNalezenaPotravina[] = [];
   for (const p of produkty) {
@@ -355,7 +359,7 @@ export function parsujOffProduktyVice(produkty: OffProdukt[]): OffNalezenaPotrav
   return vysledky;
 }
 
-/** Fetch na OFF se srozumitelnou chybou i při výpadku sítě (TypeError). */
+/** Fetch na OFF se srozumitelnou chybou i pĹ™i vĂ˝padku sĂ­tÄ› (TypeError). */
 async function fetchOff(url: string): Promise<Response> {
   let odpoved: Response;
   try {
@@ -363,13 +367,13 @@ async function fetchOff(url: string): Promise<Response> {
       headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
     });
   } catch {
-    throw new Error("Nepodařilo se připojit k OpenFoodFacts – zkontrolujte připojení k internetu.");
+    throw new Error("NepodaĹ™ilo se pĹ™ipojit k OpenFoodFacts â€“ zkontrolujte pĹ™ipojenĂ­ k internetu.");
   }
-  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovídá – zkuste to za chvíli.");
+  if (!odpoved.ok) throw new Error("OpenFoodFacts neodpovĂ­dĂˇ â€“ zkuste to za chvĂ­li.");
   return odpoved;
 }
 
-/** Vyhledá produkty v OFF podle názvu – vrací všechny použitelné kandidáty. */
+/** VyhledĂˇ produkty v OFF podle nĂˇzvu â€“ vracĂ­ vĹˇechny pouĹľitelnĂ© kandidĂˇty. */
 export async function hledejOpenFoodFactsVice(
   dotaz: string,
   limit = 8,
@@ -390,21 +394,21 @@ export async function hledejOpenFoodFacts(
   return (await hledejOpenFoodFactsVice(dotaz, 5))[0] ?? null;
 }
 
-/** Normalizuje čárový kód (EAN/UPC): jen číslice, délka 8/12/13/14. Jinak null. */
+/** Normalizuje ÄŤĂˇrovĂ˝ kĂłd (EAN/UPC): jen ÄŤĂ­slice, dĂ©lka 8/12/13/14. Jinak null. */
 export function normalizujEan(vstup: string): string | null {
   const ean = vstup.replace(/[\s-]/g, "");
   return /^\d{8}$|^\d{12,14}$/.test(ean) ? ean : null;
 }
 
 /**
- * Dohledá produkt v OpenFoodFacts podle čárového kódu (EAN/UPC).
- * Product API vrací jeden produkt – status 0 = nenalezen.
+ * DohledĂˇ produkt v OpenFoodFacts podle ÄŤĂˇrovĂ©ho kĂłdu (EAN/UPC).
+ * Product API vracĂ­ jeden produkt â€“ status 0 = nenalezen.
  */
 export async function nactiOffPodleEan(
   vstup: string,
 ): Promise<OffNalezenaPotravina | null> {
   const ean = normalizujEan(vstup);
-  if (ean === null) throw new Error("Zadejte platný čárový kód (8–14 číslic).");
+  if (ean === null) throw new Error("Zadejte platnĂ˝ ÄŤĂˇrovĂ˝ kĂłd (8â€“14 ÄŤĂ­slic).");
 
   const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,image_small_url,image_front_small_url,nutriments`;
   const odpoved = await fetchOff(url);
