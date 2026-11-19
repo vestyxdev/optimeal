@@ -56,41 +56,88 @@ class Nabidka:
     extra: dict = field(default_factory=dict)
 
 
+# „185 g" / „1,5 l" / „33 cl" / „25 dkg" – číslo + hmotnostní/objemová
+# jednotka. ml/cl/l a dkg počítáme přibližně jako gramy (konvence baleni_g).
+# „ks"/„%"/„°" úmyslně chybí – kusy bez gramáže a % tuku/alkoholu se
+# na Kč/100 g převést nedají.
+RE_MNOZSTVI = re.compile(r"(\d+(?:\.\d+)?)\s*(kg|dkg|g|l|cl|ml)\b")
+
+_NASOBKY_G = {"kg": 1000, "dkg": 10, "g": 1, "l": 1000, "cl": 10, "ml": 1}
+
+# Multiplikátor před jednotkovou frází: „2 x" / „6×" / „3+1" / „3+1 zdarma" /
+# „2 ks po" / „4 kusy po"
+RE_MUL_PREFIX = re.compile(
+    r"(?:(\d+)\s*[x×]|(\d+)\s*\+\s*(\d+)(?:\s*(?:zdarma|zadarmo|gratis))?|"
+    r"(\d+)\s*(?:ks|kus[ůy]?)\s*po)\s*$",
+)
+# Multiplikátor za frází: „x 2" / „× 6" / „3+1 zdarma" / „+ 1 zdarma".
+# Samotné „+ N" bez slova zdarma je bonusová gramáž („500 g + 200 g"),
+# ne počet kusů – proto „zdarma/gratis" vyžadujeme.
+RE_MUL_SUFFIX = re.compile(
+    r"\s*(?:[x×]\s*(\d+)|(\d+)\s*\+\s*(\d+)(?:\s*(?:zdarma|zadarmo|gratis))?|"
+    r"\+\s*(\d+)\s*(?:zdarma|zadarmo|gratis|free))",
+)
+
+
+def _multiplikator(pred: str, za: str) -> int:
+    """Násobek balení okolo jednotkové fráze („4 x 250 g" → 4)."""
+    m = RE_MUL_PREFIX.search(pred)
+    if m:
+        if m.group(1):
+            return int(m.group(1))
+        if m.group(2) and m.group(3):  # „3+1 zdarma" = 4 kusy
+            return int(m.group(2)) + int(m.group(3))
+        if m.group(4):
+            return int(m.group(4))
+    m = RE_MUL_SUFFIX.match(za)
+    if m:
+        if m.group(1):
+            return int(m.group(1))
+        if m.group(2) and m.group(3):  # „x g 3+1" = 4 kusy
+            return int(m.group(2)) + int(m.group(3))
+        if m.group(4):  # „+ 1 zdarma" = zakoupený kus + 1 navíc
+            return 1 + int(m.group(4))
+    return 1
+
+
 def gramaje_z_nazvu(nazev: str) -> Optional[float]:
     """Vytáhne hmotnost/obsah v g z letákového názvu.
 
-    Zvládá: "500 g", "1 kg", "1,5 l", "250 ml", "2 x 250 g", "6x300ml".
-    ml/cl/l počítáme přibližně jako gramy (stejná konvence jako baleni_g).
+    Zvládá: „500 g", „1 kg", „1,5 l", „250 ml", „2 x 250 g", „6x300ml",
+    „4x100g", „2×250 g", „3+1 zdarma 500 ml", „2 ks po 250 g",
+    „185 g / 130 g", „cca 1 kg", „od 400 g", „25 dkg".
+
+    Vícenásobné výskyty („20 g bílkovin" vs. „45 g" tyčinka,
+    „185 g / 130 g" pevný podíl): vítězí NEJVĚTŠÍ kandidát – celkový
+    obsah balení bývá vždy větší než nutriční/počtové údaje.
+    Procenta („3,5 %", „40 % vol") a kusy („10 ks") se ignorují.
     """
     if not nazev:
         return None
     n = nazev.lower().replace(",", ".")
 
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(kg|g|l|cl|ml)\b", n)
-    if not m:
-        return None
-    hodnota = float(m.group(1))
-    jednotka = m.group(2)
-    v_gramech = {
-        "kg": hodnota * 1000,
-        "g": hodnota,
-        "l": hodnota * 1000,
-        "cl": hodnota * 10,
-        "ml": hodnota,
-    }[jednotka]
+    nejlepsi: Optional[float] = None
+    for m in RE_MNOZSTVI.finditer(n):
+        hodnota = float(m.group(1))
+        if hodnota <= 0:
+            continue
+        g = hodnota * _NASOBKY_G[m.group(2)]
+        g *= _multiplikator(n[: m.start()], n[m.end() :])
+        # <2 g … 30 kg – velké pytle (25 kg mouka v Metru) projdou,
+        # cisterna 50 l už ne
+        if 2 <= g <= 30000 and (nejlepsi is None or g > nejlepsi):
+            nejlepsi = g
+    return nejlepsi
 
-    # multipack: "2 x 500 g" / "6x300 ml"
-    pred = n[: m.start()]
-    m_mul = re.search(r"(\d+)\s*[x×]\s*$", pred)
-    if m_mul:
-        v_gramech *= int(m_mul.group(1))
-    # opačné pořadí: "500 g x 2"
-    za = n[m.end():]
-    m_mul2 = re.match(r"\s*[x×]\s*(\d+)", za)
-    if m_mul2:
-        v_gramech *= int(m_mul2.group(1))
 
-    return v_gramech if 2 <= v_gramech <= 20000 else None
+# Typografické uvozovky/pomlčky → ASCII; vícenásobné mezery → jedna.
+# Diakritiku neschazujeme – katalog ji drží v UTF-8.
+def cist_nazev(nazev: str) -> str:
+    """Sjednotí letákový název: whitespace, uvozovky, pomlčky."""
+    n = re.sub(r"[\u2018\u2019\u201a\u2032]", "'", nazev)
+    n = re.sub(r"[\u201c\u201d\u201e\u2033]", '"', n)
+    n = re.sub(r"[\u2013\u2014\u2212]", "-", n)
+    return re.sub(r"\s+", " ", n).strip()
 
 
 def ceny_na_100g(cena: float, gramy: Optional[float]) -> Optional[float]:
@@ -172,9 +219,11 @@ class BaseScraper:
                 if r.status_code == 200:
                     time.sleep(self.pauza + random.uniform(0, 1.2))
                     return r
-                if r.status_code in (403, 429) and pokus < POKUSY:
-                    # rate-limit / WAF – rotuj UA a čekej déle
-                    self._rotuj_ua()
+                if r.status_code in (403, 429, 500, 502, 503, 504) and pokus < POKUSY:
+                    # rate-limit / WAF / přechodná chyba serveru –
+                    # rotuj UA (u 403/429) a čekej exponenciálně
+                    if r.status_code in (403, 429):
+                        self._rotuj_ua()
                     cekani = 3**pokus
                     log.warning(
                         "%s: HTTP %d na %s – rotuji UA, čekám %d s (pokus %d/%d)",
@@ -223,7 +272,7 @@ class BaseScraper:
         if puvodni and puvodni > cena:
             pct = round((1 - cena / puvodni) * 100)
         return Nabidka(
-            nazev=nazev.strip()[:200],
+            nazev=cist_nazev(nazev)[:200],
             obchod=self.obchod,
             cena_za_100g=c100,
             puvodni_cena_za_100g=p100,

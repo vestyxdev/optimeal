@@ -103,6 +103,19 @@ def main() -> int:
     writer.purge_scrapera(start, uspesne_zdroje if not nizke_pokryti else [])
     writer.purge_expirovanych()
 
+    # strukturovaný souhrn běhu (audit + watchdogy)
+    overene = stat.get("overenych_slev", 0)
+    artefakty = len(stat.get("anomalie_ceny", [])) + len(
+        stat.get("anomalie_puvodni", [])
+    )
+    log.info(
+        "SOUHRN total_scraped=%d valid_inserted=%d verified_discounts=%d "
+        "plain_prices=%d rejected_artifacts=%d duration_sec=%.1f",
+        len(vsechny), stat["vlozeno"], overene,
+        max(0, stat["vlozeno"] - overene), artefakty,
+        (datetime.now(timezone.utc) - start).total_seconds(),
+    )
+
     souhrn = os.environ.get("GITHUB_STEP_SUMMARY")
     if souhrn:
         radky = ["## AsortimentScraper", "", "| Eshop | Výsledek |", "|---|---|"]

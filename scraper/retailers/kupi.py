@@ -28,7 +28,13 @@ from typing import Iterator, Optional
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, Nabidka, ceny_na_100g, gramaje_z_nazvu
+from .base import (
+    BaseScraper,
+    Nabidka,
+    ceny_na_100g,
+    cist_nazev,
+    gramaje_z_nazvu,
+)
 
 log = logging.getLogger("scraper.kupi")
 
@@ -166,7 +172,7 @@ class KupiScraper(BaseScraper):
         nazev_el = wrap.select_one(".product_name strong")
         if not nazev_el:
             return None
-        nazev = re.sub(r"\s+", " ", nazev_el.get_text()).strip()
+        nazev = cist_nazev(nazev_el.get_text())
         jednotka_el = wrap.select_one(".product_name .nowrap span")
         jednotka = jednotka_el.get_text(strip=True) if jednotka_el else ""
         img = wrap.select_one(".product_image img[data-src]")
