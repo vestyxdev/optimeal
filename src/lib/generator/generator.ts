@@ -310,9 +310,11 @@ const DEZERT_ANTI_RE =
  * Ryby a mořské plody – nekothví snídani (tuňákové vločky k snídani
  * nejsou česká snídaně). Výjimka: rybí pomazánky („Tuňáková pomazánka")
  * jsou legitimní snídaňová potravina – proto zápor lookahead na „pomaz".
+ * Totéž platí pro vnitřnosti (játra, dršťky, ledviny, srdce) – játra
+ * k snídani nepatří, játrová/jaterní pomazánka ano.
  */
 export const SNIDANE_KOTVA_ANTI_RE =
-  /(?:tu[ňn][aá]k|losos|makrel|sle[ďd]|sardink|tresk|pstruh|kapr|tilapi|krevet|kalam[aá]r|krab)(?!.*pomaz)/i;
+  /(?:tu[ňn][aá]k|losos|makrel|sle[ďd]|sardink|tresk|pstruh|kapr|tilapi|krevet|kalam[aá]r|krab|játr|dršť|ledvin|srdc)(?!.*pomaz)/i;
 
 type TypJidla = "snidane" | "obedVecere" | "svacina";
 
@@ -452,6 +454,7 @@ export function naplanujJidlo(
   nazevJidla = "",
   pouziteKlice: Set<string> = new Set(),
   minuleDny: Set<string> = new Set(),
+  vynutitNepouzite = false,
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
   // Kulinářská vhodnost podle ROLE v jídle: kotva, příloha a tukový
@@ -489,6 +492,11 @@ export function naplanujJidlo(
     return Math.max(min, Math.min(Math.min(gramyPodleMakra, gramyPodleKcal, stropTuk, stropSach), max));
   };
 
+  /** u výměny jídla (vynutitNepouzite) nesmí fallback na vyberKandidata
+   * vrátit již použitou potravinu – doplněk raději vynecháme než zopakovat */
+  const jenNepouzite = <T extends Kandidat | null>(k: T): Kandidat | null =>
+    vynutitNepouzite && k !== null && pouziteId.includes(k.id) ? null : k;
+
   const pridej = (p: Potravina, gramy: number) => {
     pouziteId.push(p.id);
     pouziteKlice.add(klicPodobnosti(p.nazev));
@@ -519,6 +527,7 @@ export function naplanujJidlo(
       vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny) ??
       vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny);
   }
+  kotva = jenNepouzite(kotva);
   if (kotva !== null && zbyva.b >= 5) {
     pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
   }
@@ -537,7 +546,9 @@ export function naplanujJidlo(
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
   }
-  const dopln = vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice, minuleDny);
+  const dopln = jenNepouzite(
+    vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice, minuleDny),
+  );
   if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
     pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
   }
@@ -547,16 +558,18 @@ export function naplanujJidlo(
   // (olej, máslo, sádlo) bereme jen jako rezervu a s užším stropem –
   // 25 g oleje k pokrmu smysl dává, 90 g už ne.
   const tukBezPrisad = kategorie.tukova.filter((p) => !jePrisada(p));
-  const tukovina = vyberKandidata(
-    tukBezPrisad.length > 0 ? tukBezPrisad : kategorie.tukova,
-    poradi,
-    pouziteId,
-    denniPosun,
-    poolMin,
-    reTuk,
-    TUK_ANTI_RE,
-    pouziteKlice,
-    minuleDny,
+  const tukovina = jenNepouzite(
+    vyberKandidata(
+      tukBezPrisad.length > 0 ? tukBezPrisad : kategorie.tukova,
+      poradi,
+      pouziteId,
+      denniPosun,
+      poolMin,
+      reTuk,
+      TUK_ANTI_RE,
+      pouziteKlice,
+      minuleDny,
+    ),
   );
   if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
     pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100));
@@ -898,10 +911,13 @@ export function vymenJidlo(
     poolMin,
     nazevJidla,
     pouziteKlice,
+    new Set(),
+    true,
   );
   // vyberKandidata padá zpět na použité potraviny, když je fond malý –
-  // u výměny to porušuje garanci „vždy jiné jídlo", takže takovou
-  // náhradu raději odmítneme (UI ukáže hlášku, že náhrada neexistuje).
+  // vynutitNepouzite takový doplněk vynechá (jídlo bez něj pořád platí);
+  // kdyby i tak vyšla použitá potravina nebo nic, náhradu odmítneme
+  // (UI ukáže hlášku, že náhrada neexistuje).
   if (jidla.length === 0 || jidla.some((j) => puvodnePouzite.has(j.id))) return null;
 
   const nova = souhrnJidla(jidla);

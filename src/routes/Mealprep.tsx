@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/Nacitani";
 import { Button } from "@/components/ui/Button";
 import { KartaNakupu } from "@/components/jidelnicek/Vysledky";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
-import { nactiPotravinySeSlevami, ulozPlan } from "@/lib/data/plany";
+import { nactiPotravinyPodleId, ulozPlan } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { sestavMealprep, type MealprepVstup } from "@/lib/mealprep/mealprep";
 import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
@@ -63,9 +63,13 @@ export function Mealprep() {
   const [porce, setPorce] = useState<Record<string, number>>({});
 
   const dotazRecepty = useQuery({ queryKey: ["recepty"], queryFn: nactiRecepty });
-  const dotazCeny = useQuery({ queryKey: ["aktualni_ceny"], queryFn: nactiPotravinySeSlevami });
-
   const recepty = dotazRecepty.data ?? [];
+  const foodIds = [...new Set(recepty.flatMap((r) => r.suroviny.map((s) => s.foodId)))];
+  const dotazCeny = useQuery({
+    queryKey: ["aktualni_ceny", "recepty", foodIds],
+    queryFn: () => nactiPotravinyPodleId(foodIds),
+    enabled: foodIds.length > 0,
+  });
   const vstupy: MealprepVstup[] = useMemo(
     () =>
       recepty

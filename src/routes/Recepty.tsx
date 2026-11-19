@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/Nacitani";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { useAuth } from "@/lib/auth";
 import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
-import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { formatujCastku, formatujKcal, formatujMakro } from "@/lib/cena";
 
 /**
@@ -23,9 +23,13 @@ export function Recepty() {
   const [kategorie, setKategorie] = useState<string | null>(null);
 
   const dotazRecepty = useQuery({ queryKey: ["recepty"], queryFn: nactiRecepty });
-  const dotazCeny = useQuery({ queryKey: ["aktualni_ceny"], queryFn: nactiPotravinySeSlevami });
-
   const recepty = dotazRecepty.data ?? [];
+  const foodIds = [...new Set(recepty.flatMap((r) => r.suroviny.map((s) => s.foodId)))];
+  const dotazCeny = useQuery({
+    queryKey: ["aktualni_ceny", "recepty", foodIds],
+    queryFn: () => nactiPotravinyPodleId(foodIds),
+    enabled: foodIds.length > 0,
+  });
   const filtrovane = kategorie ? recepty.filter((r) => r.kategorie === kategorie) : recepty;
   const kategorieVSeznamu = [...new Set(recepty.map((r) => r.kategorie))];
 
@@ -132,6 +136,10 @@ export function Recepty() {
                   );
                 })()}
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                  {dotazCeny.isPending ? (
+                    <Skeleton className="h-3 w-40" />
+                  ) : (
+                  <>
                   <span className="inline-flex items-center gap-1">
                     <Flame className="size-3 text-warning" />
                     <strong className="text-fg">{formatujKcal(rozbor.naPorci.kalorie)}</strong> kcal/porci
@@ -143,6 +151,8 @@ export function Recepty() {
                     <Coins className="size-3 text-ok" />
                     <strong className="text-fg">{formatujCastku(rozbor.naPorci.cena)}</strong> Kč/porci
                   </span>
+                  </>
+                  )}
                   {recept.casMinuty != null && (
                     <span className="inline-flex items-center gap-1">
                       <Clock className="size-3" /> {recept.casMinuty} min

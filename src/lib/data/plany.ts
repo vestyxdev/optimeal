@@ -27,18 +27,8 @@ interface RadkaAktualniCeny {
   sleva_procenta: number | null;
 }
 
-export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
-  const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
-
-  const data = await nactiVse<RadkaAktualniCeny>(() =>
-    klient
-      .from("aktualni_ceny")
-      .select("*")
-      .order("nazev"),
-  );
-
-  return data.map((r) => ({
+function mapAktualniCeny(r: RadkaAktualniCeny): Potravina {
+  return {
     id: r.food_id,
     nazev: r.nazev,
     kategorie: r.kategorie,
@@ -57,7 +47,42 @@ export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r as { platnost_do?: string | null }).platnost_do ?? null,
-  }));
+  };
+}
+
+export async function nactiPotravinySeSlevami(): Promise<Potravina[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const data = await nactiVse<RadkaAktualniCeny>(() =>
+    klient
+      .from("aktualni_ceny")
+      .select("*")
+      .order("nazev"),
+  );
+
+  return data.map(mapAktualniCeny);
+}
+
+/**
+ * Načte jen zadané potraviny z `aktualni_ceny` – pro stránky, které
+ * počítají cenu/výživu receptů a nepotřebují celý katalog (6k+ řádků).
+ */
+export async function nactiPotravinyPodleId(ids: string[]): Promise<Potravina[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const unik = [...new Set(ids)];
+  const radky: RadkaAktualniCeny[] = [];
+  for (let i = 0; i < unik.length; i += 100) {
+    const { data, error } = await klient
+      .from("aktualni_ceny")
+      .select("*")
+      .in("food_id", unik.slice(i, i + 100));
+    if (error) throw new Error(`Ceny se nenačetly: ${error.message}`);
+    radky.push(...(data ?? []));
+  }
+  return radky.map(mapAktualniCeny);
 }
 
 /** Uložení vygenerovaného plánu do meal_plans. */

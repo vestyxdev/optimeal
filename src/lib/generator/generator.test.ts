@@ -190,6 +190,14 @@ describe("snídaně – ryby nekothví", () => {
       expect(SNIDANE_KOTVA_ANTI_RE.test(nazev)).toBe(false);
   });
 
+  // játra/dršťky/ledviny/srdce k snídani nepatří; pomazánkové výjimky ano
+  it("regex chytá vnitřnosti, nechává játrové pomazánky", () => {
+    for (const nazev of ["Vepřová játra", "Dršťková polévka", "Hovězí ledviny", "Kuřecí srdce"])
+      expect(SNIDANE_KOTVA_ANTI_RE.test(nazev)).toBe(true);
+    for (const nazev of ["Játrová pomazánka", "Pomazánka z kuřecích jater"])
+      expect(SNIDANE_KOTVA_ANTI_RE.test(nazev)).toBe(false);
+  });
+
   it("ryba prohraje kotvu snídaně i se srovnatelným skóre", () => {
     const skore = (x: Potravina) => ({ ...x, skore: skorePotraviny(x, "bilkovinova") });
     const kat = {

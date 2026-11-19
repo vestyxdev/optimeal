@@ -18,6 +18,7 @@ import {
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 import type { Potravina } from "@/lib/generator/generator";
 import { Skeleton } from "@/components/ui/Nacitani";
+import { useAuth } from "@/lib/auth";
 import { VyberPotraviny } from "@/components/ui/VyberPotraviny";
 import { cn } from "@/lib/cn";
 
@@ -106,6 +107,7 @@ function spocitejUctenku(
 
 export function ReceptEditace() {
   const { id } = useParams<{ id: string }>();
+  const { uzivatel } = useAuth();
   const editace = id !== undefined;
   const naviguj = useNavigate();
   const klientQ = useQueryClient();
@@ -248,6 +250,17 @@ export function ReceptEditace() {
     return (
       <Card className="bg-danger-soft text-sm text-danger">
         {(dotazRecept.error as Error | undefined)?.message ?? "Recept se nepodařilo načíst."}
+      </Card>
+    );
+  }
+  // editovat lze jen vlastní recepty – seed/sdílené se ukážou jen ke čtení
+  if (editace && uzivatel && dotazRecept.data?.userId !== uzivatel.id) {
+    return (
+      <Card className="space-y-3 bg-warning-soft text-sm text-warning">
+        <p>Tento recept nemůžete upravit – není váš.</p>
+        <Link to={`/recepty/${id}`} className="font-medium underline">
+          Zpět na recept
+        </Link>
       </Card>
     );
   }

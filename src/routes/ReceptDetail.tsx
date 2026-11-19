@@ -11,7 +11,7 @@ import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
-import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
@@ -32,7 +32,13 @@ export function ReceptDetail() {
     queryFn: () => nactiRecept(id as string),
     enabled: id !== undefined,
   });
-  const dotazCeny = useQuery({ queryKey: ["aktualni_ceny"], queryFn: nactiPotravinySeSlevami });
+  const recept = dotazRecept.data ?? null;
+  const foodIds = recept?.suroviny.map((s) => s.foodId) ?? [];
+  const dotazCeny = useQuery({
+    queryKey: ["aktualni_ceny", "recept", foodIds],
+    queryFn: () => nactiPotravinyPodleId(foodIds),
+    enabled: foodIds.length > 0,
+  });
 
   const mutaceSmazat = useMutation({
     mutationFn: () => smazRecept(id as string),
@@ -44,7 +50,6 @@ export function ReceptDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const recept = dotazRecept.data ?? null;
   const ceny = dotazCeny.data ?? null;
   const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
 
@@ -153,7 +158,7 @@ export function ReceptDetail() {
                       </span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums">
-                      {cena == null ? "—" : `${formatujCastku(cena)} Kč`}
+                      {dotazCeny.isPending ? "…" : cena == null ? "—" : `${formatujCastku(cena)} Kč`}
                     </span>
                   </div>
                 );
@@ -202,7 +207,7 @@ export function ReceptDetail() {
                         )}
                       </td>
                       <td className="px-5 py-2 text-right tabular-nums font-semibold">
-                        {cena == null ? "—" : `${formatujCastku(cena)} Kč`}
+                        {dotazCeny.isPending ? "…" : cena == null ? "—" : `${formatujCastku(cena)} Kč`}
                       </td>
                     </tr>
                   );
@@ -220,6 +225,10 @@ export function ReceptDetail() {
                 <>
                   <Card>
                     <CardNadpis>Na porci</CardNadpis>
+                    {dotazCeny.isPending ? (
+                      <SkeletonText className="h-28" />
+                    ) : (
+                    <>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-card bg-surface-2 p-3">
                         <div className="text-xs text-muted">Kalorie</div>
@@ -248,6 +257,8 @@ export function ReceptDetail() {
                       {formatujCastku(rozbor.celkem.cena)} Kč ·{" "}
                       {formatujKcal(rozbor.celkem.kalorie)} kcal
                     </p>
+                    </>
+                    )}
                   </Card>
 
                   <Card>
