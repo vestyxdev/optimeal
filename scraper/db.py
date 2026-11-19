@@ -298,7 +298,7 @@ class SupabaseWriter:
                 "retailer_id": retailer_id,
                 "cena": n.cena_za_100g,
                 "puvodni_cena": puvodni,
-                "je_sleva": True,
+                "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
                 "zdroj": f"scraper:{n.obchod.lower()}",
                 "pozorovano_at": ted,
@@ -323,6 +323,113 @@ class SupabaseWriter:
                 headers={**self._hlavicky, "Prefer": "resolution=ignore-duplicates"},
                 json=radky_list,
                 timeout=60,
+            )
+            r.raise_for_status()
+        stat["vlozeno"] = len(radky_list)
+        return stat
+
+    def vytvor_potravinu(self, n: Nabidka) -> str | None:
+        """Založí potravinu z eshopové nabídky (schvaleno=false, nulová
+        makra) – obohaceni.py ji později doplní z Open Food Facts
+        a teprve pak schválí. Vrací foods.id nebo None."""
+        radka = {
+            "nazev": n.nazev[:200],
+            "kategorie": n.kategorie or "ostatni",
+            "bilkoviny": 0, "sacharidy": 0, "tuky": 0, "kalorie": 0,
+            "bezna_cena": n.cena_za_100g,
+            "baleni_g": n.gramy,
+            "ean": n.ean,
+            "obrazek": n.obrazek,
+            "zdroj": f"eshop:{n.obchod.lower()}",
+            "schvaleno": False,
+        }
+        try:
+            r = requests.post(
+                f"{self.url}/rest/v1/foods",
+                headers={**self._hlavicky,
+                         "Prefer": "return=representation,resolution=ignore-duplicates"},
+                json=radka,
+                timeout=30,
+            )
+            if r.ok and r.json():
+                fid = r.json()[0]["id"]
+                # novinka v cache – další stejnojmenné nabídky se spárují
+                nova = {"id": fid, "nazev": radka["nazev"], "ean": n.ean,
+                        "baleni_g": n.gramy, "obrazek": n.obrazek}
+                self._potraviny.append(nova)
+                self._norm_potraviny.append(
+                    (fid, normalizuj_nazev(nova["nazev"]),
+                     stem_nazev(nova["nazev"]), nova)
+                )
+                return fid
+            # duplicitní název → dohledej existující
+            for p in self.nacti_potraviny():
+                if normalizuj_nazev(p["nazev"]) == normalizuj_nazev(n.nazev[:200]):
+                    return p["id"]
+        except requests.RequestException as e:
+            log.warning("Založení potraviny '%s' selhalo: %s", n.nazev[:50], e)
+        return None
+
+    def zapis_asortiment(self, nabidky: list[Nabidka], od: datetime,
+                         vytvarej: bool = True) -> dict:
+        """UPSERT asortimentních cen (zdroj='asortiment:<obchod>').
+
+        Stejná logika jako zapis_nabidky, plus: nespárované produkty
+        zakládají jako nové potraviny (schvaleno=false), takže se
+        pokryje celý eshopový sortiment – obohaceni.py je pak doplní.
+        """
+        radky: dict[tuple, dict] = {}
+        stat = {"sparovano": 0, "preskoceno": 0, "nove_potraviny": 0}
+        ted = od.isoformat()
+        for n in nabidky:
+            food_id = self._food_id_fuzzy(n.ean, n.nazev)
+            if not food_id and vytvarej:
+                food_id = self.vytvor_potravinu(n)
+                if food_id:
+                    stat["nove_potraviny"] += 1
+            retailer_id = self._retailer_id(n.obchod)
+            if not food_id or not retailer_id:
+                stat["preskoceno"] += 1
+                if len(stat.setdefault("nesparovano_nazvy", [])) < 8:
+                    stat["nesparovano_nazvy"].append(n.nazev)
+                continue
+            self._dopln_baleni_a_obrazek(food_id, n)
+            if not n.cena_za_100g or not (0.3 <= n.cena_za_100g < 400):
+                stat["preskoceno"] += 1
+                stat.setdefault("anomalie_ceny", []).append(
+                    f"{n.nazev} {n.cena_za_100g}")
+                continue
+            puvodni = n.puvodni_cena_za_100g
+            if puvodni is not None and puvodni < n.cena_za_100g:
+                puvodni = None
+            klic = (food_id, retailer_id)
+            radek = {
+                "food_id": food_id,
+                "retailer_id": retailer_id,
+                "cena": n.cena_za_100g,
+                "puvodni_cena": puvodni,
+                "je_sleva": n.je_sleva,
+                "platnost_do": n.platnost_do,
+                "zdroj": f"asortiment:{n.obchod.lower()}",
+                "pozorovano_at": ted,
+            }
+            if klic not in radky or n.cena_za_100g < radky[klic]["cena"]:
+                radky[klic] = radek
+            stat["sparovano"] += 1
+        if stat["preskoceno"]:
+            log.info("Přeskočeno %d nabídek, vzorek: %s",
+                     stat["preskoceno"], stat.get("nesparovano_nazvy", []))
+        if stat.get("anomalie_ceny"):
+            log.warning("Anomální ceny %d, vzorek: %s",
+                        len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8])
+        radky_list = list(radky.values())
+        for i in range(0, len(radky_list), 500):
+            r = requests.post(
+                f"{self.url}/rest/v1/price_observations",
+                headers={**self._hlavicky,
+                         "Prefer": "resolution=ignore-duplicates"},
+                json=radky_list[i : i + 500],
+                timeout=120,
             )
             r.raise_for_status()
         stat["vlozeno"] = len(radky_list)

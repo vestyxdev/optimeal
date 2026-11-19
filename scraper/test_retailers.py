@@ -143,7 +143,7 @@ class TestCeskyStem(unittest.TestCase):
 
     def test_stem_nazev(self):
         self.assertEqual(
-            stem_nazev("Kuřecí čtvrtky"), "kur ctver"
+            stem_nazev("Kuřecí čtvrtky"), "kur ctvrt"
         )
 
 

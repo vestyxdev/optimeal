@@ -278,6 +278,53 @@ a zapisuje je do `price_observations` (`zdroj = scraper:<řetězec>`).
   non-food filtrem a denylistem `ZAKAZANE` – slabé shody dřív importovaly
   nesouvisející produkty, proto je kontrola token-overlapu povinná).
 
+### AsortimentScraper (plný eshopový sortiment)
+
+Třetí pipeline stahuje **kompletní katalog českých online supermarketů**
+– běžné i eshopové akční ceny, na rozdíl od Kupi.cz pokrývá celý sortiment,
+ne jen letákové nabídky. Zapisuje do `price_observations`
+(`zdroj = asortiment:<eshop>`, `je_sleva` rozlišuje akci od běžné ceny).
+
+- **Rohlík.cz** (`scraper/retailers/rohlik.py`): interní JSON API –
+  `categories/normal/{id}/subcategories` pro BFS strom (~350 leaf
+  kategorií), `categories/normal/{id}/products?size=200` pro productIds,
+  `products/card?products=…` pro ceny (`salePrice`/`originalPrice`/
+  `unitPrice`, vážené položky, `textualAmount`, sklad, obrázek).
+- **Košík.cz** (`scraper/retailers/kosik.py`): interní JSON API –
+  `page/products/flexible?slug=…&page_display=full` (subCategories pro BFS,
+  ~600 leaf slugů), cursor paginace přes `POST products/more`. Cena,
+  `recommendedPrice` (přeškrtnutá), `productQuantity`, `pricePerUnit`.
+- **iTesco – zatím bez plného sortimentu:** web je za WAF (HTTP 403 i s
+  browser hlavičkami, potřeba Playwright + rezidenční proxy). Tesco
+  akce dál kryje Kupi.cz pipeline.
+- **Dedup nových produktů:** nespárované nabídky zakládají `foods` s
+  `schvaleno=false` a nulovými makry (`zdroj = eshop:<eshop>`) – viditelné
+  nejsou, dokud je neobohatí OFF pipeline. Párování zůstává stejné
+  (EAN → název → stem → fuzzy).
+- **Orchestrace:** `python -m scraper.asortiment [--dry-run]
+  [--obchod "Rohlík.cz"] [--max-kategorii N]` – selhání jednoho eshopu
+  neshodí druhý; totální nula → exit 1 (workflow zčervená).
+- **Běh:** `.github/workflows/asortiment.yml` – matrix, jeden job na
+  eshop, denně ~04:30 CET (`30 3 * * *`), timeout 120 min, ruční dispatch
+  s volitelným `--obchod`/`--max-kategorii`. Po ingestu běží v jobu i
+  krátké OFF obohacení (`--limit 300`).
+- **Bezpečnost:** `fetched` se označí až po prvním reálném produktu –
+  prázdná odpověď API nikdy nespustí stale purge. Ceny mimo 0,3–400
+  Kč/100 g se zahazují před insertem; `puvodni_cena < cena` se nulluje.
+
+### OFF obohacení (makra z Open Food Facts)
+
+`scraper/obohaceni.py` doplňuje potravinám bez maker data z
+`cz.openfoodfacts.org`: nejdřív přesný lookup po EAN
+(`/api/v2/product/{ean}`), jinak jmenové hledání s povinným **≥60 %
+překryvem tokenů** (slabá shoda by automaticky schválila špatná makra).
+Z OFF bere kcal/bílkoviny/sacharidy/tuky za 100 g, EAN, obrázek a
+alergeny; když makra dopadnou, přepne `schvaleno=true`.
+
+- **Běh:** `.github/workflows/obohaceni.yml` – neděle ~06:00 CET,
+  `--vse --limit 1500`; plus `--limit 300` po každém asortimentním běhu.
+- **Lokálně:** `python -m scraper.obohaceni --dry-run --limit 20`.
+
 ## Architektura
 
 - `src/lib/vyziva/` – čistá výpočetní logika (TDEE, makra, panel shody).

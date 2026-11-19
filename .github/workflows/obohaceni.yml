@@ -1,0 +1,32 @@
+# OFF obohacení – týdenní hloubková projížďka katalogu.
+# Neděle ~06:00 CET: projede neschválené potraviny i schválené
+# s kalorie=0 a doplní makra/EAN/obrázky/alergeny z Open Food Facts.
+# Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+name: OFF obohacení
+
+on:
+  schedule:
+    - cron: "0 5 * * 0"  # neděle ~06:00 CET
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max potravin (výchozí 1500)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  obohaceni:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r scraper/requirements.txt
+      - env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m scraper.obohaceni --vse --limit ${{ github.event.inputs.limit || '1500' }}

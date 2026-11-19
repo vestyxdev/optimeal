@@ -1,5 +1,13 @@
-"""Scrapery jednotlivých českých řetězců (všechny přes Kupi.cz)."""
+"""Scrapery jednotlivých českých řetězců.
 
+SCRAPERY – letákové akce přes Kupi.cz (ceniky.py).
+ASORTIMENT_SCRAPERY – plný eshopový sortiment přes interní JSON API
+(asortiment.py): Rohlík.cz + Košík.cz. iTesco je za WAF – promo
+pokrytí Tesca zůstává na Kupi.cz.
+"""
+
+from .kosik import KosikScraper as KosikAsortimentScraper
+from .rohlik import RohlikScraper as RohlikAsortimentScraper
 from .kupi import (
     AlbertScraper,
     BillaScraper,
@@ -38,10 +46,16 @@ SCRAPERY = [
     ZemanScraper,
 ]
 
+ASORTIMENT_SCRAPERY = [
+    RohlikAsortimentScraper,
+    KosikAsortimentScraper,
+]
+
 __all__ = [
-    "AlbertScraper", "BillaScraper", "CbaScraper", "CoopScraper",
-    "DmScraper", "FlopTopScraper", "GlobusScraper", "HruskaScraper",
-    "KauflandScraper", "KosikScraper", "LidlScraper", "PennyScraper",
-    "RossmannScraper", "SCRAPERY", "TescoScraper", "TetaScraper",
-    "ZemanScraper",
+    "AlbertScraper", "ASORTIMENT_SCRAPERY", "BillaScraper", "CbaScraper",
+    "CoopScraper", "DmScraper", "FlopTopScraper", "GlobusScraper",
+    "HruskaScraper", "KauflandScraper", "KosikAsortimentScraper",
+    "KosikScraper", "LidlScraper", "PennyScraper",
+    "RohlikAsortimentScraper", "RossmannScraper", "SCRAPERY",
+    "TescoScraper", "TetaScraper", "ZemanScraper",
 ]

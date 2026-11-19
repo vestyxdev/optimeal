@@ -1,0 +1,69 @@
+# AsortimentScraper – plný katalog eshopů (Rohlík.cz, Košík.cz).
+# Běží denně ~04:30 CET (03:30 UTC) – mimo vrchol ceniků.
+# Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (jen server-side!)
+#
+# Každý eshop = vlastní matrix job (vlastní runner+IP). iTesco chybí
+# schválně – je za WAF (403), Tesco promos kryje Kupi.cz.
+# Po eshopovém ingestu běží v tom samém jobu krátké OFF obohacení
+# (--limit 300), které doplní makra novým potravinám.
+name: AsortimentScraper
+
+on:
+  schedule:
+    - cron: "30 3 * * *"  # ~04:30 CET denně
+  workflow_dispatch:
+    inputs:
+      obchod:
+        description: "Jen jeden eshop (volitelné: Rohlík.cz, Košík.cz)"
+        required: false
+      max_kategorii:
+        description: "Strop leaf kategorií (test, volitelné)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        obchod: ${{ github.event.inputs.obchod != ''
+                    && fromJSON(format('["{0}"]', github.event.inputs.obchod))
+                    || fromJSON('["Rohlík.cz","Košík.cz"]') }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalace závislostí
+        run: pip install -r scraper/requirements.txt
+
+      - name: Cache stromu kategorií
+        uses: actions/cache@v4
+        with:
+          path: scraper/retailers/*_strom.json
+          key: asortiment-strom-${{ matrix.obchod }}-${{ github.run_id }}
+          restore-keys: asortiment-strom-${{ matrix.obchod }}-
+
+      - name: Scrape asortiment ${{ matrix.obchod }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          EXTRA=""
+          if [ -n "${{ github.event.inputs.max_kategorii }}" ]; then
+            EXTRA="--max-kategorii ${{ github.event.inputs.max_kategorii }}"
+          fi
+          python -m scraper.asortiment --obchod "${{ matrix.obchod }}" $EXTRA
+
+      - name: OFF obohacení nových potravin
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m scraper.obohaceni --limit 300

@@ -50,6 +50,9 @@ class Nabidka:
     obrazek: Optional[str] = None
     platnost_do: Optional[str] = None  # ISO datum YYYY-MM-DD
     sleva_procenta: Optional[int] = None
+    je_sleva: bool = True  # letákové nabídky = True; asortimentní cena = False
+    kategorie: str = "ostatni"  # pro nové potraviny z asortimentu
+    znacka: Optional[str] = None
     extra: dict = field(default_factory=dict)
 
 
