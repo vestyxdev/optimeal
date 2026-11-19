@@ -57,7 +57,7 @@ class SupabaseWriter:
             offset = 0
             while True:
                 davka = self._get(
-                    "foods", "id,nazev,ean,baleni_g,obrazek",
+                    "foods", "id,nazev,ean,baleni_g,obrazek,externi_id",
                     offset=offset, limit=1000,
                 )
                 self._potraviny.extend(davka)
@@ -270,8 +270,17 @@ class SupabaseWriter:
                 nej_id, nej_skore = pid, skore
         return nej_id if nej_skore >= 0.80 else None
 
+    @staticmethod
+    def _externi_id(nabidka: Nabidka) -> str | None:
+        """ID produktu u eshopu z nabídky (rohlik_id / kosik_id) –
+        obohaceni_eshop.py díky němu dohledá nutriční hodnoty přímo
+        u zdroje."""
+        ext = nabidka.extra or {}
+        eid = ext.get("rohlik_id") or ext.get("kosik_id")
+        return str(eid) if eid else None
+
     def _dopln_baleni_a_obrazek(self, food_id: str, nabidka: Nabidka) -> None:
-        """Doplní baleni_g/ean/obrazek z nabídky na potravinu – best-effort."""
+        """Doplní baleni_g/ean/obrazek/externi_id – best-effort."""
         patch: dict = {}
         self.nacti_potraviny()
         p = self._id_index.get(food_id)
@@ -282,6 +291,10 @@ class SupabaseWriter:
                 patch["ean"] = nabidka.ean
             if nabidka.obrazek and not p.get("obrazek"):
                 patch["obrazek"] = nabidka.obrazek
+            if not p.get("externi_id"):
+                eid = self._externi_id(nabidka)
+                if eid:
+                    patch["externi_id"] = eid
         if not patch:
             return
         try:
@@ -403,6 +416,7 @@ class SupabaseWriter:
             "baleni_g": n.gramy,
             "ean": n.ean,
             "obrazek": n.obrazek,
+            "externi_id": self._externi_id(n),
             "zdroj": f"eshop:{n.obchod.lower()}",
             "schvaleno": True,
         }
@@ -418,7 +432,8 @@ class SupabaseWriter:
                 fid = r.json()[0]["id"]
                 # novinka v cache – další stejnojmenné nabídky se spárují
                 nova = {"id": fid, "nazev": radka["nazev"], "ean": n.ean,
-                        "baleni_g": n.gramy, "obrazek": n.obrazek}
+                        "baleni_g": n.gramy, "obrazek": n.obrazek,
+                        "externi_id": radka["externi_id"]}
                 self._potraviny.append(nova)
                 fn = normalizuj_nazev(nova["nazev"])
                 fstem = stem_nazev(nova["nazev"])

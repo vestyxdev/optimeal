@@ -12,6 +12,9 @@ on:
       limit:
         description: "Max potravin (výchozí 1500)"
         required: false
+      zdroj:
+        description: "Zdroj obohacení: eshop | off | oba (výchozí oba)"
+        required: false
 
 permissions:
   contents: read
@@ -29,4 +32,11 @@ jobs:
       - env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python -m scraper.obohaceni --vse --limit ${{ github.event.inputs.limit || '1500' }}
+        run: |
+          ZDROJ="${{ github.event.inputs.zdroj || 'oba' }}"
+          if [ "$ZDROJ" != "off" ]; then
+            python -m scraper.obohaceni_eshop --limit ${{ github.event.inputs.limit || '1500' }}
+          fi
+          if [ "$ZDROJ" != "eshop" ]; then
+            python -m scraper.obohaceni --vse --limit ${{ github.event.inputs.limit || '1500' }}
+          fi
