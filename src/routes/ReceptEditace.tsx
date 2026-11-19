@@ -100,8 +100,8 @@ function spocitejUctenku(
       nazev: p.nazev,
       gramy: g,
       cena: p.aktualniCena > 0 ? p.aktualniCena * podil : null,
-      sleva: p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena
-        ? ((p.puvodniCena ?? p.beznaCena) - p.aktualniCena) * podil
+      sleva: p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
+        ? (p.puvodniCena - p.aktualniCena) * podil
         : 0,
     };
   });

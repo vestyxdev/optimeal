@@ -419,9 +419,9 @@ function RadekPotraviny({
       <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.tuky) : "–"}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
-        {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
+        {p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
           <span className="ml-1 text-xs text-muted line-through">
-            {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
+            {cenaLabel(p, p.puvodniCena)}
           </span>
         )}
         {p.obchod && !p.sleva && (
@@ -495,9 +495,9 @@ function KartaPotraviny({
             </span>
             <span className="tabular-nums font-semibold">
               {cenaLabel(p, p.aktualniCena)}
-              {p.sleva && (p.puvodniCena ?? p.beznaCena) > p.aktualniCena && (
+              {p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
                 <span className="ml-1 text-xs font-normal text-muted line-through">
-                  {cenaLabel(p, p.puvodniCena ?? p.beznaCena)}
+                  {cenaLabel(p, p.puvodniCena)}
                 </span>
               )}
               {p.obchod && !p.sleva && (

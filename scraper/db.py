@@ -352,6 +352,7 @@ class SupabaseWriter:
                 "puvodni_cena": puvodni,
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
+                "baleni_g": n.gramy,
                 "zdroj": f"scraper:{n.obchod.lower()}",
                 "pozorovano_at": ted,
             }
@@ -545,6 +546,7 @@ class SupabaseWriter:
                 "puvodni_cena": puvodni,
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
+                "baleni_g": n.gramy,
                 "zdroj": f"asortiment:{n.obchod.lower()}",
                 "pozorovano_at": ted,
             }
