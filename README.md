@@ -119,6 +119,7 @@ Migrace:
 | `0036_suchary_a_preklepy.sql` | 10 sušenek/trubiček/perníků/tortill → `suchary_testoviny`, 6 müsli/kaší/rýží → `peckoviny_obily`, Monte dezerty → `mlecne_vyrobky`, `Sójový granulát` → `maso_ryby`; 4 překlepy (`rotein`, `enery`, diakritika) |
 | `0037_ostatni_cistka.sql` | ~90 položek: 25 džemů/moštů/candy + 33 polévek a směsí + 17 chipsů z `ovoce_zelenina` → `ostatni`, 12 lupínků + 6 kaší → `peckoviny_obily`; 16 oříškových „másel"/pomazánek + polévky/chipsy/čokolády z `mlecne_vyrobky` → `ostatni`, 5 máslových sušenek a sýrových tyčinek → `suchary`; skutečná másla a margaríny zůstávají; 4 překlepy |
 | `0038_pernicky.sql` | 5 perníčků z `ovoce_zelenina` → `suchary_testoviny` (plurál unikl vzoru 0037), `Relax černý rybíz` nápoj → `ostatni` |
+| `0039_denik.sql` | tabulka `diary_entries` (jídelní deník: typ jídla, gramáž, snapshot makra na 100 g, den+čas) + RLS |
 
 ## Funkce
 
@@ -146,6 +147,12 @@ Migrace:
 - **Nákup** – uložené seznamy (z plánu i ruční), odškrtávání položek,
   dokončení/smazání, účtová patička „Celkem ≈ N Kč" (jen neodkoupené
   položky se známou cenou; hlásí počet ve slevě i bez ceny).
+- **Deník** – jídelní deník: záznam snědeného (potravina + gramáž
+  s předvolbami včetně „balení (N g)" z `baleni_g`), typ jídla,
+  datum a čas; souhrn dne vs. aktivní cíle s prstenci plnění
+  (překročení červeně) a sheet „Zápis" s panelem „Vliv na příjem"
+  (+hodnota a +% cíle u každého makra). Makra se snapshotují
+  na 100 g (`diary_entries`, RLS).
 - **Můj účet** – tělesné údaje → automatický výpočet denních cílů,
   počet jídel denně, týdenní rozpočet, smazání účtu (GDPR).
 - **Auth** – registrace, přihlášení, obnovení hesla + nové heslo,

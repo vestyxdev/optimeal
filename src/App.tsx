@@ -28,6 +28,7 @@ const ReceptDetail = lazyRoute(() => import("@/routes/ReceptDetail"), "ReceptDet
 const ReceptEditace = lazyRoute(() => import("@/routes/ReceptEditace"), "ReceptEditace");
 const Mealprep = lazyRoute(() => import("@/routes/Mealprep"), "Mealprep");
 const Nakup = lazyRoute(() => import("@/routes/Nakup"), "Nakup");
+const Denik = lazyRoute(() => import("@/routes/Denik"), "Denik");
 
 export default function App() {
   // bez klíčů k Supabase produkt nespustí demo verzi – zobrazí přesný návod
@@ -89,6 +90,14 @@ export default function App() {
               element={
                 <VyzadujePrihlaseni>
                   <Mealprep />
+                </VyzadujePrihlaseni>
+              }
+            />
+            <Route
+              path="/denik"
+              element={
+                <VyzadujePrihlaseni>
+                  <Denik />
                 </VyzadujePrihlaseni>
               }
             />

@@ -21,6 +21,10 @@ export interface PolozkaVyberu {
   id: string;
   nazev: string;
   kalorie: number;
+  /** makra na 100 g – naplňuje se tam, kde je zdroj KatalogPotravina (deník) */
+  bilkoviny?: number;
+  sacharidy?: number;
+  tuky?: number;
   aktualniCena: number;
   sleva: boolean;
   /** % slevy – badge ukazuje „−30 %“ místo holého SLEVA */

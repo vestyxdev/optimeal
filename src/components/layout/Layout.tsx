@@ -7,6 +7,7 @@ import {
   Ellipsis,
   Leaf,
   Moon,
+  NotebookPen,
   Receipt,
   Settings,
   ShoppingBasket,
@@ -38,7 +39,8 @@ const SEKCE: Sekce[] = [
   { cesta: "/jidelnicek", nazev: "Jídelníček", ikona: UtensilsCrossed, vListe: true },
   { cesta: "/recepty", nazev: "Recepty", ikona: ChefHat, vListe: true },
   { cesta: "/nakup", nazev: "Nákup", ikona: ShoppingBasket, vListe: true },
-  // ostatní sekce jsou na mobilu v nabídce „Více“ – spodní lišta má jen 4+1 slotů
+  { cesta: "/denik", nazev: "Deník", ikona: NotebookPen, vListe: true },
+  // ostatní sekce jsou na mobilu v nabídce „Více“ – spodní lišta má jen 5+1 slotů
   { cesta: "/potraviny", nazev: "Potraviny", ikona: Carrot },
   { cesta: "/mealprep", nazev: "Mealprep", ikona: CookingPot },
   { cesta: "/ucet", nazev: "Můj účet", ikona: UserRound },

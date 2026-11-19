@@ -16,6 +16,7 @@ const PRESNE: Record<string, string> = {
   "/potraviny": "Katalog potravin",
   "/mealprep": "Mealprep",
   "/nakup": "Nákupní seznamy",
+  "/denik": "Jídelní deník",
   "/ucet": "Můj účet",
   "/nastaveni": "Nastavení",
 };
