@@ -449,6 +449,10 @@ class SupabaseWriter:
         radky: dict[tuple, dict] = {}
         stat = {"sparovano": 0, "preskoceno": 0, "nove_potraviny": 0}
         ted = od.isoformat()
+        # klíče už zapsané dřívějším flushem – týž produkt bývá v eshopu
+        # pod několika kategoriemi; bez toho se po flushi znovu zařadí
+        # a insert narazí na unique(food_id,retailer_id,pozorovano_at)
+        zapsane: set[tuple] = set()
 
         def flush() -> None:
             # průběžný flush – kdyby job umřel (timeout) uprostřed zápisu,
@@ -490,6 +494,7 @@ class SupabaseWriter:
                         stat.setdefault("odmitnute", []).append(
                             f"{radek['food_id']}:{radek['cena']} → {rr.status_code} {rr.text[:200]}"
                         )
+            zapsane.update(radky)
             radky = {}
 
         for n in nabidky:
@@ -524,6 +529,9 @@ class SupabaseWriter:
                 "zdroj": f"asortiment:{n.obchod.lower()}",
                 "pozorovano_at": ted,
             }
+            if klic in zapsane:
+                stat["sparovano"] += 1
+                continue
             if klic not in radky or n.cena_za_100g < radky[klic]["cena"]:
                 radky[klic] = radek
             stat["sparovano"] += 1
