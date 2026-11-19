@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   dnesISO,
   jidloPlanuNaPoznamku,
+  kopiePoznamky,
   makraProMnozstvi,
   podilNaCili,
+  posledniPredchoziDen,
   posunDen,
   sectiPrijem,
   nazevTypuJidla,
@@ -158,5 +160,66 @@ describe("jidloPlanuNaPoznamku", () => {
       tuky: 1,
     });
     expect(p.mnozstviG).toBe(1);
+  });
+});
+
+describe("kopiePoznamky", () => {
+  const zdroj = {
+    foodId: "f7",
+    nazev: "Kobliha",
+    obrazek: "https://img.cz/k.png",
+    typJidla: "snidane" as const,
+    mnozstviG: 90,
+    kalorie: 400,
+    bilkoviny: 5,
+    sacharidy: 55,
+    tuky: 17,
+    zapsanoAt: "2026-11-18T07:30:00.000Z",
+  };
+
+  it("zkopíruje všechna data na nový den", () => {
+    const k = kopiePoznamky(zdroj, "2026-11-20");
+    expect(k.food_id).toBe("f7");
+    expect(k.typ_jidla).toBe("snidane");
+    expect(k.mnozstvi_g).toBe(90);
+    expect(k.kalorie).toBe(400);
+    expect(k.zapsano_dne).toBe("2026-11-20");
+    expect(k.obrazek).toBe("https://img.cz/k.png");
+  });
+
+  it("přenese čas zápisu na nové datum", () => {
+    const k = kopiePoznamky(zdroj, "2026-11-20");
+    const t = new Date(k.zapsano_at);
+    expect(t.getHours()).toBe(new Date(zdroj.zapsanoAt).getHours());
+    expect(t.getMinutes()).toBe(new Date(zdroj.zapsanoAt).getMinutes());
+    expect(k.zapsano_at.startsWith("2026-11-20")).toBe(true);
+  });
+
+  it("při nevalidním času použije poledne", () => {
+    const k = kopiePoznamky({ ...zdroj, zapsanoAt: "nesmysl" }, "2026-11-20");
+    expect(new Date(k.zapsano_at).getHours()).toBe(12);
+  });
+});
+
+describe("posledniPredchoziDen", () => {
+  const poz = (d: string) => ({ zapsanoDne: d });
+
+  it("najde nejbližší předchozí den se záznamy", () => {
+    const r = [poz("2026-11-15"), poz("2026-11-18"), poz("2026-11-18")];
+    expect(posledniPredchoziDen(r, "2026-11-19")).toBe("2026-11-18");
+  });
+
+  it("přeskočí prázdné dny a vrátí starší naplněný", () => {
+    const r = [poz("2026-11-15"), poz("2026-11-19")];
+    expect(posledniPredchoziDen(r, "2026-11-20")).toBe("2026-11-19");
+  });
+
+  it("ignoruje záznamy ze stejného nebo budoucího dne", () => {
+    const r = [poz("2026-11-19"), poz("2026-11-25")];
+    expect(posledniPredchoziDen(r, "2026-11-19")).toBeNull();
+  });
+
+  it("prázdné okno → null", () => {
+    expect(posledniPredchoziDen([], "2026-11-19")).toBeNull();
   });
 });

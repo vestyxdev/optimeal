@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, Flame, NotebookPen, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Flame, NotebookPen, Plus, Repeat, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { GramazPill } from "@/components/ui/GramazPill";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -15,11 +15,13 @@ import {
   nactiDenik,
   nactiDenikRozsah,
   podilNaCili,
+  posledniPredchoziDen,
   posunDen,
   sectiPrijem,
   smazPoznamkuDeniku,
   TYPY_JIDLA,
   upravPoznamkuDeniku,
+  zkopirujZaznamy,
   type PoznamkaDeniku,
   type TypJidla,
 } from "@/lib/data/denik";
@@ -97,6 +99,18 @@ export function Denik() {
     onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
 
+  // „zopakovat předchozí den" – zdroj je nejbližší předchozí den se záznamy
+  // v načteném 7denním okně (typ jídla i čas zápisu se zachovají)
+  const mutaceKopie = useMutation({
+    mutationFn: (radky: PoznamkaDeniku[]) => zkopirujZaznamy(radky, datum),
+    onSuccess: (n) => {
+      toast.success(n === 1 ? "Zkopírován 1 záznam." : `Zkopírováno ${n} záznamů.`);
+      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Kopírování selhalo."),
+  });
+
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);
   const prijem = useMemo(() => sectiPrijem(poznamky), [poznamky]);
   const podleJidel = useMemo(() => {
@@ -127,6 +141,17 @@ export function Denik() {
   );
 
   const cile = dotazCile.data ?? null;
+  const zdrojDen = useMemo(
+    () => posledniPredchoziDen(dotazTyden.data ?? [], datum),
+    [dotazTyden.data, datum],
+  );
+  const zdrojovePoznamky = useMemo(
+    () =>
+      zdrojDen
+        ? (dotazTyden.data ?? []).filter((p) => p.zapsanoDne === zdrojDen)
+        : [],
+    [dotazTyden.data, zdrojDen],
+  );
   const jeDnes = datum === dnesISO();
 
   return (
@@ -181,9 +206,23 @@ export function Denik() {
           <h2 className="text-sm font-bold text-fg">
             Příjem za {formatujDatum(datum)}
           </h2>
-          {!cile && !dotazCile.isPending && (
-            <span className="ml-auto text-xs text-muted">cíle nenastavené – vyplňte je v účtu</span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {!cile && !dotazCile.isPending && (
+              <span className="text-xs text-muted">cíle nenastavené – vyplňte je v účtu</span>
+            )}
+            {zdrojDen && zdrojovePoznamky.length > 0 && (
+              <Button
+                varianta="outline"
+                velikost="sm"
+                onClick={() => mutaceKopie.mutate(zdrojovePoznamky)}
+                disabled={mutaceKopie.isPending}
+                title={`Zkopíruje ${zdrojovePoznamky.length} záznamů z ${formatujDatum(zdrojDen)}`}
+              >
+                <Repeat className="size-3.5" />
+                Zopakovat {formatujDatum(zdrojDen).replace(/\s\d{4}$/, "")}
+              </Button>
+            )}
+          </div>
         </div>
         {dotazDenik.isPending ? (
           <div className="mt-3 grid grid-cols-4 gap-2">

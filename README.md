@@ -152,7 +152,10 @@ Migrace:
   datum a čas; souhrn dne vs. aktivní cíle s prstenci plnění
   (překročení červeně) a sheet „Zápis" s panelem „Vliv na příjem"
   (+hodnota a +% cíle u každého makra). Makra se snapshotují
-  na 100 g (`diary_entries`, RLS).
+  na 100 g (`diary_entries`, RLS). Inline úprava gramáže uložených
+  záznamů (optimisticky), 7denní sloupcový trend vs. cíl,
+  tlačítko „Zopakovat" zkopíruje nejbližší předchozí naplněný den
+  (typ jídla i čas se zachovají).
 - **Můj účet** – tělesné údaje → automatický výpočet denních cílů,
   počet jídel denně, týdenní rozpočet, smazání účtu (GDPR).
 - **Auth** – registrace, přihlášení, obnovení hesla + nové heslo,

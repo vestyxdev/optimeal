@@ -286,6 +286,86 @@ export async function zapisDoDeniku(
   if (error) throw new Error(`Zápis do deníku selhal: ${error.message}`);
 }
 
+/**
+ * Kopie uloženého záznamu na jiný den – zachová typ jídla, gramáž,
+ * makro-snapshot i čas zápisu (hodina:minuta se přenese na nové datum).
+ */
+export function kopiePoznamky(
+  p: Pick<
+    PoznamkaDeniku,
+    | "foodId"
+    | "nazev"
+    | "obrazek"
+    | "typJidla"
+    | "mnozstviG"
+    | "kalorie"
+    | "bilkoviny"
+    | "sacharidy"
+    | "tuky"
+    | "zapsanoAt"
+  >,
+  doDne: string,
+): Omit<RadkaDeniku, "id"> {
+  const t = new Date(p.zapsanoAt);
+  const cas = Number.isNaN(t.getTime())
+    ? "12:00"
+    : `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  return {
+    food_id: p.foodId,
+    nazev: p.nazev,
+    obrazek: p.obrazek,
+    typ_jidla: p.typJidla,
+    mnozstvi_g: p.mnozstviG,
+    kalorie: p.kalorie,
+    bilkoviny: p.bilkoviny,
+    sacharidy: p.sacharidy,
+    tuky: p.tuky,
+    zapsano_dne: doDne,
+    zapsano_at: new Date(`${doDne}T${cas}:00`).toISOString(),
+  };
+}
+
+/**
+ * Nejbližší den PŘED `doDne`, který má aspoň jeden záznam
+ * (pro „zopakovat předchozí den" – i když byl včera deník prázdný).
+ */
+export function posledniPredchoziDen(
+  poznamky: { zapsanoDne: string }[],
+  doDne: string,
+): string | null {
+  let nej: string | null = null;
+  for (const p of poznamky) {
+    if (p.zapsanoDne < doDne && (nej === null || p.zapsanoDne > nej)) {
+      nej = p.zapsanoDne;
+    }
+  }
+  return nej;
+}
+
+/** Zkopíruje záznamy na cílový den (typ jídla + čas se zachovají). Vrací počet řádků. */
+export async function zkopirujZaznamy(
+  poznamky: PoznamkaDeniku[],
+  doDne: string,
+): Promise<number> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  if (poznamky.length === 0) return 0;
+
+  const { data: uzivatel, error: authChyba } = await klient.auth.getUser();
+  if (authChyba || !uzivatel.user) {
+    throw new Error("Pro zápis do deníku se musíte přihlásit.");
+  }
+
+  const { error } = await klient.from("diary_entries").insert(
+    poznamky.map((p) => ({
+      user_id: uzivatel.user!.id,
+      ...kopiePoznamky(p, doDne),
+    })),
+  );
+  if (error) throw new Error(`Kopírování selhalo: ${error.message}`);
+  return poznamky.length;
+}
+
 /** Změna gramáže uloženého záznamu (makro snapshot zůstává). */
 export async function upravPoznamkuDeniku(
   id: string,
