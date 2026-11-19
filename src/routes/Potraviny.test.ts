@@ -86,4 +86,59 @@ describe("filtrujKatalog", () => {
     const v = filtrujKatalog(kat, "", "vse", true);
     expect(v.map((x) => x.nazev)).toEqual(["A", "B"]);
   });
+
+  it("hledání ignoruje diakritiku (kureci → kuřecí, mleko → mléko)", () => {
+    const kat = [
+      { ...p("Kuřecí prsa"), kalorie: 165 },
+      { ...p("Mléko plnotučné"), kalorie: 66 },
+      { ...p("Řecký jogurt"), kalorie: 100 },
+    ];
+    expect(filtrujKatalog(kat, "kureci", "vse")[0]?.nazev).toBe("Kuřecí prsa");
+    expect(filtrujKatalog(kat, "mleko", "vse")[0]?.nazev).toBe("Mléko plnotučné");
+    expect(filtrujKatalog(kat, "recky", "vse")[0]?.nazev).toBe("Řecký jogurt");
+  });
+
+  it("relevance: prefix > začátek slova > podřetězec", () => {
+    const kat = [
+      { ...p("Houskový rohlík"), kalorie: 1 },
+      { ...p("Prohlíkový"), kalorie: 1 }, // „rohlik" uvnitř slova → jen podřetězec
+      { ...p("Rohlík"), kalorie: 1 },
+    ];
+    const v = filtrujKatalog(kat, "rohlik", "vse");
+    expect(v.map((x) => x.nazev)).toEqual([
+      "Rohlík",
+      "Houskový rohlík",
+      "Prohlíkový",
+    ]);
+  });
+
+  it("řazení 'jednotkova' podle Kč/100 g", () => {
+    const kat = [
+      { ...p("Drahá"), aktualniCena: 50, kalorie: 100 },
+      { ...p("Levná"), aktualniCena: 5, kalorie: 100 },
+      { ...p("Střední"), aktualniCena: 20, kalorie: 100 },
+    ];
+    const v = filtrujKatalog(kat, "", "vse", false, "jednotkova");
+    expect(v.map((x) => x.nazev)).toEqual(["Levná", "Střední", "Drahá"]);
+  });
+
+  it("řazení 'cena' podle ceny balení (baleniG), vážené podle Kč/kg", () => {
+    const kat = [
+      { ...p("Balení velké"), aktualniCena: 10, baleniG: 500, kalorie: 100 }, // 50 Kč
+      { ...p("Vážené"), aktualniCena: 4, baleniG: null, kalorie: 100 }, // 40 Kč/kg
+      { ...p("Balení malé"), aktualniCena: 10, baleniG: 200, kalorie: 100 }, // 20 Kč
+    ];
+    const v = filtrujKatalog(kat, "", "vse", false, "cena");
+    expect(v.map((x) => x.nazev)).toEqual(["Balení malé", "Vážené", "Balení velké"]);
+  });
+
+  it("řazení 'bilkovinyCena': nejvíc bílkovin za Kč nahoře, bez ceny na konec", () => {
+    const kat = [
+      { ...p("Bez ceny"), bilkoviny: 50, aktualniCena: 0, kalorie: 200 },
+      { ...p("Top value"), bilkoviny: 22, aktualniCena: 11, kalorie: 165 }, // 200 g/100 Kč
+      { ...p("Slabé"), bilkoviny: 5, aktualniCena: 20, kalorie: 200 }, // 25 g/100 Kč
+    ];
+    const v = filtrujKatalog(kat, "", "vse", false, "bilkovinyCena");
+    expect(v.map((x) => x.nazev)).toEqual(["Top value", "Slabé", "Bez ceny"]);
+  });
 });

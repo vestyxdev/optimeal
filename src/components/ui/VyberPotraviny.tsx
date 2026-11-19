@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Apple, Barcode, Beef, ChevronDown, Cookie, Milk, Package, Plus,
@@ -8,6 +8,7 @@ import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import { hledejPodleEanLokalne } from "@/lib/data/potraviny";
 import { formatujCenu, formatujKcal, formatujPlatnostDo } from "@/lib/cena";
+import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { cn } from "@/lib/cn";
 
 /**
@@ -37,8 +38,7 @@ export interface PolozkaVyberu {
   baleniG?: number | null;
 }
 
-const norm = (s: string) =>
-  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const norm = bezDiakritiky;
 
 const MAX_VYSLEDKU = 80;
 const LS_NEDAVNE = "om-vyber-nedavne";
@@ -98,25 +98,34 @@ export function VyberPotraviny({
   const mapa = useMemo(() => new Map(potraviny.map((p) => [p.id, p])), [potraviny]);
   const hleda = dotaz.trim() !== "" || kategorie !== null;
 
+  // odložený dotaz – filtrace velkého katalogu neblokuje psaní
+  const dotazOdlozeny = useDeferredValue(dotaz);
+
   const filtrovane = useMemo(() => {
-    const d = norm(dotaz.trim());
-    return potraviny
-      .filter(
-        (p) =>
-          (kategorie === null || p.kategorie === kategorie) &&
-          (d === "" || norm(p.nazev).includes(d)),
-      )
-      .slice(0, MAX_VYSLEDKU);
-  }, [potraviny, dotaz, kategorie]);
+    const d = norm(dotazOdlozeny.trim());
+    const vybrane = potraviny.filter(
+      (p) =>
+        (kategorie === null || p.kategorie === kategorie) &&
+        (d === "" || norm(p.nazev).includes(d)),
+    );
+    if (d !== "") {
+      // relevance: prefix > začátek slova > podřetězec – Enter vždy
+      // vybere nejrelevantnější výsledek (filtrovane[0])
+      vybrane.sort(
+        (a, b) => skoreShody(norm(b.nazev), d) - skoreShody(norm(a.nazev), d),
+      );
+    }
+    return vybrane.slice(0, MAX_VYSLEDKU);
+  }, [potraviny, dotazOdlozeny, kategorie]);
 
   const pocetVysledku = useMemo(() => {
-    const d = norm(dotaz.trim());
+    const d = norm(dotazOdlozeny.trim());
     return potraviny.filter(
       (p) =>
         (kategorie === null || p.kategorie === kategorie) &&
         (d === "" || norm(p.nazev).includes(d)),
     ).length;
-  }, [potraviny, dotaz, kategorie]);
+  }, [potraviny, dotazOdlozeny, kategorie]);
 
   const veSleve = useMemo(() => potraviny.filter((p) => p.sleva).slice(0, 10), [potraviny]);
   const nedavne = useMemo(

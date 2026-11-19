@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
-import { filtrujKatalog } from "@/lib/katalog";
+import { filtrujKatalog, type RazeniKatalogu } from "@/lib/katalog";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
@@ -58,6 +58,16 @@ const DIETA_NAZVY: Record<string, string> = {
 };
 
 const DAVKA_ZOBRAZENI = 100;
+
+const RAZENI_MOZNOSTI: Record<RazeniKatalogu, string> = {
+  relevance: "Relevance",
+  cena: "Nejnižší cena",
+  jednotkova: "Nejnižší Kč/kg",
+  sleva: "Největší sleva",
+  bilkovinyCena: "Nejvíc bílkovin za Kč",
+};
+
+const RAZENI_PLATNA = new Set<string>(Object.keys(RAZENI_MOZNOSTI));
 
 /** Cena buňky: balení ~„25 Kč (400 g)" / vážené „14,90 Kč/kg". */
 function cenaLabel(p: KatalogPotravina, cena: number): string {
@@ -124,16 +134,39 @@ const PRAZDNY_FORM: FormPotravina = {
 export function Potraviny() {
   const { uzivatel } = useAuth();
   const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
-  const [hledat, setHledat] = useState("");
-  // „?kategorie=…" – sdílený odkaz rovnou otevře danou kategorii
+  // stav filtrů žije v URL (?dotaz&kategorie&slevy&razeni) – sdílený
+  // odkaz, refresh i tlačítko Zpět drží stejný pohled
+  const [hledat, setHledat] = useState(
+    () => new URLSearchParams(window.location.search).get("dotaz") ?? "",
+  );
   const [kategorie, setKategorie] = useState<string>(() => {
     const k = new URLSearchParams(window.location.search).get("kategorie");
     return k !== null && k in KATEGORIE ? k : "vse";
   });
-  // „?slevy=1" z dashboardu „Aktuální akce" – rovnou ukáže akční zboží
   const [jenSlevy, setJenSlevy] = useState(
     () => new URLSearchParams(window.location.search).get("slevy") === "1",
   );
+  const [razeni, setRazeni] = useState<RazeniKatalogu>(() => {
+    const r = new URLSearchParams(window.location.search).get("razeni");
+    return r !== null && RAZENI_PLATNA.has(r) ? (r as RazeniKatalogu) : "relevance";
+  });
+  // psaní nereaguje na každý stisk – filtr běží na odložené hodnotě,
+  // takže input zůstane plynulý i při filtrování tisíců položek
+  const hledatOdlozene = useDeferredValue(hledat);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const nastav = (klic: string, hodnota: string | null) => {
+      if (hodnota) p.set(klic, hodnota);
+      else p.delete(klic);
+    };
+    nastav("dotaz", hledatOdlozene.trim() || null);
+    nastav("kategorie", kategorie !== "vse" ? kategorie : null);
+    nastav("slevy", jenSlevy ? "1" : null);
+    nastav("razeni", razeni !== "relevance" ? razeni : null);
+    const qs = p.toString();
+    history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [hledatOdlozene, kategorie, jenSlevy, razeni]);
   const [formZobrazen, setFormZobrazen] = useState(false);
   const [editovana, setEditovana] = useState<KatalogPotravina | null>(null);
 
@@ -145,13 +178,16 @@ export function Potraviny() {
   const potraviny = dotaz.data ?? [];
   const pocetSlev = useMemo(() => potraviny.filter((p) => p.sleva).length, [potraviny]);
   const filtrovane = useMemo(
-    () => filtrujKatalog(potraviny, hledat, kategorie, jenSlevy),
-    [potraviny, hledat, kategorie, jenSlevy],
+    () => filtrujKatalog(potraviny, hledatOdlozene, kategorie, jenSlevy, razeni),
+    [potraviny, hledatOdlozene, kategorie, jenSlevy, razeni],
   );
   // velký katalog se vykresluje po dávkách – tisíce DOM uzlů naráz
   // by zabily mobil; filtr resetuje limit na první dávku
   const [limitZobrazeni, setLimitZobrazeni] = useState(DAVKA_ZOBRAZENI);
-  useEffect(() => setLimitZobrazeni(DAVKA_ZOBRAZENI), [hledat, kategorie, jenSlevy]);
+  useEffect(
+    () => setLimitZobrazeni(DAVKA_ZOBRAZENI),
+    [hledatOdlozene, kategorie, jenSlevy, razeni],
+  );
   const zobrazeno = filtrovane.slice(0, limitZobrazeni);
   const zbyva = filtrovane.length - zobrazeno.length;
 
@@ -217,6 +253,16 @@ export function Potraviny() {
           <Tag className="size-4" />
           Ve slevě{pocetSlev > 0 ? ` (${pocetSlev})` : ""}
         </button>
+        <Select
+          value={razeni}
+          onChange={(e) => setRazeni(e.target.value as RazeniKatalogu)}
+          aria-label="Seřadit katalog"
+          className="w-auto min-w-44"
+        >
+          {Object.entries(RAZENI_MOZNOSTI).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </Select>
       </div>
 
       {dotaz.isError && (
