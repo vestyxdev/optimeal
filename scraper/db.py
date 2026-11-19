@@ -363,8 +363,31 @@ class SupabaseWriter:
                 json=radky_list,
                 timeout=60,
             )
-            r.raise_for_status()
-        stat["vlozeno"] = len(radky_list)
+            if r.ok:
+                stat["vlozeno"] = len(radky_list)
+            else:
+                # otravná řádka nesmí shodit celý letákový běh – logni
+                # detail PostgREST (constraint + klíč) a projdi po řádkách
+                log.error("Dávka letákových cen %d: HTTP %d – %s",
+                          len(radky_list), r.status_code, r.text[:400])
+                vlozeno = 0
+                for radek in radky_list:
+                    rr = requests.post(
+                        f"{self.url}/rest/v1/price_observations",
+                        headers={**self._hlavicky,
+                                 "Prefer": "resolution=ignore-duplicates"},
+                        json=[radek],
+                        timeout=30,
+                    )
+                    if rr.ok:
+                        vlozeno += 1
+                    else:
+                        log.error("Odmítnuta řádka %s: %d %s",
+                                  radek.get("food_id"), rr.status_code,
+                                  rr.text[:200])
+                stat["vlozeno"] = vlozeno
+        else:
+            stat["vlozeno"] = 0
         return stat
 
     def vytvor_potravinu(self, n: Nabidka) -> str | None:
@@ -435,15 +458,38 @@ class SupabaseWriter:
                 return
             davky = list(radky.values())
             for i in range(0, len(davky), 500):
+                davka = davky[i : i + 500]
                 r = requests.post(
                     f"{self.url}/rest/v1/price_observations",
                     headers={**self._hlavicky,
                              "Prefer": "resolution=ignore-duplicates"},
-                    json=davky[i : i + 500],
+                    json=davka,
                     timeout=120,
                 )
-                r.raise_for_status()
-            stat["vlozeno"] = stat.get("vlozeno", 0) + len(davky)
+                if r.ok:
+                    stat["vlozeno"] = stat.get("vlozeno", 0) + len(davka)
+                    continue
+                # jediná otravná řádka nesmí shodit celou dávku (ani běh) –
+                # zaloguj detail PostgREST (jmenuje constraint i klíč)
+                # a dávku projeď po řádkách, validní se zapíšou
+                log.error(
+                    "Dávka pozorování %d: HTTP %d – %s",
+                    len(davka), r.status_code, r.text[:400],
+                )
+                for radek in davka:
+                    rr = requests.post(
+                        f"{self.url}/rest/v1/price_observations",
+                        headers={**self._hlavicky,
+                                 "Prefer": "resolution=ignore-duplicates"},
+                        json=[radek],
+                        timeout=30,
+                    )
+                    if rr.ok:
+                        stat["vlozeno"] = stat.get("vlozeno", 0) + 1
+                    else:
+                        stat.setdefault("odmitnute", []).append(
+                            f"{radek['food_id']}:{radek['cena']} → {rr.status_code} {rr.text[:200]}"
+                        )
             radky = {}
 
         for n in nabidky:
@@ -490,6 +536,9 @@ class SupabaseWriter:
             log.warning("Anomální ceny %d, vzorek: %s",
                         len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8])
         flush()
+        if stat.get("odmitnute"):
+            log.error("Odmítnuto %d řádků, vzorek: %s",
+                      len(stat["odmitnute"]), stat["odmitnute"][:5])
         return stat
 
     def _pocet_smazanych(self, r: requests.Response) -> int:
