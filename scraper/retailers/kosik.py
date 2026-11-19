@@ -142,6 +142,11 @@ class KosikScraper(BaseScraper):
         # BFS už každý leaf načte – první stránku produktů si zapamatujeme,
         # ať ji _produkty_leaf nemusí tahat znovu (polovina requestů)
         self._prvni_stranka: dict[str, dict] = {}
+        # coverage accounting: selhání requestu ≠ prázdná kategorie
+        self._leaf_chyba = False
+        self.leaf_celkem = 0
+        self.leaf_selhalo = 0
+        self.leaf_prazdnych = 0
 
     # --- strom kategorií ----------------------------------------------
 
@@ -214,6 +219,7 @@ class KosikScraper(BaseScraper):
         if pr is None:
             d = self._stranka(slug)
             if not d:
+                self._leaf_chyba = True
                 return
             pr = d.get("products") or {}
         for item in pr.get("items") or []:
@@ -226,6 +232,7 @@ class KosikScraper(BaseScraper):
                 break
             d2 = self._post_json(f"{API}/products/more", {"cursor": cursor})
             if not d2:
+                self._leaf_chyba = True  # useklo se uprostřed stránkování
                 break
             dalsi = d2.get("products") or []
             if not dalsi:
@@ -261,11 +268,13 @@ class KosikScraper(BaseScraper):
     def stahni_slevy(self) -> Iterator[Nabidka]:
         # fetched až po prvním reálném produktu (stejná pojistka jako Rohlík)
         leaf = self._listove_slugy()
+        if self.max_kategorii:
+            leaf = dict(sorted(leaf.items())[: self.max_kategorii])
+        self.leaf_celkem = len(leaf)
         log.info("%s: %d leaf kategorií k průchodu", self.obchod, len(leaf))
         videni: set[int] = set()
-        for i, (slug, kat) in enumerate(sorted(leaf.items())):
-            if self.max_kategorii and i >= self.max_kategorii:
-                break
+        for slug, kat in sorted(leaf.items()):
+            self._leaf_chyba = False
             n = 0
             for p in self._produkty_leaf(slug):
                 pid = p.get("id")
@@ -278,4 +287,13 @@ class KosikScraper(BaseScraper):
                     self.nalezeno += 1
                     n += 1
                     yield nab
+            if self._leaf_chyba:
+                self.leaf_selhalo += 1
+            elif n == 0:
+                self.leaf_prazdnych += 1
             log.info("%s: %s → %d produktů (celkem %d)", self.obchod, slug, n, self.nalezeno)
+        log.info(
+            "%s: pokrytí %d/%d leaf OK, %d selhalo, %d prázdných",
+            self.obchod, self.leaf_celkem - self.leaf_selhalo,
+            self.leaf_celkem, self.leaf_selhalo, self.leaf_prazdnych,
+        )

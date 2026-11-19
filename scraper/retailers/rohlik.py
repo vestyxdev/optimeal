@@ -157,6 +157,11 @@ class RohlikScraper(BaseScraper):
         super().__init__(pauza)
         self.max_kategorii = max_kategorii
         self.obnov_strom = obnov_strom
+        # coverage accounting: selhání requestu ≠ prázdná kategorie
+        self._leaf_chyba = False
+        self.leaf_celkem = 0
+        self.leaf_selhalo = 0
+        self.leaf_prazdnych = 0
 
     # --- strom kategorií ------------------------------------------
 
@@ -226,7 +231,8 @@ class RohlikScraper(BaseScraper):
                     "filter": "", "excludeProductIds": "",
                 },
             )
-            if not d:
+            if d is None:
+                self._leaf_chyba = True
                 break
             stranka_ids = d.get("productIds") or []
             ids.extend(stranka_ids)
@@ -241,6 +247,9 @@ class RohlikScraper(BaseScraper):
                 f"{API}/products/card",
                 params=[("products", pid) for pid in davka],
             )
+            if d is None:
+                self._leaf_chyba = True
+                continue
             if isinstance(d, list):
                 yield from d
             elif isinstance(d, dict):
@@ -250,15 +259,15 @@ class RohlikScraper(BaseScraper):
         # fetched označíme až po prvním reálném produktu – prázdná/dohozená
         # odezva API nesmí spustit stale purge (vymazal by platnou historii)
         leaf_top = self._listove_kategorie()
+        if self.max_kategorii:
+            leaf_top = dict(sorted(leaf_top.items())[: self.max_kategorii])
+        self.leaf_celkem = len(leaf_top)
         log.info("%s: %d leaf kategorií k průchodu", self.obchod, len(leaf_top))
         videni: set[int] = set()
-        for i, (cid, top) in enumerate(sorted(leaf_top.items())):
-            if self.max_kategorii and i >= self.max_kategorii:
-                break
+        for cid, top in sorted(leaf_top.items()):
+            self._leaf_chyba = False
             ids = [x for x in self._ids_kategorie(cid) if x not in videni]
             videni.update(ids)
-            if not ids:
-                continue
             n = 0
             for karta in self._karty(ids):
                 nab = nabidka_z_karty(karta, TOP_MAPA.get(top, "ostatni"))
@@ -267,4 +276,13 @@ class RohlikScraper(BaseScraper):
                     self.nalezeno += 1
                     n += 1
                     yield nab
+            if self._leaf_chyba:
+                self.leaf_selhalo += 1
+            elif n == 0:
+                self.leaf_prazdnych += 1
             log.info("%s: %s → %d produktů (celkem %d)", self.obchod, cid, n, self.nalezeno)
+        log.info(
+            "%s: pokrytí %d/%d leaf OK, %d selhalo, %d prázdných",
+            self.obchod, self.leaf_celkem - self.leaf_selhalo,
+            self.leaf_celkem, self.leaf_selhalo, self.leaf_prazdnych,
+        )

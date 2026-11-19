@@ -52,15 +52,28 @@ def main() -> int:
     vsechny = []
     vysledky: dict[str, str] = {}
     uspesne_zdroje: list[str] = []
+    nizke_pokryti = False
     for cls in scrapery:
         s = cls(max_kategorii=args.max_kategorii, obnov_strom=args.obnov_strom)
         try:
             nabidky = list(s.stahni_slevy())
             vsechny.extend(nabidky)
-            vysledky[s.obchod] = f"{len(nabidky)} produktů"
-            log.info("%s: %d produktů", s.obchod, len(nabidky))
+            selh = getattr(s, "leaf_selhalo", 0)
+            celk = getattr(s, "leaf_celkem", 0)
+            pokryti = f" – {celk - selh}/{celk} leaf OK" if celk else ""
+            vysledky[s.obchod] = f"{len(nabidky)} produktů{pokryti}"
+            log.info("%s: %d produktů%s", s.obchod, len(nabidky), pokryti)
             if s.fetched:
                 uspesne_zdroje.append(f"asortiment:{s.obchod.lower()}")
+            # >50 % leaf requestů padlo → skoro jistě IP blokace
+            # (datacenter); data zapíšeme, ale job musí zrudnout,
+            # ať retry workflow chytí čerstvou IP
+            if celk >= 10 and selh > celk * 0.5:
+                nizke_pokryti = True
+                log.error(
+                    "%s: podezřele nízké pokrytí – %d/%d leaf selhalo",
+                    s.obchod, selh, celk,
+                )
         except Exception as e:  # noqa: BLE001
             vysledky[s.obchod] = f"CHYBA: {e.__class__.__name__}"
             log.exception("%s: scraper selhal – pokračuji dalším", s.obchod)
@@ -84,7 +97,10 @@ def main() -> int:
         "Zapsáno %d pozorování (spárováno %d, nových potravin %d, přeskočeno %d)",
         stat["vlozeno"], stat["sparovano"], stat["nove_potraviny"], stat["preskoceno"],
     )
-    writer.purge_scrapera(start, uspesne_zdroje)
+    # purge jen zdrojů, které fakt doběhly A měly rozumné pokrytí –
+    # půlka spadlých leafů = data jsou neúplná, purge by smazal
+    # platné ceny kategorií, které se tentokrát nenačetly
+    writer.purge_scrapera(start, uspesne_zdroje if not nizke_pokryti else [])
     writer.purge_expirovanych()
 
     souhrn = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -97,13 +113,15 @@ def main() -> int:
             f"(spárováno {stat['sparovano']}, nových potravin {stat['nove_potraviny']}, "
             f"přeskočeno {stat['preskoceno']})",
         ]
+        if nizke_pokryti:
+            radky += ["", "⚠️ **Nízké pokrytí kategorií** – pravděpodobně IP blokace z datacentra; doporučeno přehrát job pro čerstvou IP."]
         try:
             with open(souhrn, "a", encoding="utf-8") as f:
                 f.write("\n".join(radky) + "\n")
         except OSError as e:
             log.warning("GITHUB_STEP_SUMMARY zápis selhal: %s", e)
 
-    return 0 if vsechny else 1
+    return 0 if (vsechny and not nizke_pokryti) else 1
 
 
 if __name__ == "__main__":
