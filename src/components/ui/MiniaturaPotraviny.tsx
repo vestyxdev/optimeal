@@ -39,6 +39,7 @@ export function MiniaturaPotraviny({
       src={obrazek}
       alt=""
       loading="lazy"
+      decoding="async"
       className={`${inline ? "mr-2 inline-block align-middle" : "shrink-0"} ${velikost} rounded-md object-cover`}
       onError={() => setChybi(true)}
     />
