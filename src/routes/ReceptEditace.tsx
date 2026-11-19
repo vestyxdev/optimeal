@@ -18,7 +18,7 @@ import {
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
 import { makraProMnozstvi } from "@/lib/data/denik";
-import { formatujKcal, formatujMakro } from "@/lib/cena";
+import { formatujKcal, formatujMakro, referencniCena } from "@/lib/cena";
 import type { Potravina } from "@/lib/generator/generator";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
@@ -100,9 +100,11 @@ function spocitejUctenku(
       nazev: p.nazev,
       gramy: g,
       cena: p.aktualniCena > 0 ? p.aktualniCena * podil : null,
-      sleva: p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
-        ? (p.puvodniCena - p.aktualniCena) * podil
-        : 0,
+      sleva: (() => {
+        if (!p.sleva) return 0;
+        const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
+        return ref ? (ref.cena - p.aktualniCena) * podil : 0;
+      })(),
     };
   });
   return { polozky, kcal, b, s, t };

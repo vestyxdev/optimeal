@@ -132,6 +132,8 @@ export function Denik() {
         aktualniCena: k.aktualniCena,
         sleva: k.sleva,
         slevaProcenta: k.slevaProcenta ?? null,
+        puvodniCena: k.puvodniCena ?? null,
+        beznaCena: k.beznaCena ?? null,
         platnostDo: k.platnostDo ?? null,
         kategorie: k.kategorie ?? "ostatni",
         obrazek: k.obrazek,

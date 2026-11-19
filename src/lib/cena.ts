@@ -45,6 +45,36 @@ export function formatujCenuPolozky(p: {
   return formatujCenu(p.aktualniCena, p.baleniG);
 }
 
+export interface ReferencniCena {
+  /** referenční cena za 100 g (přeškrtnutá u slevy) */
+  cena: number;
+  /** true = reálně zveřejněná původní cena obchodu; false = běžná cena (medián reálných pozorování) */
+  jePuvodni: boolean;
+}
+
+/**
+ * Přeškrtnutá referenční cena u slevy.
+ * 1) puvodni_cena – skutečná přeškrtnutá cena z letáku/obchodu (včetně
+ *    Kupi „běžně stojí"), když ji zdroj zveřejnil.
+ * 2) jinak bezna_cena – medián reálně pozorovaných cen produktu,
+ *    zobrazuje se jako „běžně ~X" (nejde o původní cenu obchodu).
+ * Referenční cena se ukazuje jen když je nad aktuální – jinak by
+ * „sleva" vizuálně lživě vypadala jako zdražení.
+ */
+export function referencniCena(
+  aktualniCena: number,
+  puvodniCena?: number | null,
+  beznaCena?: number | null,
+): ReferencniCena | null {
+  if (puvodniCena != null && puvodniCena > aktualniCena) {
+    return { cena: puvodniCena, jePuvodni: true };
+  }
+  if (beznaCena != null && beznaCena > aktualniCena) {
+    return { cena: beznaCena, jePuvodni: false };
+  }
+  return null;
+}
+
 const makroFmt = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 });
 const castkaFmt = new Intl.NumberFormat("cs-CZ", {
   minimumFractionDigits: 2,

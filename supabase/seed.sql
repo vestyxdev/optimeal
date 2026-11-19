@@ -40,46 +40,10 @@ insert into public.foods (nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie,
   ('Čočka červená',        'suchary_testoviny',  25.0, 52.0,  1.0, 320.0,  5.50, 'seed-v1')
 on conflict (nazev) do nothing;
 
--- --- běžné ceny jako pozorování (původ seed-v1) ---
-with p as (select id, nazev, bezna_cena from public.foods where zdroj = 'seed-v1')
-insert into public.price_observations (food_id, retailer_id, cena, je_sleva, zdroj)
-select p.id, r.id, p.bezna_cena, false, 'seed-v1'
-from p
-cross join (select id from public.retailers where nazev = 'Billa') r
-where not exists (
-  select 1 from public.price_observations po
-  where po.food_id = p.id and po.retailer_id = r.id and po.cena = p.bezna_cena
-);
-
--- --- aktuální slevy z produkce v1 (platnost 14 dní, přepíše scraper) ---
-do $$
-declare
-  slevy text[][] := array[
-    array['Brambory', 'Billa', '1.49'],
-    array['Hovězí svíčková', 'Kaufland', '24.90'],
-    array['Kuřecí prsa', 'Billa', '9.49'],
-    array['Losos', 'Kaufland', '29.90'],
-    array['Mléko čerstvé', 'Billa', '1.99'],
-    array['Tvaroh polotučný', 'Tesco', '4.49'],
-    array['Těstoviny celozrnné', 'Tesco', '3.90'],
-    array['Čočka červená', 'Kaufland', '4.10']
-  ];
-  s text[];
-  v_food uuid;
-  v_retail uuid;
-begin
-  foreach s slice 1 in array slevy loop
-    select id into v_food from public.foods where nazev = s[1];
-    select id into v_retail from public.retailers where nazev = s[2];
-    if v_food is not null and v_retail is not null then
-      insert into public.price_observations (food_id, retailer_id, cena, je_sleva, platnost_do, zdroj)
-      values (v_food, v_retail, s[3]::numeric, true, current_date + 14, 'seed-v1')
-      on conflict do nothing;
-    end if;
-    v_food := null;
-    v_retail := null;
-  end loop;
-end $$;
+-- POZN.: seed dřív vkládal i vymyšlená price_observations ("běžné"
+-- ceny = bezna_cena u Billa/Lidlu + 8 fake slev). Od migrace 0047
+-- se žádné seedové ceny nevkládají – zobrazují se jen reálně
+-- nascrapovaná pozorování (scraper:* / asortiment:* / eshop:*).
 
 -- --- alergeny/diety pro seed potraviny (musí běžet AŽ po insertu potravin) ---
 update public.foods set alergeny = array['arasidy'], diety = array['vegetariansky','vegansky','bezlepkovy']
@@ -193,16 +157,7 @@ insert into public.foods (nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie,
   ('Řecký jogurt',         'mlecne_vyrobky',     10.0,  3.6,  5.0, 100.0, 10.00, 'seed-v2')
 on conflict (nazev) do nothing;
 
--- --- běžné ceny jako pozorování (seed-v2, základ Lidl) ---
-with p as (select id, nazev, bezna_cena from public.foods where zdroj = 'seed-v2')
-insert into public.price_observations (food_id, retailer_id, cena, je_sleva, zdroj)
-select p.id, r.id, p.bezna_cena, false, 'seed-v2'
-from p
-cross join (select id from public.retailers where nazev = 'Lidl') r
-where not exists (
-  select 1 from public.price_observations po
-  where po.food_id = p.id and po.retailer_id = r.id and po.cena = p.bezna_cena
-);
+-- (seed-v2 ceny – viz poznámka výše, nevkládají se)
 
 -- --- alergeny/diety pro seed-v2 ---
 update public.foods set alergeny = array['mleko'], diety = array['vegetariansky','bezlepkovy']

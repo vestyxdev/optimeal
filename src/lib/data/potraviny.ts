@@ -97,6 +97,8 @@ export interface VerejnaAkce {
   obchod: string | null;
   cena: number;
   puvodniCena: number | null;
+  /** běžná cena (medián reálných pozorování) – záložní reference u slev bez původní ceny */
+  beznaCena: number | null;
   slevaProcenta: number | null;
   platnostDo: string | null;
   obrazek: string | null;
@@ -114,6 +116,7 @@ export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
     obchod: (r.obchod ?? null) as string | null,
     cena: Number(r.cena),
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
+    beznaCena: r.bezna_cena != null ? Number(r.bezna_cena) : null,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r.platnost_do ?? null) as string | null,
     obrazek: (r.obrazek ?? null) as string | null,

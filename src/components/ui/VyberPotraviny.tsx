@@ -7,7 +7,7 @@ import {
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import { hledejPodleEanLokalne } from "@/lib/data/potraviny";
-import { formatujCenu, formatujKcal, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujPlatnostDo, referencniCena } from "@/lib/cena";
 import { cn } from "@/lib/cn";
 
 /**
@@ -29,6 +29,10 @@ export interface PolozkaVyberu {
   sleva: boolean;
   /** % slevy – badge ukazuje „−30 %“ místo holého SLEVA */
   slevaProcenta?: number | null;
+  /** reálná přeškrtnutá cena za 100 g z letáku – když ji zdroj zveřejnil */
+  puvodniCena?: number | null;
+  /** běžná cena za 100 g (medián reálných pozorování) – záložní reference */
+  beznaCena?: number | null;
   /** poslední den akce (ISO) – „do út 18. 11.“ */
   platnostDo?: string | null;
   kategorie?: string;
@@ -424,6 +428,16 @@ function Radek({
             {p.aktualniCena > 0 && (
               <span className="tabular-nums">
                 {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
+                {p.sleva && (() => {
+                  const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
+                  return ref ? (
+                    <>
+                      {" "}
+                      {!ref.jePuvodni && "běžně "}
+                      <span className="line-through">{formatujCenu(ref.cena, p.baleniG).hlavni}</span>
+                    </>
+                  ) : null;
+                })()}
               </span>
             )}
           </span>
@@ -464,6 +478,15 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
           <span className="text-xs font-semibold tabular-nums text-fg">
             {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
           </span>
+          {p.sleva && (() => {
+            const ref = referencniCena(p.aktualniCena, p.puvodniCena, p.beznaCena);
+            return ref ? (
+              <span className="text-[10px] tabular-nums text-muted">
+                {!ref.jePuvodni && "běžně "}
+                <span className="line-through">{formatujCenu(ref.cena, p.baleniG).hlavni}</span>
+              </span>
+            ) : null;
+          })()}
           {p.sleva && formatujPlatnostDo(p.platnostDo) && (
             <span className="text-[10px] text-muted">{formatujPlatnostDo(p.platnostDo)}</span>
           )}
