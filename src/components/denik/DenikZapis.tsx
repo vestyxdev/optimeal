@@ -96,7 +96,8 @@ export function DenikZapis({
     ]);
     // posun dolů na novou položku
     requestAnimationFrame(() => {
-      seznamRef.current?.scrollTo({ top: seznamRef.current.scrollHeight, behavior: "smooth" });
+      const el = seznamRef.current;
+      el?.scrollTo?.({ top: el.scrollHeight, behavior: "smooth" });
     });
   };
 
@@ -180,7 +181,9 @@ export function DenikZapis({
           {/* ---- datum a čas ---- */}
           <div className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3">
             <CalendarDays className="size-5 shrink-0 text-muted" />
-            <span className="text-sm font-semibold text-fg">Datum a čas</span>
+            <span className="whitespace-nowrap text-sm font-semibold text-fg">
+              Datum a čas
+            </span>
             <div className="ml-auto flex items-center gap-2">
               <input
                 type="date"

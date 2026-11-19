@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { GramazPill } from "@/components/ui/GramazPill";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { Prstenec } from "@/components/ui/Prstenec";
@@ -17,6 +18,7 @@ import {
   sectiPrijem,
   smazPoznamkuDeniku,
   TYPY_JIDLA,
+  upravPoznamkuDeniku,
   type PoznamkaDeniku,
   type TypJidla,
 } from "@/lib/data/denik";
@@ -66,6 +68,25 @@ export function Denik() {
       void dotazovak.invalidateQueries({ queryKey: ["denik", datum] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Smazání selhalo."),
+  });
+
+  // gramáž uloženého záznamu – optimisticky, součty se přepočítají hned
+  const mutaceGramy = useMutation({
+    mutationFn: ({ id, gramy }: { id: string; gramy: number }) =>
+      upravPoznamkuDeniku(id, gramy),
+    onMutate: async ({ id, gramy }) => {
+      await dotazovak.cancelQueries({ queryKey: ["denik", datum] });
+      const predchozi = dotazovak.getQueryData<PoznamkaDeniku[]>(["denik", datum]);
+      dotazovak.setQueryData<PoznamkaDeniku[]>(["denik", datum], (stare) =>
+        (stare ?? []).map((p) => (p.id === id ? { ...p, mnozstviG: gramy } : p)),
+      );
+      return { predchozi };
+    },
+    onError: (e, _v, ctx) => {
+      dotazovak.setQueryData(["denik", datum], ctx?.predchozi);
+      toast.error(e instanceof Error ? e.message : "Úprava gramáže selhala.");
+    },
+    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik", datum] }),
   });
 
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);
@@ -225,11 +246,16 @@ export function Denik() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-fg">{p.nazev}</p>
                           <p className="text-xs tabular-nums text-muted">
-                            {formatujMakro(p.mnozstviG)} g · {formatujKcal(m.kalorie)} kcal · B{" "}
-                            {formatujMakro(m.bilkoviny)} · S {formatujMakro(m.sacharidy)} · T{" "}
-                            {formatujMakro(m.tuky)}
+                            {formatujKcal(m.kalorie)} kcal · B {formatujMakro(m.bilkoviny)} · S{" "}
+                            {formatujMakro(m.sacharidy)} · T {formatujMakro(m.tuky)}
                           </p>
                         </div>
+                        <GramazPill
+                          className="w-24 shrink-0"
+                          hodnota={p.mnozstviG}
+                          onZmena={(gramy) => mutaceGramy.mutate({ id: p.id, gramy })}
+                          ariaLabel={`Množství ${p.nazev}: ${formatujMakro(p.mnozstviG)} g – změnit`}
+                        />
                         <button
                           type="button"
                           onClick={() => mutaceSmaz.mutate(p.id)}

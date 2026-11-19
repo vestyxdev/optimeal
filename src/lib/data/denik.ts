@@ -215,6 +215,20 @@ export async function zapisDoDeniku(
   if (error) throw new Error(`Zápis do deníku selhal: ${error.message}`);
 }
 
+/** Změna gramáže uloženého záznamu (makro snapshot zůstává). */
+export async function upravPoznamkuDeniku(
+  id: string,
+  mnozstviG: number,
+): Promise<void> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+  const { error } = await klient
+    .from("diary_entries")
+    .update({ mnozstvi_g: mnozstviG })
+    .eq("id", id);
+  if (error) throw new Error(`Gramáž se nepodařilo uložit: ${error.message}`);
+}
+
 /** Smaže vlastní záznam (RLS hlídá vlastnictví). */
 export async function smazPoznamkuDeniku(id: string): Promise<void> {
   const klient = supabase;
