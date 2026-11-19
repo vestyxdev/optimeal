@@ -1,5 +1,6 @@
 import type { Potravina } from "@/lib/generator/generator";
 import { rpcChybi, supabase } from "@/lib/supabase";
+import { lisiSeKalorie } from "@/lib/vyziva/hodnota";
 
 /**
  * Recepty – globální (seed/kurátor) i vlastní. Ceny a výživové
@@ -296,6 +297,11 @@ export interface RozborReceptu {
   chybejiciCeny: string[];
   /** kategorie s nejvyšším podílem kalorií – dominantní složka */
   dominujici: string;
+  /** suroviny, jejichž uvedené kcal se výrazně liší od odhadu z maker */
+  podezreleKalorie: string[];
+  /** kolik surovin má známou cenu – pro badge „Cena za 4/5 surovin“ */
+  ocenenoSurovin: number;
+  pocetSurovin: number;
 }
 
 /**
@@ -305,14 +311,18 @@ export interface RozborReceptu {
  */
 export function spocitejRecept(recept: Recept, potraviny: Potravina[] | null): RozborReceptu {
   const mapa = new Map((potraviny ?? []).map((p) => [p.id, p]));
+  // porce < 1 by jinak dělilo nulou → NaN/Infinity v UI
+  const porce = Math.max(1, Math.round(recept.porce) || 1);
   const soucet = { kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0 };
   const chybejiciCeny: string[] = [];
+  const podezreleKalorie: string[] = [];
   const kaloriePodleKategorie: Record<string, number> = {};
+  let ocenenoSurovin = 0;
 
   for (const s of recept.suroviny) {
     const p = mapa.get(s.foodId);
     if (!p) continue; // surovina mimo katalog
-    const gramy = s.gramyNaPorce * recept.porce;
+    const gramy = s.gramyNaPorce * porce;
     const koef = gramy / 100;
     soucet.kalorie += p.kalorie * koef;
     soucet.bilkoviny += p.bilkoviny * koef;
@@ -321,19 +331,23 @@ export function spocitejRecept(recept: Recept, potraviny: Potravina[] | null): R
     // dominantní kategorie podle kalorií – nezávisle na ceně
     const kat = p.kategorie ?? "ostatni";
     kaloriePodleKategorie[kat] = (kaloriePodleKategorie[kat] ?? 0) + p.kalorie * koef;
+    if (lisiSeKalorie(p.kalorie, p.bilkoviny, p.sacharidy, p.tuky)) {
+      podezreleKalorie.push(p.nazev);
+    }
     if (p.aktualniCena > 0) {
       soucet.cena += (p.aktualniCena * gramy) / 100;
+      ocenenoSurovin += 1;
     } else {
       chybejiciCeny.push(p.nazev);
     }
   }
 
   const naPorci = {
-    kalorie: Math.round(soucet.kalorie / recept.porce),
-    bilkoviny: Math.round((soucet.bilkoviny / recept.porce) * 10) / 10,
-    sacharidy: Math.round((soucet.sacharidy / recept.porce) * 10) / 10,
-    tuky: Math.round((soucet.tuky / recept.porce) * 10) / 10,
-    cena: Math.round((soucet.cena / recept.porce) * 100) / 100,
+    kalorie: Math.round(soucet.kalorie / porce),
+    bilkoviny: Math.round((soucet.bilkoviny / porce) * 10) / 10,
+    sacharidy: Math.round((soucet.sacharidy / porce) * 10) / 10,
+    tuky: Math.round((soucet.tuky / porce) * 10) / 10,
+    cena: Math.round((soucet.cena / porce) * 100) / 100,
   };
   const celkem = {
     kalorie: Math.round(soucet.kalorie),
@@ -346,5 +360,13 @@ export function spocitejRecept(recept: Recept, potraviny: Potravina[] | null): R
   const dominujici =
     Object.entries(kaloriePodleKategorie).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "ostatni";
 
-  return { naPorci, celkem, chybejiciCeny, dominujici };
+  return {
+    naPorci,
+    celkem,
+    chybejiciCeny,
+    dominujici,
+    podezreleKalorie,
+    ocenenoSurovin,
+    pocetSurovin: recept.suroviny.length,
+  };
 }

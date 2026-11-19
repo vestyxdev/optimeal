@@ -107,6 +107,37 @@ describe("spocitejRecept", () => {
     const v = spocitejRecept(r, null);
     expect(v.celkem.kalorie).toBe(0);
   });
+
+  it("porce 0 → dělení nulou se neprovede, výsledky jsou konečné", () => {
+    const r = recept(0, [{ foodId: "a", nazev: "Kuře", gramyNaPorce: 100, poznamka: null }]);
+    const v = spocitejRecept(r, potraviny);
+    // porce se ošetří na min. 1 – žádné NaN/Infinity
+    for (const x of [v.naPorci.kalorie, v.naPorci.bilkoviny, v.naPorci.cena, v.celkem.cena]) {
+      expect(Number.isFinite(x)).toBe(true);
+    }
+    expect(v.naPorci.kalorie).toBe(v.celkem.kalorie);
+  });
+
+  it("ocenenoSurovin/pocetSurovin odpovídá oceněným surovinám", () => {
+    const bezCenyR: Potravina = { ...RYZE, aktualniCena: 0 };
+    const r = recept(1, [
+      { foodId: "a", nazev: "Kuře", gramyNaPorce: 100, poznamka: null },
+      { foodId: "b", nazev: "Rýže", gramyNaPorce: 80, poznamka: null },
+    ]);
+    const v = spocitejRecept(r, [KURE, bezCenyR]);
+    expect(v.ocenenoSurovin).toBe(1);
+    expect(v.pocetSurovin).toBe(2);
+  });
+
+  it("podezreleKalorie označí potravinu s nesedícími kcal", () => {
+    const podezrela = p("c", "Fake potravina", 1, 1, 1, 900, 5, "ostatni");
+    const r = recept(1, [
+      { foodId: "a", nazev: "Kuře", gramyNaPorce: 100, poznamka: null },
+      { foodId: "c", nazev: "Fake", gramyNaPorce: 100, poznamka: null },
+    ]);
+    const v = spocitejRecept(r, [KURE, podezrela]);
+    expect(v.podezreleKalorie).toEqual(["Fake potravina"]);
+  });
 });
 
 describe("alergenyReceptu", () => {

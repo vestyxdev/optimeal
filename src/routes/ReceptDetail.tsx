@@ -274,8 +274,16 @@ export function ReceptDetail() {
 
                   {rozbor.chybejiciCeny.length > 0 && (
                     <Card className="bg-warning-soft text-sm text-warning">
-                      Cenu zatím neznáme u: {rozbor.chybejiciCeny.join(", ")} (čeká na scraper).
+                      Cena za {rozbor.ocenenoSurovin}/{rozbor.pocetSurovin}{" "}
+                      {sklonuj(rozbor.pocetSurovin, "surovinu", "suroviny", "surovin")} – zatím
+                      neznáme cenu u: {rozbor.chybejiciCeny.join(", ")} (čeká na scraper).
                     </Card>
+                  )}
+                  {rozbor.podezreleKalorie.length > 0 && (
+                    <p className="px-1 text-xs text-muted">
+                      Pozor – uvedené kalorie se liší od odhadu z maker u:{" "}
+                      {rozbor.podezreleKalorie.join(", ")}.
+                    </p>
                   )}
                 </>
               );
