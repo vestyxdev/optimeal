@@ -353,6 +353,7 @@ class SupabaseWriter:
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
                 "baleni_g": n.gramy,
+                "kupi_slug": (n.extra or {}).get("kupi_slug"),
                 "zdroj": f"scraper:{n.obchod.lower()}",
                 "pozorovano_at": ted,
             }
@@ -547,6 +548,7 @@ class SupabaseWriter:
                 "je_sleva": n.je_sleva,
                 "platnost_do": n.platnost_do,
                 "baleni_g": n.gramy,
+                "kupi_slug": (n.extra or {}).get("kupi_slug"),
                 "zdroj": f"asortiment:{n.obchod.lower()}",
                 "pozorovano_at": ted,
             }

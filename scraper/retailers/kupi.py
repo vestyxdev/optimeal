@@ -148,7 +148,8 @@ class KupiScraper(BaseScraper):
                 info = kontext[wid]
                 if info is None:
                     continue
-                n = self._radek(row, info["nazev"], info["gramy"], info["obrazek"])
+                n = self._radek(row, info["nazev"], info["gramy"], info["obrazek"],
+                                info.get("slug"))
                 if n:
                     nalezeno_na_strane += 1
                     self.nalezeno += 1
@@ -157,7 +158,11 @@ class KupiScraper(BaseScraper):
                 break  # konec výpisu (nebo prázdná stránka)
 
     def _produkt(self, wrap) -> Optional[dict]:
-        """Kontext produktu: název, jednotka→gramy, obrázek."""
+        """Kontext produktu: název, jednotka→gramy, obrázek, kupi slug.
+
+        Slug = odkaz /sleva/<slug> na detail produktu – tam kupi.cz
+        drží „běžně stojí X Kč" (původní cenu) i pro nabídky bez
+        uváděného % slevy."""
         nazev_el = wrap.select_one(".product_name strong")
         if not nazev_el:
             return None
@@ -166,14 +171,19 @@ class KupiScraper(BaseScraper):
         jednotka = jednotka_el.get_text(strip=True) if jednotka_el else ""
         img = wrap.select_one(".product_image img[data-src]")
         obrazek = img["data-src"] if img and img.get("data-src") else None
+        odkaz = wrap.select_one('a[href^="/sleva/"]')
+        href = odkaz["href"] if odkaz else ""
+        slug = href.rstrip("/").rsplit("/", 1)[-1] or None
         return {
             "nazev": nazev,
             "gramy": gramaje_z_jednotky(jednotka) or gramaje_z_nazvu(nazev),
             "obrazek": obrazek,
+            "slug": slug,
         }
 
     def _radek(
-        self, row, nazev: str, gramy: Optional[float], obrazek: Optional[str]
+        self, row, nazev: str, gramy: Optional[float], obrazek: Optional[str],
+        slug: Optional[str] = None,
     ) -> Optional[Nabidka]:
         cena_el = row.select_one(".discount_price_value")
         cena = _cislo(cena_el.get_text() if cena_el else None)
@@ -210,6 +220,7 @@ class KupiScraper(BaseScraper):
             obrazek=obrazek if isinstance(obrazek, str) and obrazek.startswith("http") else None,
             platnost_do=do,
             sleva_procenta=round(pct) if pct else None,
+            extra={"kupi_slug": slug} if slug else {},
         )
 
 

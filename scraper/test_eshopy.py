@@ -20,6 +20,7 @@ from scraper.obohaceni_eshop import (
     makra_z_rohliku,
     _extrahuj_pole_json,
 )
+from scraper.obohaceni_puvodni import bezna_z_detailu
 
 
 # --- fixtures zachycené z živých API (listopad 2026) ---
@@ -190,6 +191,27 @@ class TestMakraKosik(unittest.TestCase):
         m, ale = makra_z_kosiku({"id": 1})
         self.assertIsNone(m)
         self.assertEqual(ale, [])
+
+
+# --- obohaceni_puvodni: „běžně stojí" z detailu kupi.cz ---
+
+KUPI_DETAIL = (
+    '<html><strong>Mléko trvanlivé Jihočeské Madeta - 1,5% polotučné '
+    '1 l</strong> běžně stojí <strong class="nowrap">20,23&nbsp;Kč'
+    '</strong>. Akční slevu nyní najdete…</html>'
+)
+
+
+class TestBeznaZDetailu(unittest.TestCase):
+    def test_bezne_stoji(self):
+        self.assertAlmostEqual(bezna_z_detailu(KUPI_DETAIL), 20.23)
+
+    def test_bez_frazy_none(self):
+        self.assertIsNone(bezna_z_detailu("<html>jen leták</html>"))
+
+    def test_nulova_cena_none(self):
+        html = 'běžně stojí <strong class="nowrap">0&nbsp;Kč</strong>'
+        self.assertIsNone(bezna_z_detailu(html))
 
 
 if __name__ == "__main__":
