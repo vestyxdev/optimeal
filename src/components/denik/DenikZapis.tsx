@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { GramazPill } from "@/components/ui/GramazPill";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Prstenec } from "@/components/ui/Prstenec";
 import { VyberPotraviny, type PolozkaVyberu } from "@/components/ui/VyberPotraviny";
@@ -23,7 +24,6 @@ import {
   type TypJidla,
 } from "@/lib/data/denik";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
-import { cn } from "@/lib/cn";
 import type { Cile } from "@/lib/vyziva/cile";
 
 /**
@@ -32,8 +32,6 @@ import type { Cile } from "@/lib/vyziva/cile";
  * typu jídla, datum+čas, seznam položek s gramáží a panel
  * „Vliv na příjem“ – kolik % denního cíle položky přidají.
  */
-
-const PORCE_GRAMU = [1, 50, 100, 150, 200, 250];
 
 interface PolozkaZapisu extends NovaPoznamka {
   /** klíč pro stabilní React key – lokální, nikoli DB id */
@@ -61,7 +59,6 @@ export function DenikZapis({
     new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }),
   );
   const [polozky, setPolozky] = useState<PolozkaZapisu[]>([]);
-  const [porceOtevrena, setPorceOtevrena] = useState<string | null>(null);
   const [vlivOtevren, setVlivOtevren] = useState(true);
   const seznamRef = useRef<HTMLDivElement>(null);
 
@@ -70,17 +67,14 @@ export function DenikZapis({
     const stary = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
     const naKlavesu = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (porceOtevrena) setPorceOtevrena(null);
-        else naZavreni();
-      }
+      if (e.key === "Escape") naZavreni();
     };
     document.addEventListener("keydown", naKlavesu);
     return () => {
       document.documentElement.style.overflow = stary;
       document.removeEventListener("keydown", naKlavesu);
     };
-  }, [naZavreni, porceOtevrena]);
+  }, [naZavreni]);
 
   const pridej = (id: string) => {
     const p = potraviny.find((x) => x.id === id);
@@ -216,10 +210,6 @@ export function DenikZapis({
           )}
           {polozky.map((p) => {
             const m = makraProMnozstvi(p, p.mnozstviG);
-            const baleni =
-              p.baleniG && !PORCE_GRAMU.includes(Math.round(p.baleniG))
-                ? Math.round(p.baleniG)
-                : null;
             return (
               <div key={p.klic} className="rounded-2xl bg-surface p-3">
                 <div className="flex items-center gap-3">
@@ -242,80 +232,13 @@ export function DenikZapis({
                 </div>
 
                 {/* gramáž – pill + popover s předvoleb */}
-                <div className="relative mt-2.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPorceOtevrena(porceOtevrena === p.klic ? null : p.klic)
-                    }
-                    aria-expanded={porceOtevrena === p.klic}
-                    aria-label={`Množství: ${p.mnozstviG} g – změnit`}
-                    className="flex h-11 w-full items-center justify-between rounded-full border border-border bg-bg px-4 text-sm font-semibold tabular-nums text-fg"
-                  >
-                    <span>{formatujMakro(p.mnozstviG)} g</span>
-                    <ChevronDown className="size-4 text-muted" />
-                  </button>
-                  {porceOtevrena === p.klic && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Zavřít volbu množství"
-                        className="fixed inset-0 z-10 cursor-default"
-                        onClick={() => setPorceOtevrena(null)}
-                        tabIndex={-1}
-                      />
-                      <div className="absolute inset-x-6 top-full z-20 mt-1.5 overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-xl">
-                        {PORCE_GRAMU.map((g) => (
-                          <button
-                            key={g}
-                            type="button"
-                            onClick={() => {
-                              nastavGramy(p.klic, g);
-                              setPorceOtevrena(null);
-                            }}
-                            className={cn(
-                              "flex w-full items-center px-5 py-3 text-left text-sm tabular-nums transition-colors hover:bg-primary-soft",
-                              g === p.mnozstviG ? "font-bold text-primary" : "text-fg",
-                            )}
-                          >
-                            {g === 1 ? "1 g" : `${g} g`}
-                          </button>
-                        ))}
-                        {baleni !== null && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              nastavGramy(p.klic, baleni);
-                              setPorceOtevrena(null);
-                            }}
-                            className="flex w-full items-center px-5 py-3 text-left text-sm tabular-nums text-fg transition-colors hover:bg-primary-soft"
-                          >
-                            balení ({baleni} g)
-                          </button>
-                        )}
-                        <div className="flex items-center gap-2 border-t border-border px-5 py-3">
-                          <label htmlFor={`vlastni-${p.klic}`} className="text-sm text-muted">
-                            vlastní:
-                          </label>
-                          <input
-                            id={`vlastni-${p.klic}`}
-                            type="number"
-                            min={1}
-                            max={10000}
-                            inputMode="decimal"
-                            value={p.mnozstviG}
-                            onChange={(e) => {
-                              const g = Number(e.target.value);
-                              if (Number.isFinite(g) && g > 0) nastavGramy(p.klic, g);
-                            }}
-                            className="h-8 w-24 rounded-lg border border-border bg-surface px-2 text-sm tabular-nums text-fg focus:outline-2 focus:outline-primary"
-                          />
-                          <span className="text-sm text-muted">g</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <GramazPill
+                  className="mt-2.5"
+                  hodnota={p.mnozstviG}
+                  baleniG={p.baleniG ?? null}
+                  onZmena={(g) => nastavGramy(p.klic, g)}
+                  ariaLabel={`Množství ${p.nazev}: ${formatujMakro(p.mnozstviG)} g – změnit`}
+                />
               </div>
             );
           })}

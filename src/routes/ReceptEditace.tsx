@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, ChevronUp, Clock, Minus, Plus, Receipt, Trash2, Users } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { GramazPill } from "@/components/ui/GramazPill";
 import { Input, Label } from "@/components/ui/Input";
 import {
   KATEGORIE_NAZVY,
@@ -16,6 +17,8 @@ import {
   upravRecept,
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { makraProMnozstvi } from "@/lib/data/denik";
+import { formatujKcal, formatujMakro } from "@/lib/cena";
 import type { Potravina } from "@/lib/generator/generator";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
@@ -397,10 +400,14 @@ export function ReceptEditace() {
             <ul className="space-y-3">
               {fields.map((pole, i) => {
                 const polozka = uctenka.polozky[i];
+                const potravina = mapaPotravin.get(suroviny[i]?.foodId ?? "");
+                const makraSuroviny = potravina
+                  ? makraProMnozstvi(potravina, Number(suroviny[i]?.gramyNaPorce) || 0)
+                  : null;
                 return (
                   <li
                     key={pole.id}
-                    className="grid grid-cols-[1.4rem_1fr_88px_36px] items-start gap-2 sm:grid-cols-[1.4rem_1fr_88px_1fr_36px]"
+                    className="grid grid-cols-[1.4rem_1fr_104px_36px] items-start gap-2 sm:grid-cols-[1.4rem_1fr_104px_1fr_36px]"
                   >
                     <span className="mt-2.5 text-xs font-medium tabular-nums text-muted">
                       {i + 1}.
@@ -422,22 +429,26 @@ export function ReceptEditace() {
                       {errors.suroviny?.[i]?.foodId && <Chyba text={errors.suroviny[i]?.foodId?.message} />}
                     </div>
                     <div>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          step="1"
-                          min={1}
-                          placeholder="100"
-                          aria-label={`Surovina ${i + 1} – gramáž na porci`}
-                          {...register(`suroviny.${i}.gramyNaPorce`, { valueAsNumber: true })}
-                          className="pr-7 tabular-nums"
-                        />
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted">g</span>
-                      </div>
-                      {polozka && polozka.cena !== null && (
-                        <p className="mt-1 text-right text-[11px] tabular-nums text-muted">
-                          {kc.format(polozka.cena)} Kč
+                      <Controller
+                        control={control}
+                        name={`suroviny.${i}.gramyNaPorce`}
+                        render={({ field }) => (
+                          <GramazPill
+                            hodnota={Number.isFinite(field.value) ? field.value : 0}
+                            baleniG={potravina?.baleniG ?? null}
+                            onZmena={field.onChange}
+                            chyba={Boolean(errors.suroviny?.[i]?.gramyNaPorce)}
+                            ariaLabel={`Surovina ${i + 1} – gramáž na porci`}
+                          />
+                        )}
+                      />
+                      {makraSuroviny && (
+                        <p className="mt-1 text-[11px] tabular-nums text-muted">
+                          {formatujKcal(makraSuroviny.kalorie)} kcal · B{" "}
+                          {formatujMakro(makraSuroviny.bilkoviny)} · S{" "}
+                          {formatujMakro(makraSuroviny.sacharidy)} · T{" "}
+                          {formatujMakro(makraSuroviny.tuky)}
+                          {polozka && polozka.cena !== null && ` · ${kc.format(polozka.cena)} Kč`}
                         </p>
                       )}
                       {errors.suroviny?.[i]?.gramyNaPorce && (
