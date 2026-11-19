@@ -31,7 +31,10 @@ log = logging.getLogger("scraper.obohaceni")
 
 OFF = "https://cz.openfoodfacts.org"
 UA = {"User-Agent": "OptiMeal/2.0 (katalog enrichment; https://github.com/vestyxdev/optimeal)"}
-PAUZA = 1.1
+# OFF dokumentované limity: ~100 req/min product API, ~10 req/min
+# search.pl. Položka bez EANu jede search → tempo musí být ~6,5 s,
+# jinak chytáme 503 (dřív PAUZA=1,1 → ~55 req/min = permanentní blok)
+PAUZA = 6.5
 
 ALERGENY_MAPA = {
     "en:gluten": "lepek", "en:milk": "mleko", "en:eggs": "vejce",
