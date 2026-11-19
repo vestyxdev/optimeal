@@ -34,6 +34,10 @@ class SupabaseWriter:
         self._retailery: dict[str, str] | None = None
         self._norm_potraviny: list[tuple] = []
         self._token_index: dict[str, set[int]] | None = None
+        self._nazev_index: dict[str, str] = {}
+        self._ean_index: dict[str, str] = {}
+        self._id_index: dict[str, dict] = {}
+        self._indexy_hotove = False
 
     def _get(self, tabulka: str, sloupce: str = "*", **params) -> list[dict]:
         r = requests.get(
@@ -61,11 +65,21 @@ class SupabaseWriter:
                     break
                 offset += 1000
             log.info("Načteno %d potravin pro párování", len(self._potraviny))
+        if not self._indexy_hotove:
             self._norm_potraviny = [
                 (p["id"], normalizuj_nazev(p["nazev"]), stem_nazev(p["nazev"]), p)
                 for p in self._potraviny
             ]
-        if self._token_index is None:
+            # O(1) indexy – _food_id běží na KAŽDOU nabídku (desetitisíce
+            # za běh); lineární průchod s normalizuj_nazev na řádek by
+            # stál ~350 ms na nabídku → hodiny navíc
+            self._id_index = {p["id"]: p for p in self._potraviny}
+            self._nazev_index = {
+                normalizuj_nazev(p["nazev"]): p["id"] for p in self._potraviny
+            }
+            self._ean_index = {
+                p["ean"]: p["id"] for p in self._potraviny if p.get("ean")
+            }
             # invertovaný index token→idx pro fuzzy match – bez něj běží
             # difflib proti ~7 tis. potravinám na KAŽDÝ produkt (minuty);
             # s ním jen proti desítkám kandidátů se společným tokenem
@@ -73,6 +87,7 @@ class SupabaseWriter:
             for idx, (_pid, fn, fstem, _p) in enumerate(self._norm_potraviny):
                 for t in set(fn.split()) | set(fstem.split()):
                     self._token_index.setdefault(t, set()).add(idx)
+            self._indexy_hotove = True
         return self._potraviny
 
     def _retailer_id(self, nazev: str) -> str | None:
@@ -120,9 +135,10 @@ class SupabaseWriter:
                 timeout=30,
             )
             if r.ok:
-                for p in self._potraviny or []:
-                    if p["id"] == food_id:
-                        p["ean"] = ean
+                p = self._id_index.get(food_id)
+                if p is not None:
+                    p["ean"] = ean
+                self._ean_index[ean] = food_id
                 log.info("Potravině %s doplněn EAN %s", food_id, ean)
             else:
                 log.warning("Doplnění EAN na %s selhalo: %s", food_id, r.text[:200])
@@ -135,18 +151,17 @@ class SupabaseWriter:
         Při shodě jménem se známým EANem se chybějící foods.ean doplní,
         takže příště matchuje EAN (přesnější než jméno).
         """
-        potraviny = self.nacti_potraviny()
-        if ean:
-            for p in potraviny:
-                if p.get("ean") and p["ean"] == ean:
-                    return p["id"]
+        self.nacti_potraviny()
+        if ean and ean in self._ean_index:
+            return self._ean_index[ean]
         if nazev_produktu:
             cil = normalizuj_nazev(nazev_produktu)
-            for p in potraviny:
-                if normalizuj_nazev(p["nazev"]) == cil:
-                    if ean and not p.get("ean"):
-                        self._dopln_ean(p["id"], ean)
-                    return p["id"]
+            fid = self._nazev_index.get(cil)
+            if fid:
+                p = self._id_index[fid]
+                if ean and not p.get("ean"):
+                    self._dopln_ean(fid, ean)
+                return fid
         return None
 
     def zapis_ceny(self, zaznamy: list[dict]) -> dict:
@@ -258,15 +273,15 @@ class SupabaseWriter:
     def _dopln_baleni_a_obrazek(self, food_id: str, nabidka: Nabidka) -> None:
         """Doplní baleni_g/ean/obrazek z nabídky na potravinu – best-effort."""
         patch: dict = {}
-        for p in self.nacti_potraviny():
-            if p["id"] == food_id:
-                if nabidka.gramy and not p.get("baleni_g"):
-                    patch["baleni_g"] = nabidka.gramy
-                if nabidka.ean and not p.get("ean"):
-                    patch["ean"] = nabidka.ean
-                if nabidka.obrazek and not p.get("obrazek"):
-                    patch["obrazek"] = nabidka.obrazek
-                break
+        self.nacti_potraviny()
+        p = self._id_index.get(food_id)
+        if p is not None:
+            if nabidka.gramy and not p.get("baleni_g"):
+                patch["baleni_g"] = nabidka.gramy
+            if nabidka.ean and not p.get("ean"):
+                patch["ean"] = nabidka.ean
+            if nabidka.obrazek and not p.get("obrazek"):
+                patch["obrazek"] = nabidka.obrazek
         if not patch:
             return
         try:
@@ -382,11 +397,14 @@ class SupabaseWriter:
                 if self._token_index is not None:
                     for t in set(fn.split()) | set(fstem.split()):
                         self._token_index.setdefault(t, set()).add(idx)
+                self._id_index[fid] = nova
+                self._nazev_index[fn] = fid
+                if n.ean:
+                    self._ean_index[n.ean] = fid
                 return fid
             # duplicitní název → dohledej existující
-            for p in self.nacti_potraviny():
-                if normalizuj_nazev(p["nazev"]) == normalizuj_nazev(n.nazev[:200]):
-                    return p["id"]
+            self.nacti_potraviny()
+            return self._nazev_index.get(normalizuj_nazev(n.nazev[:200]))
         except requests.RequestException as e:
             log.warning("Založení potraviny '%s' selhalo: %s", n.nazev[:50], e)
         return None
@@ -402,6 +420,26 @@ class SupabaseWriter:
         radky: dict[tuple, dict] = {}
         stat = {"sparovano": 0, "preskoceno": 0, "nove_potraviny": 0}
         ted = od.isoformat()
+
+        def flush() -> None:
+            # průběžný flush – kdyby job umřel (timeout) uprostřed zápisu,
+            # nepřijde se o desetitisíce už spárovaných řádků
+            nonlocal radky
+            if not radky:
+                return
+            davky = list(radky.values())
+            for i in range(0, len(davky), 500):
+                r = requests.post(
+                    f"{self.url}/rest/v1/price_observations",
+                    headers={**self._hlavicky,
+                             "Prefer": "resolution=ignore-duplicates"},
+                    json=davky[i : i + 500],
+                    timeout=120,
+                )
+                r.raise_for_status()
+            stat["vlozeno"] = stat.get("vlozeno", 0) + len(davky)
+            radky = {}
+
         for n in nabidky:
             food_id = self._food_id_fuzzy(n.ean, n.nazev)
             if not food_id and vytvarej:
@@ -437,23 +475,15 @@ class SupabaseWriter:
             if klic not in radky or n.cena_za_100g < radky[klic]["cena"]:
                 radky[klic] = radek
             stat["sparovano"] += 1
+            if len(radky) >= 2000:
+                flush()
         if stat["preskoceno"]:
             log.info("Přeskočeno %d nabídek, vzorek: %s",
                      stat["preskoceno"], stat.get("nesparovano_nazvy", []))
         if stat.get("anomalie_ceny"):
             log.warning("Anomální ceny %d, vzorek: %s",
                         len(stat["anomalie_ceny"]), stat["anomalie_ceny"][:8])
-        radky_list = list(radky.values())
-        for i in range(0, len(radky_list), 500):
-            r = requests.post(
-                f"{self.url}/rest/v1/price_observations",
-                headers={**self._hlavicky,
-                         "Prefer": "resolution=ignore-duplicates"},
-                json=radky_list[i : i + 500],
-                timeout=120,
-            )
-            r.raise_for_status()
-        stat["vlozeno"] = len(radky_list)
+        flush()
         return stat
 
     def _pocet_smazanych(self, r: requests.Response) -> int:
