@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, NotebookPen, Plus, Trash2 } from "lucide-react";
@@ -13,6 +13,7 @@ import {
   dnesISO,
   makraProMnozstvi,
   nactiDenik,
+  nactiDenikRozsah,
   podilNaCili,
   posunDen,
   sectiPrijem,
@@ -25,6 +26,8 @@ import {
 import { nactiKatalogPotravin } from "@/lib/data/potraviny";
 import { nactiAktivniCile } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
+
+const DenikTyden = lazy(() => import("@/components/denik/DenikTyden"));
 
 /**
  * Jídelní deník – denní přehled snědených jídel.
@@ -53,6 +56,11 @@ export function Denik() {
     queryFn: () => nactiDenik(datum),
   });
   const dotazCile = useQuery({ queryKey: ["cile"], queryFn: nactiAktivniCile });
+  // trend – 7 dnů končících zvoleným dnem (lazy graf pod souhrnem)
+  const dotazTyden = useQuery({
+    queryKey: ["denik", "tyden", datum],
+    queryFn: () => nactiDenikRozsah(posunDen(datum, -6), datum),
+  });
   // katalog se stahuje až při prvním otevření zápisu (6,5k řádků → lazy)
   const dotazKatalog = useQuery({
     queryKey: ["katalog_potravin"],
@@ -65,7 +73,7 @@ export function Denik() {
     mutationFn: smazPoznamkuDeniku,
     onSuccess: () => {
       toast.success("Záznam odebrán.");
-      void dotazovak.invalidateQueries({ queryKey: ["denik", datum] });
+      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Smazání selhalo."),
   });
@@ -86,7 +94,7 @@ export function Denik() {
       dotazovak.setQueryData(["denik", datum], ctx?.predchozi);
       toast.error(e instanceof Error ? e.message : "Úprava gramáže selhala.");
     },
-    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik", datum] }),
+    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
 
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);
@@ -204,6 +212,17 @@ export function Denik() {
           </div>
         )}
       </section>
+
+      {/* ---- trend 7 dnů (lazy – recharts mimo hlavní bundle) ---- */}
+      {dotazTyden.data && (
+        <Suspense fallback={<Skeleton className="h-44 w-full rounded-2xl" />}>
+          <DenikTyden
+            poznamky={dotazTyden.data}
+            cilKcal={cile?.kalorie ?? 0}
+            datum={datum}
+          />
+        </Suspense>
+      )}
 
       {/* ---- záznamy podle jídel ---- */}
       {dotazDenik.isError ? (

@@ -71,7 +71,9 @@ export interface PoznamkaDeniku extends Makra100 {
   obrazek: string | null;
   typJidla: TypJidla;
   mnozstviG: number;
-  /** ISO timestamp – den se počítá ze sloupce zapsano_dne */
+  /** den záznamu (YYYY-MM-DD, česká časová zóna) – klíč pro součty za den */
+  zapsanoDne: string;
+  /** ISO timestamp přesného času zápisu */
   zapsanoAt: string;
 }
 
@@ -188,6 +190,7 @@ interface RadkaDeniku {
   bilkoviny: number | string;
   sacharidy: number | string;
   tuky: number | string;
+  zapsano_dne: string;
   zapsano_at: string;
 }
 
@@ -203,9 +206,13 @@ function naPoznamku(r: RadkaDeniku): PoznamkaDeniku {
     bilkoviny: Number(r.bilkoviny),
     sacharidy: Number(r.sacharidy),
     tuky: Number(r.tuky),
+    zapsanoDne: r.zapsano_dne,
     zapsanoAt: r.zapsano_at,
   };
 }
+
+const SLOUPCE_DENIKU =
+  "id, food_id, nazev, obrazek, typ_jidla, mnozstvi_g, kalorie, bilkoviny, sacharidy, tuky, zapsano_dne, zapsano_at";
 
 /** Všechny záznamy deníku pro daný den (ISO YYYY-MM-DD). */
 export async function nactiDenik(datum: string): Promise<PoznamkaDeniku[]> {
@@ -214,8 +221,27 @@ export async function nactiDenik(datum: string): Promise<PoznamkaDeniku[]> {
 
   const { data, error } = await klient
     .from("diary_entries")
-    .select("id, food_id, nazev, obrazek, typ_jidla, mnozstvi_g, kalorie, bilkoviny, sacharidy, tuky, zapsano_at")
+    .select(SLOUPCE_DENIKU)
     .eq("zapsano_dne", datum)
+    .order("zapsano_at", { ascending: true });
+  if (error) throw new Error(`Deník se nepodařilo načíst: ${error.message}`);
+  return (data ?? []).map((r) => naPoznamku(r as RadkaDeniku));
+}
+
+/** Záznamy za rozsah dnů včetně krajů (trend posledních N dnů). */
+export async function nactiDenikRozsah(
+  odDne: string,
+  doDne: string,
+): Promise<PoznamkaDeniku[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient
+    .from("diary_entries")
+    .select(SLOUPCE_DENIKU)
+    .gte("zapsano_dne", odDne)
+    .lte("zapsano_dne", doDne)
+    .order("zapsano_dne", { ascending: true })
     .order("zapsano_at", { ascending: true });
   if (error) throw new Error(`Deník se nepodařilo načíst: ${error.message}`);
   return (data ?? []).map((r) => naPoznamku(r as RadkaDeniku));
