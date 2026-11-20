@@ -155,7 +155,7 @@ export function CilPruvodce() {
       vyskaCm: cisla.vyska,
       vahaKg: cisla.vaha,
       cilTela,
-      teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
+      teloTukProcento: platnyTuk(cisla.tuk) ? cisla.tuk : null,
       ...(cilTela !== "udrzet" ? { cilovaVahaKg: cisla.cilovaVaha } : {}),
       tempoKgTydne: stav.tempo,
       ...(kalibrace ? { kalibrace: { tdeeNamerene: kalibrace.tdeeNamerene, vaha: kalibrace.vaha } } : {}),
@@ -175,7 +175,7 @@ export function CilPruvodce() {
               cilTela, vahaKg: cisla.vaha, vyskaCm: cisla.vyska, vekRoku: cisla.vek,
               cilovaVahaKg: cilTela === "udrzet" ? null : cisla.cilovaVaha,
               tempoKgTydne: cilTela === "udrzet" ? null : stav.tempo,
-              teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
+              teloTukProcento: platnyTuk(cisla.tuk) ? cisla.tuk : null,
             },
             cile: c,
           }));
@@ -193,7 +193,7 @@ export function CilPruvodce() {
         vekRoku: cisla.vek,
         cilovaVahaKg: cilTela === "udrzet" ? null : cisla.cilovaVaha,
         tempoKgTydne: cilTela === "udrzet" ? null : stav.tempo,
-        teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
+        teloTukProcento: platnyTuk(cisla.tuk) ? cisla.tuk : null,
       });
       await ulozCile(c, upravy ? "manual" : "auto");
     },
@@ -426,12 +426,16 @@ function aktivitaNaKartu(a: Aktivita | null): TreninkyTydne | null {
 const platnyVek = (n: number) => Number.isFinite(n) && n >= 10 && n <= 100;
 const platnaVyska = (n: number) => Number.isFinite(n) && n >= 120 && n <= 230;
 const platnaVaha = (n: number) => Number.isFinite(n) && n >= 30 && n <= 300;
+// odpovídá DB checku profiles.telo_tuk_procento (3–60 %)
+const platnyTuk = (n: number) => Number.isFinite(n) && n >= 3 && n <= 60;
 
-function validujKrok(krok: Krok, s: Stav, c: { vek: number; vyska: number; vaha: number; cilovaVaha: number }): boolean {
+function validujKrok(krok: Krok, s: Stav, c: { vek: number; vyska: number; vaha: number; cilovaVaha: number; tuk: number }): boolean {
   switch (krok) {
     case "pohlavi": return s.pohlavi !== null;
     case "treninky": return s.treninky !== null;
-    case "udaje": return platnyVek(c.vek) && platnaVyska(c.vyska) && platnaVaha(c.vaha);
+    case "udaje":
+      return platnyVek(c.vek) && platnaVyska(c.vyska) && platnaVaha(c.vaha)
+        && (s.tuk.trim() === "" || platnyTuk(c.tuk));
     case "cil": return s.cilTela !== null;
     case "tempo": {
       if (!s.cilTela || s.cilTela === "udrzet") return true;
@@ -553,6 +557,13 @@ function VolicCisla({ id, popis, jednotka, hodnota, naZmenu, min, max, krok = 1 
             step={krok}
             value={hodnota}
             onChange={(e) => naZmenu(e.target.value)}
+            // při opuštění pole připni na rozsah – jinak jde
+            // napsat cokoliv (např. váhu) místo platné hodnoty
+            onBlur={() => {
+              if (hodnota.trim() !== "" && Number.isFinite(n)) {
+                naZmenu(String(Math.min(max, Math.max(min, n))));
+              }
+            }}
             className="w-24 rounded-lg border-0 bg-transparent py-2 text-center text-2xl font-extrabold tabular-nums focus:bg-surface-2"
             aria-label={popis}
           />

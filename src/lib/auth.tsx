@@ -144,7 +144,17 @@ async function migrujCileHosta(): Promise<void> {
     vstupy?: Parameters<typeof ulozProfil>[0];
     cile?: { kalorie: number; bilkoviny: number; sacharidy: number; tuky: number };
   };
-  if (host.vstupy) await ulozProfil(host.vstupy).catch(() => {});
+  if (host.vstupy) {
+    // DB check telo_tuk_procento (3–60) – starší localStorage mohl
+    // obsahovat hodnotu mimo rozsah, migrace by pak tiše selhala
+    const tuk = host.vstupy.teloTukProcento;
+    const vstupy = {
+      ...host.vstupy,
+      teloTukProcento:
+        tuk != null && Number.isFinite(tuk) && tuk >= 3 && tuk <= 60 ? tuk : null,
+    };
+    await ulozProfil(vstupy).catch(() => {});
+  }
   if (host.cile) await ulozCile(host.cile, "auto").catch(() => {});
 }
 
