@@ -461,6 +461,12 @@ const RODINY_KOTEV: [RegExp, string][] = [
   // „Prémiové sušené maso" jsou pořád tatáž kotva; druhové verze
   // („sušené maso krůtí") padají do druhy díky pořadí výše
   [/sušen[éeý]\s+maso|dried\s+meat|jerky|biltong/i, "susene_maso"],
+  // mléčné kotvy – tvaroh kotvil snídani 6× za týden; druhu „mleko"
+  // se nedělá (to by byla rodina všech rodin), ale tvaroh/sýr/jogurt
+  // jsou dostatečně odlišné role
+  [/tvaroh|quark|twarog/i, "tvaroh"],
+  [/jogurt|skyr|kef[íi]r|podm[áa]sl|yogh?urt/i, "jogurt"],
+  [/s[ýy]r(?!up)|eidam|gouda|mozzarell|parmez|parmesan|niv[ay]|hermel[íi]n|emental|balk[áa]nsk|ricott|mascarpone|feta\b|bryndz|parenic|camembert|cheddar|brie\b|halloumi|paneer|halloumi|cottage|cheese/i, "syr"],
   // generické uzeniny bez druhu = ve českém kontextu vepřové
   [/vep[řr]|\bpork\b|šunk|sal[áa]m|klob[áa]s|kabanoss?|p[áa]rk|frankfurt|wiener|hotdog|wurst|sausage|pepperoni|chorizo|prosciutt|jam[oó]n|slanin|bacon|speck?|schinken|utopen|tla[čc]enk|prešt|\bham\b(?!é)|kanec|divoč[áa]k/i, "veprove"],
 ];

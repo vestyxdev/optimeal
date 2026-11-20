@@ -1468,6 +1468,11 @@ describe("živý katalog – audit 7denního plánu", () => {
     expect(rodinaKotvy("Tuňáková pomazánka (tuna)")).toBe("ryba");
     expect(rodinaKotvy("Krabí tyčky")).toBe("vodnany");
     expect(rodinaKotvy("Hovězí svíčková")).toBe("hovezi");
+    // mléčné kotvy – vlastní rodiny (tvaroh ≠ sýr ≠ jogurt)
+    expect(rodinaKotvy("Tvaroh polotučný (Miil)")).toBe("tvaroh");
+    expect(rodinaKotvy("Sýr Eidam")).toBe("syr");
+    expect(rodinaKotvy("Jogurt bílý 3,5%")).toBe("jogurt");
+    expect(rodinaKotvy("Skyr vanilka")).toBe("jogurt");
     // rostlinné přílohy bez druhu → bez rodiny
     expect(rodinaKotvy("Rýže basmati")).toBeNull();
     expect(rodinaKotvy("Brambory")).toBeNull();
