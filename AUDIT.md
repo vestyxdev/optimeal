@@ -180,3 +180,14 @@ All P0-P3 items above are now implemented and verified live against the producti
 - **spust_migrace.mjs** je nově idempotentní: tracking public.om_migrace, transakce per soubor, přeskočení již aplikovaných; toleruje objekty vytvořené mimo tracking.
 - **0004** opraven na drop constraint if exists (znovuspustitelné).
 - **dopln_obrazky.mjs**: backfill foods.obrazek z OpenFoodFacts (world → cz doména), slušný rate-limit.
+
+
+## Fáze 76+ – solver, alergeny, metadata katalogu
+
+- **7denní audit** (`over_jidelnicek.mjs --tyden`): matice 2200/1600/3000 kcal + vegetariánský + alergenové filtry – všech 7 dnů ±3 % kcal / ±5 % B,S,T. `--export/--katalog` = snapshot audit bez DB (CI).
+- **Solver**: doskaluj gated na out-of-tolerance (konec whipsaw přes hranici), item-krok ≤2× rezidua; kcal-overshoot nově uberDoSpodku – floor-respecting trim tuky→sacharidy mířící na cíl (ne strop); kotva ≤70 % kcal talíře; MIN_B_KOTVA 4 g B/100 g; jerky profil 30–60 g; tuk-fillery bez přísad; veg-side ≤150 kcal/100 g.
+- **Alergenová síť**: jen ~28 % katalogu mělo tagy → ALERGEN_Z_NAZVU (EU-14 jmenné regexy) + obsahujeAlergen (tag NEBO název) ve filtrujPotraviny – pokrývá generátor i výměny. Výjimky ALERGEN_VYRAZ_VYNECH («bez X» deklarace) a ALERGEN_FRAZE_VYNECH (rostlinná «másla», ryzlink vlašský, humus=půda).
+- **dopln_tagy.mjs**: jmenný backfill alergenů/diet – aditivní, transakce, dry-run review; 3 616 řádek. Vegetariánský pool ~2 867 → ~5 766, repetice rodin zmizela. Vegansky jen jednoznačné celorostlinné názvy; bezlepkovy se jménem NEdoplnuje (nebezpečný false-positive).
+- **dopln_tagy_off.mjs**: OFF-API backfill podle EAN (allergens+traces+analysis+labels → vč. en:gluten-free → bezlepkovy). Aditivní, 1 dotaz/s, checkpointy po 50 iteracích, síťové chyby se nezapisují do hotovo (retry příště), bail-out po 15 chybách za sebou. ingest_off.mjs nově čte i traces_tags («může obsahovat» = vyloučit).
+- **Bezlepková dieta = vyloučení lepku**, ne pool ~70 certifikovaných GF položek: filtrujPotraviny mapuje dieta→alergen; celiakův týden 70 → 8 073 položek, ~300 → ~85 Kč/den, audit čistý.
+- Testy: 354 → 355+ (MIN_B_KOTVA, kusovaGramaz spreads/blossom, seitan mix, junk, jerky, rodinový malus, phantom-kcal malus, veg cap, kotva cap, alergenová síť výjimky, bezlepková semantika).
