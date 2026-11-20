@@ -204,6 +204,9 @@ export async function nactiCenoveHladiny(
     .from("price_observations")
     .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, obchod:retailers(nazev)")
     .in("food_id", ids)
+    // podezřelá pozorování (špatně spárovaná nabídka, >3×/<0,25×
+    // per-food mediánu) Cenovka ignoruje – stejně jako view
+    .eq("podezrele", false)
     .gte("pozorovano_at", new Date(Date.now() - 30 * 86400e3).toISOString())
     // expirované letákové slevy nikdy nepovrchují jako aktivní –
     // stejné pravidlo jako view aktualni_ceny

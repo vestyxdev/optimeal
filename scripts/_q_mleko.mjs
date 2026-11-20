@@ -1,0 +1,11 @@
+import pg from "pg";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+process.loadEnvFile(resolve(root, ".env.local"));
+const db = new pg.Pool({host:"aws-0-eu-west-2.pooler.supabase.com",port:6543,user:"postgres.gduquvqofcohbjzzsicb",password:process.env.SUPABASE_DB_PASSWORD,database:"postgres",ssl:{rejectUnauthorized:false}});
+const {rows}=await db.query("select po.cena::float cena, po.podezrele, r.nazev obchod from price_observations po join foods f on f.id=po.food_id left join retailers r on r.id=po.retailer_id where f.nazev='Mléko' order by po.cena desc limit 8");
+rows.forEach(r=>console.log("  Mléko",r.cena,"|",r.obchod,"| podezrele:",r.podezrele));
+const {rows:t}=await db.query("select count(*)::int n from aktualni_ceny where sleva");
+console.log("view sleva:",t[0].n);
+await db.end();

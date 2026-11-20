@@ -58,6 +58,7 @@ const { rows: obs } = await db.query(`
   from price_observations po
   join foods f on f.id = po.food_id
   left join retailers r on r.id = po.retailer_id
+  where not po.podezrele
 `);
 
 // mediána kategorie z běžných cen (pozorování můžou být slevové anomálie)
