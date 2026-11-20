@@ -14,15 +14,22 @@ declare global {
   }
 }
 
-/** Pravda, když prohlížeč umí nativní detekci čárových kódů (Chrome, Edge, Android). */
+/**
+ * Pravda, když má prohlížeč kameru – detekci kódů umíme všude:
+ * nativní BarcodeDetector (Chrome, Edge, Android), jinde se
+ * za běhu dotáhne ZXing knihovna (Firefox, Safari iOS).
+ */
 export function podporujeSkenovaniKodu(): boolean {
-  return typeof window !== "undefined" && typeof window.BarcodeDetector === "function";
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getUserMedia === "function"
+  );
 }
 
 /**
  * Panel skenování čárového kódu kamerou.
- * Používá nativní BarcodeDetector – kam nedosáhl (Firefox, Safari),
- * komponentu vůbec nenabízíme a kód zadává uživatel ručně.
+ * Nativní BarcodeDetector, kde je; jinde lazy ZXing fallback,
+ * takže skenování funguje i ve Firefoxu a na iPhonu.
  */
 export function SkenovaniEan({
   naKod,
@@ -39,13 +46,10 @@ export function SkenovaniEan({
     let zruseno = false;
     let interval: ReturnType<typeof setInterval> | null = null;
     let behi = false;
+    // ZXing ovládání – vrací se z decodeFromConstraints (0.1.x)
+    let ovladani: { stop: () => void } | null = null;
 
-    async function spust() {
-      const konstruktor = window.BarcodeDetector;
-      if (!konstruktor) {
-        setChyba("Tento prohlížeč skenování kódů nepodporuje – opište kód ručně.");
-        return;
-      }
+    async function spustNativne(konstruktor: NonNullable<typeof window.BarcodeDetector>) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
@@ -83,10 +87,51 @@ export function SkenovaniEan({
       }, 350);
     }
 
-    spust();
+    /** ZXing cesta – Firefox/Safari; knihovna se dotáhne až tady. */
+    async function spustZxing() {
+      const video = videoRef.current;
+      if (!video) return;
+      try {
+        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] =
+          await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+        if (zruseno) return;
+        const hints = new Map([
+          [
+            DecodeHintType.POSSIBLE_FORMATS,
+            [
+              BarcodeFormat.EAN_13,
+              BarcodeFormat.EAN_8,
+              BarcodeFormat.UPC_A,
+              BarcodeFormat.UPC_E,
+            ],
+          ],
+        ]);
+        const reader = new BrowserMultiFormatReader(hints);
+        ovladani = await reader.decodeFromConstraints(
+          { video: { facingMode: "environment" }, audio: false },
+          video,
+          (vysledek) => {
+            if (vysledek && !zruseno) naKod(vysledek.getText());
+          },
+        );
+      } catch {
+        if (!zruseno) {
+          setChyba("Nepodařilo se spustit kameru – zkontrolujte oprávnění prohlížeče.");
+        }
+      }
+    }
+
+    const konstruktor = window.BarcodeDetector;
+    if (konstruktor) {
+      void spustNativne(konstruktor);
+    } else {
+      void spustZxing();
+    }
+
     return () => {
       zruseno = true;
       if (interval) clearInterval(interval);
+      ovladani?.stop();
       stream?.getTracks().forEach((t) => t.stop());
     };
   }, [naKod]);

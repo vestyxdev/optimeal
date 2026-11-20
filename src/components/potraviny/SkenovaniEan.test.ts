@@ -1,22 +1,31 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { podporujeSkenovaniKodu } from "./SkenovaniEan";
 
-const g = globalThis as { window?: unknown };
+const n = navigator as { mediaDevices?: { getUserMedia?: unknown } };
+const puvodni = n.mediaDevices;
 
 afterEach(() => {
-  delete g.window;
+  Object.defineProperty(navigator, "mediaDevices", {
+    value: puvodni,
+    configurable: true,
+  });
 });
 
 describe("podporujeSkenovaniKodu", () => {
-  it("false, když prohlížeč BarcodeDetector nemá (node, Firefox, Safari)", () => {
-    g.window = {};
-    expect(podporujeSkenovaniKodu()).toBe(false);
-    delete g.window;
+  it("false bez kamery (node, starý prohlížeč)", () => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: undefined,
+      configurable: true,
+    });
     expect(podporujeSkenovaniKodu()).toBe(false);
   });
 
-  it("true, když window.BarcodeDetector existuje (Chrome, Edge)", () => {
-    g.window = { BarcodeDetector: class {} };
+  it("true s kamerou – detekci řeší BarcodeDetector nebo ZXing fallback", () => {
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: () => Promise.resolve({}) },
+      configurable: true,
+    });
+    // i bez nativního BarcodeDetector (Firefox, Safari) skenujeme přes ZXing
     expect(podporujeSkenovaniKodu()).toBe(true);
   });
 });
