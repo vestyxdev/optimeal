@@ -15,6 +15,26 @@ import { lazy, type ComponentType, type LazyExoticComponent } from "react";
  */
 const KLIC = "om-chunk-reload";
 
+/** Typické texty chyb mrtvého dynamického importu napříč prohlížeči. */
+const CHUNK_VZORY = [
+  "text/html",
+  "MIME type",
+  "Failed to fetch dynamically imported module",
+  "error loading dynamically imported module",
+  "Importing a module script failed",
+  "ChunkLoadError",
+];
+
+/**
+ * Pozná chybu zastaralého chunku – k ní vždy vede jediné
+ * skutečné řešení: tvrdý reload dokumentu (React.lazy si
+ * zamítaný import pamatuje napořád, samotný retry nestačí).
+ */
+export function jeChybaChunku(chyba: unknown): boolean {
+  const zprava = chyba instanceof Error ? chyba.message : String(chyba ?? "");
+  return CHUNK_VZORY.some((v) => zprava.includes(v));
+}
+
 /** Import s jednorázovým reloadem při selhání (zastaralý chunk). */
 async function importSObnovou<T>(nacti: () => Promise<T>): Promise<T> {
   try {
