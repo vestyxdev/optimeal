@@ -1,0 +1,101 @@
+// dopln_tagy_off.mjs – dohledá chybějící alergeny/diety přes OpenFoodFacts
+// API podle EAN (pro položky bez tagů; OFF allergens+traces+analysis+labels
+// je autoritativnější než jmenná heuristika z dopln_tagy.mjs).
+// ADITIVNÍ: pouze přidává tagy; ~1 dotaz/s (OFF fair use); obnovitelné
+// přes stavový soubor (bezpečné přerušit a spustit znovu).
+// Použití: node scripts/dopln_tagy_off.mjs [--dry] [--limit N]
+import pg from "pg";
+import fs from "node:fs";
+const { Client } = pg;
+const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+const pool = new pg.Pool({
+  host: "aws-0-eu-west-2.pooler.supabase.com", port: 6543,
+  user: "postgres.gduquvqofcohbjzzsicb", password: heslo,
+  database: "postgres", ssl: { rejectUnauthorized: false }, max: 2,
+});
+
+const DRY = process.argv.includes("--dry");
+const LIM = +(process.argv.find((a) => a.startsWith("--limit"))?.split("=")[1] ?? 0);
+const STATE = "scripts/.dopln_tagy_off.state.json";
+
+/** OFF alergeny → naše EU-14 klíče (kopie z ingest_off.mjs). */
+const MAPA_ALERGENU = {
+  "en:gluten": "lepek", "en:crustaceans": "korisi", "en:eggs": "vejce",
+  "en:fish": "ryby", "en:peanuts": "arasidy", "en:soybeans": "soja",
+  "en:milk": "mleko", "en:nuts": "orisky", "en:celery": "skorocel",
+  "en:mustard": "horcice", "en:sesame-seeds": "sezam",
+  "en:sulphur-dioxide-and-sulphites": "sulfit", "en:lupin": "lupina",
+  "en:molluscs": "vodnany",
+};
+
+function tagyZ(prod) {
+  const alergeny = new Set(
+    [...(prod.allergens_tags ?? []), ...(prod.traces_tags ?? [])]
+      .map((t) => MAPA_ALERGENU[t]).filter(Boolean));
+  const anal = new Set(prod.ingredients_analysis_tags ?? []);
+  const labels = new Set(prod.labels_tags ?? []);
+  const diety = new Set();
+  if (anal.has("en:vegan") || labels.has("en:vegan")) { diety.add("vegansky"); diety.add("vegetariansky"); }
+  else if (anal.has("en:vegetarian") || labels.has("en:vegetarian")) diety.add("vegetariansky");
+  if (labels.has("en:gluten-free") && !alergeny.has("lepek")) diety.add("bezlepkovy");
+  return { alergeny, diety };
+}
+
+const hotovo = new Set();
+try {
+  for (const ean of JSON.parse(fs.readFileSync(STATE, "utf8"))) hotovo.add(ean);
+} catch { /* nový běh */ }
+
+const { rows } = await pool.query(`
+  select id, nazev, ean, alergeny, diety from public.foods
+  where ean is not null
+    and (cardinality(alergeny) = 0 or cardinality(diety) = 0)
+  order by id`);
+const fronta = rows.filter((r) => !hotovo.has(r.ean)).slice(0, LIM || undefined);
+console.log(`K dotázání: ${fronta.length} EAN (celkem ${rows.length}, hotovo ${hotovo.size})`);
+
+let nalezeno = 0, aktualizovano = 0, chyby = 0;
+const statAlg = new Map(), statDiet = new Map();
+const sleep = (ms) => new Promise((s) => setTimeout(s, ms));
+
+for (const [i, row] of fronta.entries()) {
+  if (i > 0) await sleep(1100);
+  let prod = null;
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${row.ean}.json?fields=code,allergens_tags,traces_tags,ingredients_analysis_tags,labels_tags`,
+      { headers: { "User-Agent": "OptiMeal/1.0 (optimeal; contact via github)" } });
+    if (res.ok) {
+      const j = await res.json();
+      if (j.status === 1) prod = j.product;
+    }
+  } catch { chyby++; }
+  hotovo.add(row.ean);
+  if (!prod) continue;
+  nalezeno++;
+
+  const { alergeny, diety } = tagyZ(prod);
+  const noveAlg = [...alergeny].filter((a) => !(row.alergeny ?? []).includes(a));
+  const noveDiet = [...diety].filter((d) => !(row.diety ?? []).includes(d));
+  if (noveAlg.length === 0 && noveDiet.length === 0) continue;
+
+  const alg = [...new Set([...(row.alergeny ?? []), ...noveAlg])];
+  const diet = [...new Set([...(row.diety ?? []), ...noveDiet])];
+  for (const a of noveAlg) statAlg.set(a, (statAlg.get(a) ?? 0) + 1);
+  for (const d of noveDiet) statDiet.set(d, (statDiet.get(d) ?? 0) + 1);
+  if (!DRY) {
+    await pool.query("update public.foods set alergeny=$2, diety=$3 where id=$1", [row.id, alg, diet]);
+  }
+  aktualizovano++;
+  if (aktualizovano % 25 === 0) {
+    console.log(`  …${i + 1}/${fronta.length} | nalezeno ${nalezeno} | aktualizováno ${aktualizovano}`);
+    fs.writeFileSync(STATE, JSON.stringify([...hotovo]));
+  }
+}
+
+fs.writeFileSync(STATE, JSON.stringify([...hotovo]));
+console.log(`\nHotovo: ${fronta.length} dotázáno | OFF našlo ${nalezeno} | doplněno tagů u ${aktualizovano} | chyby sítě ${chyby}`);
+console.log("alergeny:", [...statAlg.entries()].map(([k, n]) => `${k}+${n}`).join("  ") || "—");
+console.log("diety:", [...statDiet.entries()].map(([k, n]) => `${k}+${n}`).join("  ") || "—");
+console.log(DRY ? "DRY-RUN – bez --dry se zapíše." : "");
+await pool.end();

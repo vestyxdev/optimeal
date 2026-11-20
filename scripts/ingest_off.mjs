@@ -66,7 +66,7 @@ const OFF_KATEGORIE = [
 const FIELDS = [
   "code", "product_name", "product_name_cs", "brands",
   "nutriments", "nutrition_data_per",
-  "allergens_tags", "ingredients_analysis_tags", "labels_tags",
+  "allergens_tags", "traces_tags", "ingredients_analysis_tags", "labels_tags",
   "categories_tags", "image_url", "image_small_url", "image_front_url", "image_front_small_url",
   "quantity", "product_quantity", "completeness", "unique_scans_n",
 ].join(",");
@@ -204,15 +204,17 @@ function mapuj(p) {
   if (bilkoviny + sacharidy + tuky > 105) return null; // součet maker >100g/100g = fyzikálně nemožné
 
   const ean = normalizujEan(p.code);
-  const alergeny = [...new Set((p.allergens_tags ?? [])
+  // allergens_tags = obsahuje; traces_tags = „může obsahovat stopy" –
+  // pro alergika se počítá obojí (en:none se mapováním zahodí).
+  const alergeny = [...new Set([...(p.allergens_tags ?? []), ...(p.traces_tags ?? [])]
     .map((t) => MAPA_ALERGENU[t])
     .filter(Boolean))];
 
   const anal = new Set(p.ingredients_analysis_tags ?? []);
   const labels = new Set(p.labels_tags ?? []);
   const diety = [];
-  if (anal.has("en:vegan")) diety.push("vegansky", "vegetariansky");
-  else if (anal.has("en:vegetarian")) diety.push("vegetariansky");
+  if (anal.has("en:vegan") || labels.has("en:vegan")) diety.push("vegansky", "vegetariansky");
+  else if (anal.has("en:vegetarian") || labels.has("en:vegetarian")) diety.push("vegetariansky");
   if (labels.has("en:gluten-free") && !alergeny.includes("lepek")) diety.push("bezlepkovy");
 
   return {
