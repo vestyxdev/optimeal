@@ -236,3 +236,16 @@ All P0-P3 items above are now implemented and verified live against the producti
 - Gitignore: dopln_tagy_off.log odtrackován.
 
 Ověřeno: tsc clean · 368/368 testů (+2 regrese rodiny) · audit matice (standard/vegan/vegetarian/mleko+lepek/1600/3000) – všude „Bez problémů".
+
+## Kolo: slevy všude + EAN skener na všech prohlížečích (21. 11. 2026)
+
+- **Nákupní seznam – slevy** (4192b72): položky ve slevě ukazují přeškrtnutou původní cenu za celá balení, badge SLEVA −X %, "ušetříte X Kč" u položky i v součtu. puvodniCena se zobrazuje jen se zdrojovým ověřením (leták/eshop/kupi), > aktuální, ≤4×.
+- **Porovnání obchodů – úspora** (0f05cf6): HladinaObchodu.usetreno – sčítá ověřené úspory; karta "Kde nakoupit nejlevněji" ukazuje "slevy −X Kč" u každého obchodu.
+- **KartaNakupu render testy** (ee5bef6): banner úspory jen s ověřenou původní cenou; flag sleva bez ceny nevymyslí úsporu.
+- **EAN skener – ZXing fallback** (03cbd67): nativní BarcodeDetector kde je; jinde se lazy dotáhne @zxing/browser (vlastní chunk 411 kB → jen pro Firefox/Safari, Chrome ho nestáhne). podporujeSkenovaniKodu() nyní testuje getUserMedia, takže tlačítko Skenovat se ukáže i na iPhonu.
+- **Audit obrázků** (audit_obrazky.mjs): 71 ověřených proti OFF, 0 špatných, 3337 neověřitelných (URL bez OFF kódu) – kolize typu Brambory↔Chléb vyřešeny.
+- **Obrazky přes EAN** (dopln_obrazky_ean.mjs): doběhl, 1/197 – OFF prostě obrázky nemá (zahraniční/obskurní produkty); fallback ikona Package.
+- **DB úklid**: smazána 1 potravina s nazvem = raw EAN (artefakt ingestu před guardem nazev.length>=2).
+- **Pokrytí**: obrazky 9 555/9 795 (97,5 %), alergeny 4 629, diety 5 759, EAN 6 448 – dopln_tagy_off dobíhá.
+
+Ověřeno: tsc clean · 372/372 testů · build clean · git strom čistý.
