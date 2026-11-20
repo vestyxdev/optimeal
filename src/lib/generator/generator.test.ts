@@ -3,6 +3,8 @@ import {
   BONUS_SLEVY,
   filtrujPotraviny,
   jeCenaSpolehliva,
+  jeJunk,
+  jeNepotravinovy,
   jePrisada,
   jeSuplement,
   jeSuplementSnack,
@@ -1073,7 +1075,104 @@ describe("ceny jídel – realistický výpočet", () => {
   it("spolehlivé ceny procházejí", () => {
     expect(jeCenaSpolehliva(p("a", "Brambory", 2, 17, 0.1, 77, 2))).toBe(true);
     expect(jeCenaSpolehliva(p("b", "Kuře", 23, 0, 3, 110, 19.9))).toBe(true);
-    expect(jeCenaSpolehliva(p("c", "Levnej", 10, 0, 0, 50, 0.5))).toBe(false); // < 1,5 Kč/100 g
+    // levné stálice musí projít – mouka/brambory ~1 Kč/100 g jsou reálné
+    expect(jeCenaSpolehliva(p("e", "Mouka", 10, 75, 1, 360, 1.2))).toBe(true);
+    expect(jeCenaSpolehliva(p("f", "Brambory", 2, 17, 0.1, 77, 1.49))).toBe(true);
+    expect(jeCenaSpolehliva(p("c", "Levnej", 10, 0, 0, 50, 0.5))).toBe(false); // < 0,7 Kč/100 g
     expect(jeCenaSpolehliva(p("d", "Drahej", 10, 0, 0, 50, 500))).toBe(false); // > 400
+  });
+
+  it("aktualni < 35 % běžné ceny = unit-artefakt, ne akce", () => {
+    // „2,99 Kč" za kuře = cena 2 Kč/100 g při běžné 19,9 – omyl jednotek
+    const rozbiteKure = p("g", "Kuře", 23, 0, 3, 110, 19.9, 2);
+    expect(jeCenaSpolehliva(rozbiteKure)).toBe(false);
+    // reálná sleva ~40 % projde (aktualni 58 % běžné)
+    expect(jeCenaSpolehliva(p("h", "Tvaroh", 12, 4, 1, 84, 12, 7))).toBe(true);
+  });
+
+  it("bílkovinové stálice pod 4 Kč/100 g = symetrický unit omyl", () => {
+    // tvaroh 2,5 Kč/100 g (25 Kč/kg) – v ČR nereálné ani v akci
+    expect(jeCenaSpolehliva(p("i", "Tvaroh polotučný", 12, 4, 1, 84, 2.5))).toBe(false);
+    expect(jeCenaSpolehliva(p("j", "Kuřecí prsa", 23, 0, 3, 110, 3))).toBe(false);
+    // mléko a krabí tyčky (surimi) záměrně bez podlahy – 2 Kč/100 g je reálné
+    expect(jeCenaSpolehliva(p("k", "Mléko trvanlivé", 3.3, 4.8, 1.5, 44, 2.2))).toBe(true);
+    expect(jeCenaSpolehliva(p("l", "Krabí tyčky", 10, 12, 1, 95, 3))).toBe(true);
+  });
+});
+
+describe("reálný katalog – cukrovinky, nepotraviny, cizí názvy", () => {
+  it("jeJunk: cukrovinky a dezerty nejsou jídlo", () => {
+    for (const nazev of [
+      "Lindor double chocolate",
+      "Vajíčka (Chocolate eggs with Lentilky)",
+      "Čočkové Chipsy Paprika",
+      "Pralinky Raffaello",
+      "Zmrzlina vanilková",
+      "Sušenky digestive",
+      "Oplatka s citronovou příchutí",
+      "Haribo Starmix",
+    ]) {
+      expect(jeJunk({ nazev }), nazev).toBe(true);
+    }
+    for (const nazev of ["Kuřecí prsa", "Müsli ovesné", "Sušený ananas", "Kakaové máslo tukové"]) {
+      expect(jeJunk({ nazev }), nazev).toBe(false);
+    }
+  });
+
+  it("jeNepotravinovy: kosmetika, drogerie, krmiva, tablety", () => {
+    for (const nazev of [
+      "Biovène Koncentrované sérum proti nedokonalostem pleti",
+      "Šampon na vlasy",
+      "Krmivo pro kočky",
+      "Vitamin C tablety",
+      "Kolagen prášek",
+      "Prací prášek",
+    ]) {
+      expect(jeNepotravinovy({ nazev }), nazev).toBe(true);
+    }
+    // vejce obohacená o omega-3 jsou potravina, ne doplněk stravy
+    expect(jeNepotravinovy({ nazev: "Vejce s omega-3" })).toBe(false);
+  });
+
+  it("tvrdé suplementy: anglické názvy z OFF katalogu", () => {
+    for (const nazev of [
+      "Protein Pudding jahoda",
+      "Low carb protein mash",
+      "Protein mousse",
+      "Protein dessert",
+      "Pšeničná bílkovina",
+    ]) {
+      expect(jeSuplementTvrdy({ nazev }), nazev).toBe(true);
+    }
+  });
+
+  it("kusovaGramaz: kusové slovo musí být v prvních dvou slovech", () => {
+    // „Müsli mrkev a jablko" není 170 g kus jablka
+    expect(kusovaGramaz("Müsli mrkev a jablko")).toBeNull();
+    // „Chlebíčky rýžové" jsou křupky po ~10 g, ne krajíc chleba po 40 g
+    expect(kusovaGramaz("Chlebíčky rýžové")).toBe(10);
+    expect(kusovaGramaz("Chléb žitný")).toBe(40);
+    // breadfruit není chléb
+    expect(kusovaGramaz("Zelený chlebovník ve slaném nálevu")).toBeNull();
+  });
+
+  it("přísady: cizojazyčné oleje a omáčky", () => {
+    for (const nazev of [
+      "Walnuss Oel",
+      "Napraforgó étolaj",
+      "Organic Mayonnaise",
+      "Vegan mayo (zárubova)",
+      "Sonnenblumenöl",
+      "Nápojový koncentrát s koskami mandarinky",
+    ]) {
+      expect(jePrisada({ nazev }), nazev).toBe(true);
+    }
+  });
+
+  it("povolitPodMin: krácení solveru končí na půlce servírovacího minima", () => {
+    // maso 80 g min → krácené nejvýš na 40 g, ne na 10 g nitě
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere", true)).toBe(40);
+    // běžné volání drží servírovací minimum 80 g
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere")).toBe(80);
   });
 });
