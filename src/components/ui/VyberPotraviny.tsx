@@ -2,11 +2,12 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Apple, Barcode, Beef, ChevronDown, Cookie, Milk, Package, Plus,
-  Search, Tag, History, Wheat, X,
+  Search, Tag, History, TriangleAlert, Wheat, X,
 } from "lucide-react";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
-import { hledejPodleEanLokalne } from "@/lib/data/potraviny";
+import { ALERGEN_NAZVY, hledejPodleEanLokalne } from "@/lib/data/potraviny";
+import { obsahujeAlergen } from "@/lib/generator/generator";
 import { formatujCenu, formatujKcal, formatujPlatnostDo } from "@/lib/cena";
 import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { cn } from "@/lib/cn";
@@ -36,6 +37,8 @@ export interface PolozkaVyberu {
   obrazek?: string | null;
   /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
   baleniG?: number | null;
+  /** alergenové tagy – s mojeAlergie prop ukážeme varování */
+  alergeny?: string[];
 }
 
 const norm = bezDiakritiky;
@@ -77,12 +80,15 @@ export function VyberPotraviny({
   onZmena,
   chyba = false,
   ariaLabel,
+  mojeAlergie = [],
 }: {
   potraviny: PolozkaVyberu[];
   hodnota: string;
   onZmena: (id: string) => void;
   chyba?: boolean;
   ariaLabel?: string;
+  /** efektivní alergeny uživatele – řádek s kolizí dostane varování */
+  mojeAlergie?: string[];
 }) {
   const [otevreno, setOtevreno] = useState(false);
   const [dotaz, setDotaz] = useState("");
@@ -300,7 +306,7 @@ export function VyberPotraviny({
               <div className="flex min-h-0 flex-1 flex-col">
                 <ul role="listbox" className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 sm:px-3">
                   {filtrovane.map((p) => (
-                    <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} />
+                    <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} />
                   ))}
                   {filtrovane.length === 0 && (
                     <li className="px-4 py-10 text-center text-sm text-muted">
@@ -341,7 +347,7 @@ export function VyberPotraviny({
                   <SekceNadpis ikona={Package}>Všechny potraviny</SekceNadpis>
                   <ul role="listbox" className="px-2 sm:px-3">
                     {potraviny.slice(0, MAX_VYSLEDKU).map((p) => (
-                      <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} />
+                      <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} />
                     ))}
                   </ul>
                 </section>
@@ -401,11 +407,14 @@ function Radek({
   p,
   aktivni,
   onVyber,
+  mojeAlergie = [],
 }: {
   p: PolozkaVyberu;
   aktivni: boolean;
   onVyber: (id: string) => void;
+  mojeAlergie?: string[];
 }) {
+  const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   return (
     <li>
       <button
@@ -418,6 +427,12 @@ function Radek({
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-14" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-fg">{p.nazev}</span>
+          {shoda.length > 0 && (
+            <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger">
+              <TriangleAlert className="size-3 shrink-0" aria-hidden />
+              obsahuje {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+            </span>
+          )}
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             <span className="tabular-nums">
               {p.kalorie > 0 ? `${formatujKcal(p.kalorie)} kcal / 100 g` : "bez nutric"}

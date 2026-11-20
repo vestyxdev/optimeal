@@ -29,7 +29,7 @@ import {
   type TypJidla,
 } from "@/lib/data/denik";
 import { nactiKatalogPotravin } from "@/lib/data/potraviny";
-import { nactiAktivniCile } from "@/lib/data/profil";
+import { efektivniAlergieProfilu, nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
 import { lazyKomponenta } from "@/lib/lazyRoute";
 
@@ -62,6 +62,7 @@ export function Denik() {
     queryFn: () => nactiDenik(datum),
   });
   const dotazCile = useQuery({ queryKey: ["cile"], queryFn: nactiAktivniCile });
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
   // trend – 7 dnů končících zvoleným dnem (lazy graf pod souhrnem)
   const dotazTyden = useQuery({
     queryKey: ["denik", "tyden", datum],
@@ -146,6 +147,7 @@ export function Denik() {
         kategorie: k.kategorie ?? "ostatni",
         obrazek: k.obrazek,
         baleniG: k.baleniG ?? null,
+        alergeny: k.alergeny ?? [],
       })),
     [dotazKatalog.data],
   );
@@ -373,6 +375,7 @@ export function Denik() {
             cile={cile}
             typPocatecni={zapisOtevren}
             datumPocatecni={datum}
+            mojeAlergie={efektivniAlergieProfilu(dotazProfil.data)}
             naZavreni={() => setZapisOtevren(null)}
           />
         ))}

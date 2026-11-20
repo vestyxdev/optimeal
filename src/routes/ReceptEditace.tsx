@@ -17,6 +17,7 @@ import {
   upravRecept,
 } from "@/lib/data/recepty";
 import { nactiPotravinySeSlevami } from "@/lib/data/plany";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { makraProMnozstvi } from "@/lib/data/denik";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
 import type { Potravina } from "@/lib/generator/generator";
@@ -116,6 +117,7 @@ export function ReceptEditace() {
   const klientQ = useQueryClient();
 
   const dotazPotraviny = useQuery({ queryKey: ["aktualni_ceny"], queryFn: nactiPotravinySeSlevami });
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
   const dotazRecept = useQuery({
     queryKey: ["recept", id],
     queryFn: () => nactiRecept(id as string),
@@ -423,6 +425,7 @@ export function ReceptEditace() {
                             onZmena={field.onChange}
                             chyba={Boolean(errors.suroviny?.[i]?.foodId)}
                             ariaLabel={`Surovina ${i + 1} – potravina`}
+                            mojeAlergie={efektivniAlergieProfilu(dotazProfil.data)}
                           />
                         )}
                       />

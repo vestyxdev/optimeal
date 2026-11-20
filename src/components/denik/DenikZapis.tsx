@@ -44,12 +44,15 @@ export function DenikZapis({
   cile,
   typPocatecni,
   datumPocatecni,
+  mojeAlergie = [],
   naZavreni,
 }: {
   potraviny: PolozkaVyberu[];
   cile: Cile | null;
   typPocatecni: TypJidla;
   datumPocatecni: string;
+  /** efektivní alergeny uživatele – kolizní položky v pickeru se označí */
+  mojeAlergie?: string[];
   naZavreni: () => void;
 }) {
   const dotazovak = useQueryClient();
@@ -252,6 +255,7 @@ export function DenikZapis({
             hodnota=""
             onZmena={pridej}
             ariaLabel="Přidat potravinu do deníku"
+            mojeAlergie={mojeAlergie}
           />
 
           {/* ---- vliv na příjem ---- */}
