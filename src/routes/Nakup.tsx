@@ -23,6 +23,7 @@ import {
 import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
 import { sklonuj } from "@/lib/sklonovani";
 import { formatujCastku, formatujKc } from "@/lib/cena";
+import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
 
 /**
  * Nákup – uložené nákupní seznamy (z Jídelníčku i Mealprepu).
@@ -122,8 +123,23 @@ export function Nakup() {
     enabled: vybrany !== null && foodIds.length > 0,
   });
   const souhrnyObchodu = useMemo(
-    () => porovnejObchody(polozky, dotazCeny.data ?? new Map()),
+    () =>
+      porovnejObchody(
+        polozky.filter((p): p is PolozkaNakupu & { foodId: string } => p.foodId != null),
+        dotazCeny.data ?? new Map(),
+      ),
     [polozky, dotazCeny.data],
+  );
+  // co se skutečně koupí – celá balení/kusy a jejich cena (pokladní účet)
+  const nakupy = useMemo(
+    () =>
+      new Map(
+        polozky.map((p) => [
+          p.id,
+          spocitejNakupniBaleni({ nazev: p.nazev, gramy: p.gramy, baleniG: p.baleniG, cenaZa100g: p.cenaZa100g }),
+        ]),
+      ),
+    [polozky],
   );
 
   if (vybrany !== null && aktualniSeznam) {
@@ -228,8 +244,8 @@ export function Nakup() {
             );
             const mezisoucet = (seznam: PolozkaNakupu[]) =>
               seznam
-                .filter((p) => !p.koupeno && p.cenaZa100g !== null)
-                .reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
+                .filter((p) => !p.koupeno)
+                .reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
             const viceSkupin = sekce.length > 1;
             return sekce.map(([obchod, seznam]) => (
               <div key={obchod || "ostatni"}>
@@ -260,10 +276,20 @@ export function Nakup() {
                   {p.nazev}
                   {p.vlastni && <Badge tono="neutral" className="ml-2">ruční</Badge>}
                   {p.jeSleva && <Badge tono="warning" className="ml-2">SLEVA {p.obchod}</Badge>}
+                  {(() => {
+                    const n = nakupy.get(p.id);
+                    return n?.zbytek ? (
+                      <span className="block text-xs font-normal text-muted">
+                        potřeba {formatujMnozstvi(p.gramy, "g")}
+                      </span>
+                    ) : null;
+                  })()}
                 </span>
-                <span className="tabular-nums text-muted">{Math.round(p.gramy)} g</span>
-                <span className="tabular-nums text-right">
-                  {p.cenaZa100g === null ? "—" : `${formatujCastku((p.cenaZa100g * p.gramy) / 100)} Kč`}
+                <span className="whitespace-nowrap font-semibold tabular-nums">
+                  {nakupy.get(p.id)?.popisek ?? `${Math.round(p.gramy)} g`}
+                </span>
+                <span className="whitespace-nowrap tabular-nums text-right">
+                  {p.cenaZa100g === null ? "—" : `${formatujCastku(nakupy.get(p.id)?.cenaCelkem ?? 0)} Kč`}
                   {(() => {
                     const tip = p.foodId ? nejlevnejsiObchod(dotazCeny.data?.get(p.foodId)) : null;
                     if (!tip) return null;
@@ -303,7 +329,7 @@ export function Nakup() {
             const zaklad = vseKoupeno
               ? polozky.filter((p) => p.cenaZa100g !== null)
               : nekoupenoSCenou;
-            const celkem = zaklad.reduce((s, p) => s + ((p.cenaZa100g ?? 0) * p.gramy) / 100, 0);
+            const celkem = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
             const bezCeny = polozky.filter((p) => p.cenaZa100g === null).length;
             const veSleve = zaklad.filter((p) => p.jeSleva).length;
             if (polozky.length === 0) return null;

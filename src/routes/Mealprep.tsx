@@ -120,6 +120,7 @@ export function Mealprep() {
           obchod: p.obchod,
           jeSleva: p.sleva,
           kategorie: "ostatni",
+          baleniG: p.baleniG ?? null,
         })),
       ),
     onSuccess: () => {

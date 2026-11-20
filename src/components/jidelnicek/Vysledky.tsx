@@ -12,6 +12,7 @@ import {
   type TydenniPlan,
 } from "@/lib/generator/generator";
 import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
+import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
 
 /**
  * Sdílené renderování výsledků generátoru – používá Jídelníček
@@ -34,8 +35,13 @@ function Metrika({ nazev, hodnota, cilyJednotka }: { nazev: string; hodnota: str
 }
 
 export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozka[]; soucetPopisek: string }) {
-  const celkem = polozky.reduce((s, x) => s + x.cenaCelkem, 0);
-  const usetreno = polozky.reduce((s, x) => s + x.usetreno, 0);
+  // co se skutečně koupí – celá balení / kusy, cena za balení
+  const nakupy = useMemo(
+    () => polozky.map((x) => spocitejNakupniBaleni({ nazev: x.nazev, gramy: x.gramy, baleniG: x.baleniG, cenaZa100g: x.cenaZa100g, cenaBeznaZa100g: x.cenaBeznaZa100g })),
+    [polozky],
+  );
+  const celkem = nakupy.reduce((s, n) => s + (n.cenaCelkem ?? 0), 0);
+  const usetreno = nakupy.reduce((s, n) => s + (n.usetreno ?? 0), 0);
   const bezCeny = polozky.filter((x) => x.cenaZa100g === null).length;
   const tvarPolozka = bezCeny === 1 ? "položka" : bezCeny < 5 ? "položky" : "položek";
 
@@ -54,25 +60,32 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
       )}
       {/* mobil: kompaktní řádky (název, množství, sleva, cena) */}
       <div className="divide-y divide-border md:hidden">
-        {polozky.map((x) => (
+        {polozky.map((x, i) => {
+          const n = nakupy[i]!;
+          return (
           <div key={x.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
             <span className="flex min-w-0 items-center gap-2 font-medium">
               <MiniaturaPotraviny obrazek={x.obrazek} velikost="size-7" inline />
               <span className="min-w-0">
                 <span className="block truncate">{x.nazev}</span>
-                <span className="text-xs text-muted tabular-nums">
-                  {Math.round(x.gramy)} g{x.obchod ? ` · ${x.obchod}` : ""}
+                <span className="whitespace-nowrap text-xs font-semibold tabular-nums">
+                  {n.popisek}
+                  <span className="font-normal text-muted">
+                    {n.zbytek ? ` · potřeba ${formatujMnozstvi(x.gramy, "g")}` : ""}
+                    {x.obchod ? ` · ${x.obchod}` : ""}
+                  </span>
                 </span>
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
               {x.sleva && <Badge tono="warning">SLEVA</Badge>}
-              <span className="font-semibold tabular-nums">
-                {x.cenaZa100g !== null ? `${formatujCastku(x.cenaCelkem)} Kč` : "—"}
+              <span className="whitespace-nowrap font-semibold tabular-nums">
+                {x.cenaZa100g !== null ? `${formatujCastku(n.cenaCelkem ?? 0)} Kč` : "—"}
               </span>
             </span>
           </div>
-        ))}
+          );
+        })}
         <div className="flex items-center justify-between gap-3 bg-surface-2 px-4 py-2.5 text-sm">
           <span className="font-semibold">{soucetPopisek}</span>
           <span className="font-extrabold tabular-nums">{formatujCastku(celkem)} Kč</span>
@@ -85,7 +98,7 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
         <thead>
           <tr className="border-b border-border text-left text-xs text-muted">
             <th className="px-5 py-2 font-medium">Potravina</th>
-            <th className="px-2 py-2 text-right font-medium">Množství</th>
+            <th className="px-2 py-2 text-right font-medium">Koupit</th>
             <th className="px-2 py-2 text-right font-medium">Cena/100 g</th>
             <th className="px-2 py-2 font-medium">Obchod</th>
             <th className="px-2 py-2 text-right font-medium">Ušetřeno</th>
@@ -93,22 +106,30 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
           </tr>
         </thead>
         <tbody>
-          {polozky.map((x) => (
+          {polozky.map((x, i) => {
+            const n = nakupy[i]!;
+            return (
             <tr key={x.id} className="border-b border-border last:border-0">
               <td className="px-5 py-2 font-medium">
                 <MiniaturaPotraviny obrazek={x.obrazek} velikost="size-7" inline />
                 {x.nazev}
                 {x.sleva && <Badge tono="warning" className="ml-2">SLEVA</Badge>}
+                {n.zbytek && (
+                  <span className="ml-1.5 text-xs font-normal text-muted">
+                    potřeba {formatujMnozstvi(x.gramy, "g")}
+                  </span>
+                )}
               </td>
-              <td className="px-2 py-2 text-right tabular-nums">{Math.round(x.gramy)} g</td>
+              <td className="whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums">{n.popisek}</td>
               <td className="px-2 py-2 text-right tabular-nums">{x.cenaZa100g !== null ? `${formatujCastku(x.cenaZa100g)} Kč` : "—"}</td>
               <td className="px-2 py-2">{x.obchod ?? "—"}</td>
               <td className="px-2 py-2 text-right tabular-nums text-ok">
-                {x.usetreno > 0 ? `−${formatujCastku(x.usetreno)} Kč` : "—"}
+                {n.usetreno > 0 ? `−${formatujCastku(n.usetreno)} Kč` : "—"}
               </td>
-              <td className="px-5 py-2 text-right tabular-nums font-semibold">{x.cenaZa100g !== null ? `${formatujCastku(x.cenaCelkem)} Kč` : "—"}</td>
+              <td className="whitespace-nowrap px-5 py-2 text-right tabular-nums font-semibold">{x.cenaZa100g !== null ? `${formatujCastku(n.cenaCelkem ?? 0)} Kč` : "—"}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
         <tfoot>
           <tr className="border-t border-border bg-surface-2">

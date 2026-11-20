@@ -121,6 +121,7 @@ export function sestavMealprep(
           obchod: p.aktualniCena > 0 ? p.obchod : null,
           sleva: p.aktualniCena > 0 && p.sleva,
           obrazek: p.obrazek ?? null,
+          baleniG: p.baleniG ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         });

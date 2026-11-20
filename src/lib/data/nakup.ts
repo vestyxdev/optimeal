@@ -25,6 +25,8 @@ export interface PolozkaNakupu {
   obrazek?: string | null;
   /** vazba na katalog – ruční položky ji nemají (nelze porovnávat) */
   foodId?: string | null;
+  /** gramáž prodávaného balení z katalogu – pro „co se koupí" */
+  baleniG?: number | null;
 }
 
 /** Jedna aktuální cena potraviny u konkrétního obchodu. */
@@ -34,6 +36,8 @@ export interface CenaObchodu {
   cena: number;
   jeSleva: boolean;
   pozorovanoAt: string;
+  /** gramáž balení u tohoto obchodu (obs.baleni_g ?? foods.baleni_g) */
+  baleniG: number | null;
 }
 
 /** Načte seznamy přihlášeného uživatele (novější první). */
@@ -57,7 +61,7 @@ export async function nactiMeNakupniSeznamy(): Promise<NakupniSeznam[]> {
  * kterou uživatel zvolil při generování seznamu).
  */
 export function deduplikujPolozky<
-  T extends { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean },
+  T extends { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean; baleniG?: number | null },
 >(polozky: T[]): T[] {
   const mapa = new Map<string, T>();
   const vysledek: T[] = [];
@@ -79,6 +83,8 @@ export function deduplikujPolozky<
       stavajici.obchod = p.obchod;
       stavajici.jeSleva = p.jeSleva;
     }
+    // gramáž balení přežije merge – vezmeme první známou
+    if (stavajici.baleniG == null && p.baleniG != null) stavajici.baleniG = p.baleniG;
   }
   return vysledek;
 }
@@ -86,7 +92,7 @@ export function deduplikujPolozky<
 /** Vytvoří seznam z položek (gramy, cena, obchod, sleva); volitelně vázaný na plán. */
 export async function ulozNakupniSeznam(
   nazev: string,
-  polozky: { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean; kategorie?: string }[],
+  polozky: { foodId?: string | null; nazev: string; gramy: number; cenaZa100g: number | null; obchod: string | null; jeSleva: boolean; kategorie?: string; baleniG?: number | null }[],
   planId?: string | null,
 ): Promise<string> {
   const klient = supabase;
@@ -155,7 +161,7 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
 
   let { data, error } = await klient
     .from("shopping_list_items")
-    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id, potravina:foods(obrazek)")
+    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id, potravina:foods(obrazek, baleni_g)")
     .eq("list_id", idSeznamu)
     .order("id");
   // před migrací 0009 foods.obrazek neexistuje → fallback bez joinu
@@ -183,6 +189,9 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
       : ((p.potravina as { obrazek?: string | null } | null)?.obrazek ?? null)) as string | null,
     kategorie: p.kategorie,
     foodId: (p.food_id ?? null) as string | null,
+    baleniG: (Array.isArray(p.potravina)
+      ? (p.potravina[0]?.baleni_g ?? null)
+      : ((p.potravina as { baleni_g?: number | null } | null)?.baleni_g ?? null)) as number | null,
   }));
 }
 
@@ -202,7 +211,7 @@ export async function nactiCenoveHladiny(
 
   const { data, error } = await klient
     .from("price_observations")
-    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, obchod:retailers(nazev)")
+    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, baleni_g, obchod:retailers(nazev), potravina:foods(baleni_g)")
     .in("food_id", ids)
     // podezřelá pozorování (špatně spárovaná nabídka, >3×/<0,25×
     // per-food mediánu) Cenovka ignoruje – stejně jako view
@@ -221,12 +230,16 @@ export async function nactiCenoveHladiny(
     videno.add(klic);
     const naz = r.obchod as { nazev?: string } | { nazev?: string }[] | null;
     const obchod = (Array.isArray(naz) ? naz[0]?.nazev : naz?.nazev) ?? "Obchod";
+    const bal = r.potravina as { baleni_g?: number | null } | { baleni_g?: number | null }[] | null;
+    const baleniObs = r.baleni_g != null ? Number(r.baleni_g) : null;
+    const baleniFood = (Array.isArray(bal) ? bal[0]?.baleni_g : bal?.baleni_g) ?? null;
     const radka: CenaObchodu = {
       obchodId: r.retailer_id as string,
       obchod,
       cena: Number(r.cena),
       jeSleva: Boolean(r.je_sleva),
       pozorovanoAt: r.pozorovano_at as string,
+      baleniG: baleniObs ?? (baleniFood != null ? Number(baleniFood) : null),
     };
     const seznam = vysledek.get(r.food_id as string) ?? [];
     seznam.push(radka);

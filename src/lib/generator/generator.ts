@@ -105,6 +105,8 @@ export interface Jidlo {
   sleva: boolean;
   /** URL náhledu potraviny (z OpenFoodFacts), pokud existuje */
   obrazek?: string | null;
+  /** gramáž prodávaného balení – pro „co se reálně koupí" */
+  baleniG?: number | null;
 }
 
 export interface SouhrnJidla {
@@ -147,6 +149,8 @@ export interface NakupniPolozka {
   obchod: string | null;
   sleva: boolean;
   obrazek?: string | null;
+  /** gramáž prodávaného balení (když je známá) – pro nákupní balení */
+  baleniG?: number | null;
   cenaCelkem: number;
   usetreno: number;
 }
@@ -439,6 +443,7 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     obchod: p.sleva ? p.obchod : null,
     sleva: p.sleva,
     obrazek: p.obrazek ?? null,
+    baleniG: p.baleniG ?? null,
   };
 }
 
@@ -771,6 +776,7 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
           obchod: jidlo.obchod,
           sleva: jidlo.sleva,
           obrazek: jidlo.obrazek ?? null,
+          baleniG: jidlo.baleniG ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         };

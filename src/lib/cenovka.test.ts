@@ -9,7 +9,7 @@ function cena(
   c: number,
   jeSleva = false,
 ): CenaObchodu {
-  return { obchodId, obchod, cena: c, jeSleva, pozorovanoAt: "2026-03-01T00:00:00Z" };
+  return { obchodId, obchod, cena: c, jeSleva, pozorovanoAt: "2026-03-01T00:00:00Z", baleniG: null };
 }
 
 describe("nejlevnejsiObchod", () => {
@@ -29,11 +29,12 @@ describe("porovnejObchody", () => {
     ["f1", [cena("r1", "Rohlík", 10), cena("r2", "Lidl", 8)]],
     ["f2", [cena("r1", "Rohlík", 5)]],
   ]);
+  // vážené názvy → čisté kroky 50 g, součty odpovídají surovým gramům
   const polozky = [
-    { foodId: "f1", gramy: 100 },
-    { foodId: "f2", gramy: 200 },
-    { foodId: "f3", gramy: 50 },      // nikde oceněná – přeskakuje se
-    { foodId: null, gramy: 100 },     // ruční položka – přeskakuje se
+    { foodId: "f1", gramy: 100, nazev: "Kuřecí prso" },
+    { foodId: "f2", gramy: 200, nazev: "Kuřecí stehno" },
+    { foodId: "f3", gramy: 50, nazev: "Krůtí prso" },   // nikde oceněná – přeskakuje se
+    { foodId: null, gramy: 100, nazev: "Sáčky" },       // ruční položka – přeskakuje se
   ];
 
   it("spočítá součet jen z pokrytých položek a označí pokrytí", () => {
@@ -51,7 +52,7 @@ describe("porovnejObchody", () => {
   });
 
   it("obchod bez ceny se vůbec neobjeví", () => {
-    const v = porovnejObchody([{ foodId: "f3", gramy: 10 }], hladiny);
+    const v = porovnejObchody([{ foodId: "f3", gramy: 10, nazev: "Krůtí" }], hladiny);
     expect(v).toHaveLength(0);
   });
 });
