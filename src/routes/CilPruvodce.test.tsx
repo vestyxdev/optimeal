@@ -29,64 +29,62 @@ function renderPruvodce() {
   );
 }
 
-function pokracuj() {
-  fireEvent.click(screen.getByRole("button", { name: "Pokračovat" }));
+async function vyberKartu(nazev: RegExp | string) {
+  fireEvent.click(screen.getByRole("radio", { name: nazev }));
+  // karty samy posouvají dál po krátké animaci – počkat na další krok
+  await waitFor(() => expect(screen.getByText(/Krok \d+ z \d+/)).toBeTruthy(), { timeout: 1000 });
 }
 
-function projdiNaCil() {
-  fireEvent.click(screen.getByRole("radio", { name: "Muž" }));
-  pokracuj();
-  fireEvent.click(screen.getByRole("radio", { name: /0–2/ }));
-  pokracuj();
-  // věk/výška/váha mají platné výchozí hodnoty
-  pokracuj();
+async function projdiNaCil() {
+  await vyberKartu("Muž");
+  await waitFor(() => expect(screen.getByText(/Kolikrát týdně/)).toBeTruthy());
+  await vyberKartu(/0–2/);
+  // věk/výška/váha mají platné výchozí hodnoty → Pokračovat
+  await waitFor(() => screen.getByRole("button", { name: "Pokračovat" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pokračovat" }));
+  await waitFor(() => expect(screen.getByText(/Jaký je tvůj cíl/)).toBeTruthy());
 }
 
 describe("Cílový průvodce", () => {
-  it("vyžaduje výběr před pokračováním", () => {
+  it("po výběru karty automaticky postoupí na další otázku", async () => {
     renderPruvodce();
-    const dalsi = screen.getByRole("button", { name: "Pokračovat" }) as HTMLButtonElement;
-    expect(dalsi.disabled).toBe(true);
+    expect(screen.getByText(/Jaké je tvé pohlaví/)).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Muž" }));
-    expect(dalsi.disabled).toBe(false);
+    await waitFor(() => expect(screen.getByText(/Kolikrát týdně/)).toBeTruthy());
   });
 
-  it("cíl „Udržet váhu“ přeskočí krok tempo a jde rovnou na souhrn", () => {
+  it("cíl „Udržet váhu“ přeskočí krok tempo a jde rovnou na souhrn", async () => {
     renderPruvodce();
-    projdiNaCil();
+    await projdiNaCil();
     fireEvent.click(screen.getByRole("radio", { name: /Udržet váhu/ }));
-    pokracuj();
-    // souhrn – velké kalorie + makra, žádný posuvník tempa
-    expect(screen.getByText("Tvůj plán")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("Tvůj plán")).toBeTruthy());
     expect(screen.queryByLabelText("Tempo")).toBeNull();
     expect(screen.getByRole("button", { name: /Uložit do zařízení/ })).toBeTruthy();
   });
 
-  it("hubnutí ukáže krok tempo s posuvníkem a termínem", () => {
+  it("hubnutí ukáže krok tempo s posuvníkem a termínem", async () => {
     renderPruvodce();
-    projdiNaCil();
+    await projdiNaCil();
     fireEvent.click(screen.getByRole("radio", { name: /Zhubnout/ }));
-    pokracuj();
-    expect(screen.getByLabelText("Tempo")).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText("Tempo")).toBeTruthy());
     expect(screen.getByText(/Cílové váhy/)).toBeTruthy();
-    pokracuj();
-    expect(screen.getByText("Tvůj plán")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Pokračovat" }));
+    await waitFor(() => expect(screen.getByText("Tvůj plán")).toBeTruthy());
   });
 
-  it("krok Zpět se vrátí na předchozí otázku", () => {
+  it("krok Zpět se vrátí na předchozí otázku", async () => {
     renderPruvodce();
     fireEvent.click(screen.getByRole("radio", { name: "Muž" }));
-    pokracuj();
-    expect(screen.getByText(/Kolikrát týdně/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Kolikrát týdně/)).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Zpět" }));
-    expect(screen.getByText(/Jaké je tvé pohlaví/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Jaké je tvé pohlaví/)).toBeTruthy());
   });
 
-  it("ruční úprava kalorií přepočítá makra na přesnou energii", () => {
+  it("ruční úprava kalorií přepočítá makra na přesnou energii", async () => {
     renderPruvodce();
-    projdiNaCil();
+    await projdiNaCil();
     fireEvent.click(screen.getByRole("radio", { name: /Udržet váhu/ }));
-    pokracuj();
+    await waitFor(() => expect(screen.getByText("Tvůj plán")).toBeTruthy());
 
     const velka = screen.getAllByLabelText(/Upravit hodnotu/)[0]!;
     fireEvent.click(velka);
@@ -100,9 +98,9 @@ describe("Cílový průvodce", () => {
 
   it("hostovi se plán uloží do localStorage", async () => {
     renderPruvodce();
-    projdiNaCil();
+    await projdiNaCil();
     fireEvent.click(screen.getByRole("radio", { name: /Udržet váhu/ }));
-    pokracuj();
+    await waitFor(() => screen.getByRole("button", { name: /Uložit do zařízení/ }));
     fireEvent.click(screen.getByRole("button", { name: /Uložit do zařízení/ }));
 
     await waitFor(() => {

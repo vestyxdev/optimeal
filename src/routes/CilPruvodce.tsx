@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Pencil } from "lucide-react";
+import {
+  ArrowLeft, ArrowRight, Armchair, Check, Dumbbell, Flame, Mars, Minus,
+  Pencil, Plus, Scale, TrendingDown, TrendingUp, Venus,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Label } from "@/components/ui/Input";
+import { Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { nactiProfil, ulozCile, ulozProfil } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
@@ -23,17 +27,29 @@ import {
 } from "@/lib/vyziva/plan";
 
 /**
- * Průvodce cíli (Cal AI styl) – otázka za otázkou, živý výpočet
- * BMR/TDEE, tempo hubnutí či nabírání s termínem a souhrn
- * s ručně upravitelnými makry. Přihlášenému se uloží do Supabase
- * (profil + aktivní cíle), hostovi do localStorage – při prvním
- * přihlášení se přenese automaticky (migrace v AuthPoskytovatel).
+ * Průvodce cíli (Cal AI styl) – otázka za otázkou, automatické
+ * posunutí po výběru karty, živý výpočet BMR/TDEE, tempo hubnutí
+ * či nabírání s termínem a souhrn s ručně upravitelnými makry.
+ * Přihlášenému se uloží do Supabase (profil + aktivní cíle),
+ * hostovi do localStorage – při prvním přihlášení se přenese
+ * automaticky (migrace v AuthPoskytovatel).
  */
 
 export const LS_CILE_HOST = "om-cile-host";
 
 type Krok = "pohlavi" | "treninky" | "udaje" | "cil" | "tempo" | "souhrn";
 const KROKY: Krok[] = ["pohlavi", "treninky", "udaje", "cil", "tempo", "souhrn"];
+
+const IKONY_CILE: Record<CilTela, LucideIcon> = {
+  zhubnout: TrendingDown,
+  udrzet: Scale,
+  zhodnotit: TrendingUp,
+};
+const IKONY_TRENINKU: Record<TreninkyTydne, LucideIcon> = {
+  "0-2": Armchair,
+  "3-5": Dumbbell,
+  "6+": Flame,
+};
 
 interface Stav {
   pohlavi: Pohlavi | null;
@@ -67,8 +83,11 @@ export function CilPruvodce() {
   const naviguj = useNavigate();
   const klientQ = useQueryClient();
   const [krok, setKrok] = useState(0);
+  const [smer, setSmer] = useState<"vpred" | "zpet">("vpred");
   const [stav, setStav] = useState<Stav>(VYCHOZI);
   const [upravy, setUpravy] = useState<Cile | null>(null);
+  const casovac = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nadpisRef = useRef<HTMLHeadingElement>(null);
 
   // předvyplnění z profilu přihlášeného (jednorázově po načtení)
   const dotazProfil = useQuery({
@@ -99,6 +118,11 @@ export function CilPruvodce() {
     [cilTela],
   );
   const aktualniKrok = krokyViditelne[krok] ?? "souhrn";
+
+  // po změně kroku přesunout fokus na otázku (screen reader + klávesnice)
+  useEffect(() => {
+    nadpisRef.current?.focus();
+  }, [aktualniKrok]);
 
   const cisla = useMemo(
     () => ({ vek: cislo(stav.vek), vyska: cislo(stav.vyska), vaha: cislo(stav.vaha), cilovaVaha: cislo(stav.cilovaVaha) }),
@@ -164,14 +188,55 @@ export function CilPruvodce() {
     onError: (e) => toast.error(`Plán se neuložil: ${(e as Error).message}`),
   });
 
+  function zrusAuto() {
+    if (casovac.current) {
+      clearTimeout(casovac.current);
+      casovac.current = null;
+    }
+  }
+  function dalsi() {
+    zrusAuto();
+    setSmer("vpred");
+    setKrok((k) => k + 1);
+  }
+  function zpet() {
+    zrusAuto();
+    setSmer("zpet");
+    setKrok((k) => Math.max(0, k - 1));
+  }
+  /** Výběr karty → krátká animace zaškrtnutí a automatický posun dál. */
+  function vyberADalsi(aplikuj: () => void) {
+    aplikuj();
+    zrusAuto();
+    casovac.current = setTimeout(() => {
+      casovac.current = null;
+      setSmer("vpred");
+      setKrok((k) => k + 1);
+    }, 300);
+  }
+
   const muzeDalsi = validujKrok(aktualniKrok, stav, cisla);
   const posledniKrok = krok === krokyViditelne.length - 1;
+  const jeKarty = aktualniKrok === "pohlavi" || aktualniKrok === "treninky" || aktualniKrok === "cil";
 
   return (
-    <div className="mx-auto flex min-h-[70dvh] w-full max-w-lg flex-col">
-      {/* tenký průběhový proužek */}
+    <div
+      className="mx-auto flex min-h-[70dvh] w-full max-w-lg flex-col"
+      onKeyDown={(e) => {
+        // Enter v číselných polích posune dál
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && !posledniKrok && muzeDalsi) {
+          e.preventDefault();
+          dalsi();
+        }
+      }}
+    >
+      {/* tenký průběhový proužek + čítač kroků */}
+      <div className="flex items-baseline justify-between text-xs text-muted">
+        <span>Krok {krok + 1} z {krokyViditelne.length}</span>
+        <span>{TITULEK_KROKU[aktualniKrok]}</span>
+      </div>
       <div
-        className="h-1 w-full overflow-hidden rounded-full bg-surface-2"
+        className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -185,97 +250,105 @@ export function CilPruvodce() {
       </div>
 
       <div className="flex-1 py-6">
-        {aktualniKrok === "pohlavi" && (
-          <KrokOtazka otazka="Jaké je tvé pohlaví?" podtitul="Ovlivňuje výpočet bazálního metabolismu.">
-            <VyberKarty
-              volby={[
-                { klic: "m" as const, titul: "Muž", popis: "" },
-                { klic: "z" as const, titul: "Žena", popis: "" },
-              ]}
-              vybrano={stav.pohlavi}
-              naVyber={(k) => setStav({ ...stav, pohlavi: k })}
-            />
-          </KrokOtazka>
-        )}
+        <div key={aktualniKrok} className={smer === "vpred" ? "om-krok-vpred" : "om-krok-zpet"}>
+          {aktualniKrok === "pohlavi" && (
+            <KrokOtazka ref={nadpisRef} otazka="Jaké je tvé pohlaví?" podtitul="Ovlivňuje výpočet bazálního metabolismu.">
+              <VyberKarty
+                volby={[
+                  { klic: "m" as const, titul: "Muž", popis: "", ikona: Mars },
+                  { klic: "z" as const, titul: "Žena", popis: "", ikona: Venus },
+                ]}
+                vybrano={stav.pohlavi}
+                naVyber={(k) => vyberADalsi(() => setStav({ ...stav, pohlavi: k }))}
+              />
+            </KrokOtazka>
+          )}
 
-        {aktualniKrok === "treninky" && (
-          <KrokOtazka otazka="Kolikrát týdně trénuješ?" podtitul="Určuje tvůj faktor aktivity (TDEE).">
-            <VyberKarty
-              volby={TRENINKY.map((t) => ({ klic: t.klic, titul: t.titul, popis: t.popis }))}
-              vybrano={stav.treninky}
-              naVyber={(k) => setStav({ ...stav, treninky: k })}
-            />
-          </KrokOtazka>
-        )}
+          {aktualniKrok === "treninky" && (
+            <KrokOtazka ref={nadpisRef} otazka="Kolikrát týdně trénuješ?" podtitul="Určuje tvůj faktor aktivity (TDEE).">
+              <VyberKarty
+                volby={TRENINKY.map((t) => ({ klic: t.klic, titul: t.titul, popis: t.popis, ikona: IKONY_TRENINKU[t.klic] }))}
+                vybrano={stav.treninky}
+                naVyber={(k) => vyberADalsi(() => setStav({ ...stav, treninky: k }))}
+              />
+            </KrokOtazka>
+          )}
 
-        {aktualniKrok === "udaje" && (
-          <KrokOtazka otazka="Věk, výška a váha" podtitul="Z nich vypočítáme tvůj základní výdej energie.">
-            <div className="grid grid-cols-3 gap-3">
-              <Ciselnik id="cile-vek" popis="Věk" jednotka="let" hodnota={stav.vek}
-                naZmenu={(v) => setStav({ ...stav, vek: v })} min={10} max={100} />
-              <Ciselnik id="cile-vyska" popis="Výška" jednotka="cm" hodnota={stav.vyska}
-                naZmenu={(v) => setStav({ ...stav, vyska: v })} min={120} max={230} />
-              <Ciselnik id="cile-vaha" popis="Váha" jednotka="kg" hodnota={stav.vaha}
-                naZmenu={(v) => setStav({ ...stav, vaha: v })} min={30} max={300} />
-            </div>
-            {plan && (
-              <p className="text-sm text-muted">
-                Odhad základního výdeje: <span className="font-semibold text-fg">{formatujKcal(plan.bmr)} kcal</span>,
-                s aktivitou <span className="font-semibold text-fg">{formatujKcal(plan.tdee)} kcal</span> denně.
-              </p>
-            )}
-          </KrokOtazka>
-        )}
+          {aktualniKrok === "udaje" && (
+            <KrokOtazka ref={nadpisRef} otazka="Věk, výška a váha" podtitul="Z nich vypočítáme tvůj základní výdej energie.">
+              <div className="space-y-2">
+                <VolicCisla id="cile-vek" popis="Věk" jednotka="let" hodnota={stav.vek}
+                  naZmenu={(v) => setStav({ ...stav, vek: v })} min={10} max={100} />
+                <VolicCisla id="cile-vyska" popis="Výška" jednotka="cm" hodnota={stav.vyska}
+                  naZmenu={(v) => setStav({ ...stav, vyska: v })} min={120} max={230} />
+                <VolicCisla id="cile-vaha" popis="Váha" jednotka="kg" hodnota={stav.vaha}
+                  naZmenu={(v) => setStav({ ...stav, vaha: v })} min={30} max={300} />
+              </div>
+              {plan && (
+                <p className="rounded-card bg-surface-2 px-4 py-3 text-sm text-muted">
+                  Odhad základního výdeje: <span className="font-semibold text-fg">{formatujKcal(plan.bmr)} kcal</span>,
+                  s aktivitou <span className="font-semibold text-fg">{formatujKcal(plan.tdee)} kcal</span> denně.
+                </p>
+              )}
+            </KrokOtazka>
+          )}
 
-        {aktualniKrok === "cil" && (
-          <KrokOtazka otazka="Jaký je tvůj cíl?" podtitul="Podle něj nastavíme kalorie a makra.">
-            <VyberKarty
-              volby={CILE_TELA.map((c) => ({ klic: c.klic, titul: c.titul, popis: c.popis }))}
-              vybrano={stav.cilTela}
-              naVyber={(k) => {
-                const rozsah = rozsahTempa(k);
-                setStav({
-                  ...stav,
-                  cilTela: k,
-                  tempo: rozsah.vychozi || stav.tempo,
-                  cilovaVaha:
-                    k === "udrzet" ? stav.cilovaVaha
-                    : Number.isFinite(cisla.cilovaVaha) && cisla.cilovaVaha !== cisla.vaha
-                      ? stav.cilovaVaha
-                      : String(cisla.vaha + (k === "zhubnout" ? -5 : 3)),
-                });
-              }}
-            />
-          </KrokOtazka>
-        )}
+          {aktualniKrok === "cil" && (
+            <KrokOtazka ref={nadpisRef} otazka="Jaký je tvůj cíl?" podtitul="Podle něj nastavíme kalorie a makra.">
+              <VyberKarty
+                volby={CILE_TELA.map((c) => ({ klic: c.klic, titul: c.titul, popis: c.popis, ikona: IKONY_CILE[c.klic] }))}
+                vybrano={stav.cilTela}
+                naVyber={(k) => vyberADalsi(() => {
+                  const rozsah = rozsahTempa(k);
+                  setStav({
+                    ...stav,
+                    cilTela: k,
+                    tempo: rozsah.vychozi || stav.tempo,
+                    cilovaVaha:
+                      k === "udrzet" ? stav.cilovaVaha
+                      : Number.isFinite(cisla.cilovaVaha) && cisla.cilovaVaha !== cisla.vaha
+                        ? stav.cilovaVaha
+                        : String(cisla.vaha + (k === "zhubnout" ? -5 : 3)),
+                  });
+                })}
+              />
+            </KrokOtazka>
+          )}
 
-        {aktualniKrok === "tempo" && cilTela && cilTela !== "udrzet" && (
-          <KrokTempo stav={stav} cisla={cisla} cilTela={cilTela} plan={plan} setStav={setStav} />
-        )}
+          {aktualniKrok === "tempo" && cilTela && cilTela !== "udrzet" && (
+            <KrokTempo nadpisRef={nadpisRef} stav={stav} cisla={cisla} cilTela={cilTela} plan={plan} setStav={setStav} />
+          )}
 
-        {aktualniKrok === "souhrn" && plan && cile && (
-          <KrokSouhrn plan={plan} cile={cile} setUpravy={setUpravy} cilTela={cilTela!} />
-        )}
+          {aktualniKrok === "souhrn" && plan && cile && (
+            <KrokSouhrn nadpisRef={nadpisRef} plan={plan} cile={cile} setUpravy={setUpravy} cilTela={cilTela!}
+              aktualniVaha={cisla.vaha} cilovaVaha={cisla.cilovaVaha} />
+          )}
+        </div>
       </div>
 
       {/* navigace */}
       <div className="flex items-center gap-3 pb-2">
         {krok > 0 && (
-          <Button varianta="outline" onClick={() => setKrok(krok - 1)} aria-label="Zpět">
+          <Button varianta="ghost" onClick={zpet} aria-label="Zpět">
             <ArrowLeft className="size-4" /> Zpět
           </Button>
         )}
         <div className="flex-1" />
         {!posledniKrok ? (
-          <Button onClick={() => muzeDalsi && setKrok(krok + 1)} disabled={!muzeDalsi}>
-            Pokračovat <ArrowRight className="size-4" />
-          </Button>
+          jeKarty ? (
+            <p className="text-xs text-muted">Vyber možnost – půjdeš dál automaticky</p>
+          ) : (
+            <Button onClick={dalsi} disabled={!muzeDalsi}>
+              Pokračovat <ArrowRight className="size-4" />
+            </Button>
+          )
         ) : (
           <Button
             onClick={() => cile && mutaceUlozit.mutate(cile)}
             disabled={!cile || mutaceUlozit.isPending}
+            className="h-12 px-6 text-base"
           >
-            <Check className="size-4" />
+            <Check className="size-5" />
             {mutaceUlozit.isPending ? "Ukládám…" : uzivatel ? "Uložit plán a začít" : "Uložit do zařízení"}
           </Button>
         )}
@@ -283,6 +356,15 @@ export function CilPruvodce() {
     </div>
   );
 }
+
+const TITULEK_KROKU: Record<Krok, string> = {
+  pohlavi: "Pohlaví",
+  treninky: "Aktivita",
+  udaje: "Míry",
+  cil: "Cíl",
+  tempo: "Tempo",
+  souhrn: "Plán",
+};
 
 function aktivitaNaKartu(a: Aktivita | null): TreninkyTydne | null {
   if (a === "sedava" || a === "mirna") return "0-2";
@@ -311,12 +393,19 @@ function validujKrok(krok: Krok, s: Stav, c: { vek: number; vyska: number; vaha:
   }
 }
 
-/** Obálka kroku – otázka + obsah. */
-function KrokOtazka({ otazka, podtitul, children }: { otazka: string; podtitul?: string; children: React.ReactNode }) {
+/** Obálka kroku – otázka + obsah; nadpis dostává fokus po přechodu. */
+function KrokOtazka({ ref, otazka, podtitul, children }: {
+  ref: React.Ref<HTMLHeadingElement>;
+  otazka: string;
+  podtitul?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">{otazka}</h1>
+        <h1 ref={ref} tabIndex={-1} className="text-[1.75rem] font-extrabold tracking-tight outline-none">
+          {otazka}
+        </h1>
         {podtitul && <p className="mt-1 text-sm text-muted">{podtitul}</p>}
       </div>
       <div className="space-y-4">{children}</div>
@@ -324,18 +413,19 @@ function KrokOtazka({ otazka, podtitul, children }: { otazka: string; podtitul?:
   );
 }
 
-/** Velké výběrové karty – jednotlivé volby kroku. */
+/** Velké výběrové karty s ikonou – jednotlivé volby kroku. */
 function VyberKarty<K extends string>({
   volby, vybrano, naVyber,
 }: {
-  volby: { klic: K; titul: string; popis: string }[];
+  volby: { klic: K; titul: string; popis: string; ikona: LucideIcon }[];
   vybrano: K | null;
   naVyber: (k: K) => void;
 }) {
   return (
-    <div className="grid gap-2" role="radiogroup">
+    <div className="grid gap-2.5" role="radiogroup">
       {volby.map((v) => {
         const aktivni = vybrano === v.klic;
+        const Ikona = v.ikona;
         return (
           <button
             key={v.klic}
@@ -344,17 +434,33 @@ function VyberKarty<K extends string>({
             aria-checked={aktivni}
             onClick={() => naVyber(v.klic)}
             className={cn(
-              "flex min-h-[52px] items-center justify-between gap-3 rounded-card border-2 px-4 py-3 text-left transition-colors",
+              "group flex min-h-[64px] items-center gap-3.5 rounded-card border-2 px-4 py-3.5 text-left",
+              "transition-[border-color,background-color,transform] duration-150 active:scale-[0.985]",
               aktivni
-                ? "border-primary bg-primary-soft"
+                ? "border-primary bg-primary-soft shadow-card"
                 : "border-border hover:border-primary/40 hover:bg-surface-2",
             )}
           >
-            <span>
+            <span
+              className={cn(
+                "grid size-11 shrink-0 place-items-center rounded-full transition-colors",
+                aktivni ? "bg-primary text-primary-fg" : "bg-surface-2 text-muted group-hover:text-fg",
+              )}
+            >
+              <Ikona className="size-5" aria-hidden />
+            </span>
+            <span className="flex-1">
               <span className={cn("block font-bold", aktivni ? "text-primary" : "text-fg")}>{v.titul}</span>
               {v.popis && <span className="block text-sm text-muted">{v.popis}</span>}
             </span>
-            {aktivni && <Check className="size-5 shrink-0 text-primary" />}
+            <span
+              className={cn(
+                "grid size-6 shrink-0 place-items-center rounded-full border-2 transition-colors",
+                aktivni ? "border-primary bg-primary text-primary-fg" : "border-border",
+              )}
+            >
+              {aktivni && <Check className="om-pop size-3.5" strokeWidth={3} />}
+            </span>
           </button>
         );
       })}
@@ -362,36 +468,65 @@ function VyberKarty<K extends string>({
   );
 }
 
-/** Číselný vstup s jednotkou – velký, dotykově přívětivý. */
-function Ciselnik({ id, popis, jednotka, hodnota, naZmenu, min, max, krok = 1 }: {
+/** Dotykový stepper – velké číslo, tlačítka −/+, pole lze i přepsat. */
+function VolicCisla({ id, popis, jednotka, hodnota, naZmenu, min, max, krok = 1 }: {
   id: string; popis: string; jednotka: string; hodnota: string;
   naZmenu: (v: string) => void; min: number; max: number; krok?: number;
 }) {
+  const n = cislo(hodnota);
+  const posun = (d: number) => {
+    const zaklad = Number.isFinite(n) ? n : min;
+    naZmenu(String(Math.min(max, Math.max(min, Math.round((zaklad + d * krok) * 10) / 10))));
+  };
   return (
-    <div>
-      <Label htmlFor={id}>{popis}</Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type="number"
-          inputMode="decimal"
-          min={min}
-          max={max}
-          step={krok}
-          value={hodnota}
-          onChange={(e) => naZmenu(e.target.value)}
-          className="h-12 pr-12 text-base font-semibold"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">
-          {jednotka}
-        </span>
+    <div className="flex items-center gap-3 rounded-card border border-border bg-surface px-3 py-2">
+      <div className="w-16 shrink-0">
+        <Label htmlFor={id}>{popis}</Label>
+      </div>
+      <div className="flex flex-1 items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => posun(-1)}
+          disabled={Number.isFinite(n) && n <= min}
+          aria-label={`Snížit – ${popis}`}
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30 active:scale-95"
+        >
+          <Minus className="size-4" />
+        </button>
+        <div className="relative">
+          <input
+            id={id}
+            type="number"
+            inputMode="decimal"
+            min={min}
+            max={max}
+            step={krok}
+            value={hodnota}
+            onChange={(e) => naZmenu(e.target.value)}
+            className="w-24 rounded-lg border-0 bg-transparent py-2 text-center text-2xl font-extrabold tabular-nums focus:bg-surface-2"
+            aria-label={popis}
+          />
+          <span className="pointer-events-none absolute -bottom-0.5 left-1/2 -translate-x-1/2 text-[0.65rem] font-medium text-muted">
+            {jednotka}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => posun(1)}
+          disabled={Number.isFinite(n) && n >= max}
+          aria-label={`Zvýšit – ${popis}`}
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30 active:scale-95"
+        >
+          <Plus className="size-4" />
+        </button>
       </div>
     </div>
   );
 }
 
 /** Krok tempo – cílová váha + posuvník tempa s živým termínem. */
-function KrokTempo({ stav, cisla, cilTela, plan, setStav }: {
+function KrokTempo({ nadpisRef, stav, cisla, cilTela, plan, setStav }: {
+  nadpisRef: React.Ref<HTMLHeadingElement>;
   stav: Stav;
   cisla: { vaha: number; cilovaVaha: number };
   cilTela: CilTela;
@@ -399,44 +534,49 @@ function KrokTempo({ stav, cisla, cilTela, plan, setStav }: {
   setStav: (s: Stav) => void;
 }) {
   const rozsah = rozsahTempa(cilTela);
+  const hubnuti = cilTela === "zhubnout";
   const smerChybi = platnaVaha(cisla.cilovaVaha) &&
-    (cilTela === "zhubnout" ? cisla.cilovaVaha >= cisla.vaha : cisla.cilovaVaha <= cisla.vaha);
+    (hubnuti ? cisla.cilovaVaha >= cisla.vaha : cisla.cilovaVaha <= cisla.vaha);
   const termin = plan?.terminCile ?? odhadTerminu(cisla.vaha, cisla.cilovaVaha, stav.tempo, cilTela);
-  const tempoNazev =
-    stav.tempo <= (cilTela === "zhubnout" ? 0.35 : 0.2) ? "Pomalé a udržitelné"
-    : stav.tempo <= (cilTela === "zhubnout" ? 0.7 : 0.35) ? "Doporučené"
-    : "Agresivní";
+  const zony: { nazev: string; hodnota: number }[] = [
+    { nazev: "Pomalé", hodnota: rozsah.min },
+    { nazev: "Doporučené", hodnota: rozsah.vychozi },
+    { nazev: "Agresivní", hodnota: rozsah.max },
+  ];
+  const aktivniZona =
+    Math.abs(stav.tempo - rozsah.vychozi) < 0.03 ? 1
+    : stav.tempo < rozsah.vychozi ? 0
+    : 2;
 
   return (
     <KrokOtazka
-      otazka={cilTela === "zhubnout" ? "Kolik chceš zhubnout a jak rychle?" : "Kolik chceš nabrat a jak rychle?"}
+      ref={nadpisRef}
+      otazka={hubnuti ? "Kolik chceš zhubnout a jak rychle?" : "Kolik chceš nabrat a jak rychle?"}
       podtitul="Pomalé tempo drží svaly a lépe se dodržuje."
     >
-      <div className="max-w-[12rem]">
-        <Ciselnik
-          id="cile-cilova-vaha"
-          popis="Cílová váha"
-          jednotka="kg"
-          hodnota={stav.cilovaVaha}
-          naZmenu={(v) => setStav({ ...stav, cilovaVaha: v })}
-          min={30}
-          max={300}
-          krok={0.5}
-        />
-        {smerChybi && (
-          <p className="mt-1.5 text-xs text-danger">
-            {cilTela === "zhubnout"
-              ? "Pro hubnutí musí být cílová váha nižší než aktuální."
-              : "Pro nabírání musí být cílová váha vyšší než aktuální."}
-          </p>
-        )}
-      </div>
+      <VolicCisla
+        id="cile-cilova-vaha"
+        popis="Cíl"
+        jednotka="kg"
+        hodnota={stav.cilovaVaha}
+        naZmenu={(v) => setStav({ ...stav, cilovaVaha: v })}
+        min={30}
+        max={300}
+        krok={0.5}
+      />
+      {smerChybi && (
+        <p className="text-xs text-danger">
+          {hubnuti
+            ? "Pro hubnutí musí být cílová váha nižší než aktuální."
+            : "Pro nabírání musí být cílová váha vyšší než aktuální."}
+        </p>
+      )}
 
-      <div>
+      <div className="rounded-card border border-border bg-surface p-4">
         <div className="flex items-baseline justify-between">
           <Label htmlFor="cile-tempo">Tempo</Label>
-          <span className="text-sm font-semibold tabular-nums">
-            {stav.tempo.toLocaleString("cs-CZ")} kg / týden
+          <span className="text-lg font-extrabold tabular-nums">
+            {stav.tempo.toLocaleString("cs-CZ")} <span className="text-sm font-medium text-muted">kg / týden</span>
           </span>
         </div>
         <input
@@ -444,29 +584,40 @@ function KrokTempo({ stav, cisla, cilTela, plan, setStav }: {
           type="range"
           min={rozsah.min}
           max={rozsah.max}
-          step={cilTela === "zhubnout" ? 0.1 : 0.05}
+          step={hubnuti ? 0.1 : 0.05}
           value={stav.tempo}
           onChange={(e) => setStav({ ...stav, tempo: Number(e.target.value) })}
-          className="mt-2 h-10 w-full accent-primary"
+          className="om-posuvnik mt-4"
           aria-describedby="cile-tempo-nazev"
         />
-        <div className="flex justify-between text-xs text-muted">
-          <span>Pomalé a udržitelné</span>
-          <span id="cile-tempo-nazev" className="font-semibold text-fg">{tempoNazev}</span>
-          <span>Agresivní</span>
+        <div className="mt-2 grid grid-cols-3 text-center text-xs">
+          {zony.map((z, i) => (
+            <button
+              key={z.nazev}
+              type="button"
+              onClick={() => setStav({ ...stav, tempo: z.hodnota })}
+              className={cn(
+                "min-h-[36px] rounded-lg font-medium transition-colors",
+                i === aktivniZona ? "font-bold text-primary" : "text-muted hover:text-fg",
+              )}
+            >
+              {z.nazev}
+            </button>
+          ))}
         </div>
-        {stav.tempo >= 0.8 && cilTela === "zhubnout" && (
-          <p className="mt-2 text-xs text-danger">
+        <p id="cile-tempo-nazev" className="sr-only">Zvolené tempo: {zony[aktivniZona]?.nazev}</p>
+        {stav.tempo >= 0.8 && hubnuti && (
+          <p className="mt-1 text-xs text-danger">
             Agresivní deficit – hrozí úbytek svalů a jojo efekt. Zvaž pomalejší tempo.
           </p>
         )}
       </div>
 
       {platnaVaha(cisla.cilovaVaha) && !smerChybi && termin && (
-        <p className="rounded-card bg-surface-2 px-4 py-3 text-sm">
+        <p className="rounded-card bg-primary-soft px-4 py-3.5 text-sm">
           Cílové váhy <span className="font-bold">{formatujMakro(cisla.cilovaVaha)} kg</span>{" "}
-          {cilTela === "zhubnout" ? "dosáhneš" : "nabereš"} kolem{" "}
-          <span className="font-bold">
+          {hubnuti ? "dosáhneš" : "nabereš"} kolem{" "}
+          <span className="font-bold text-primary">
             {termin.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })}
           </span>
           .
@@ -476,44 +627,152 @@ function KrokTempo({ stav, cisla, cilTela, plan, setStav }: {
   );
 }
 
+/** Plynule navyšující se číslo (450 ms ease-out) – živý souhrn kcal. */
+function useCitaneCislo(cil: number): number {
+  const [v, setV] = useState(cil);
+  const posledni = useRef(cil);
+  useEffect(() => {
+    const od = posledni.current;
+    posledni.current = cil;
+    const zkracene = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (od === cil || zkracene || typeof requestAnimationFrame !== "function") {
+      setV(cil);
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const tik = (t: number) => {
+      const p = Math.min(1, (t - t0) / 450);
+      setV(Math.round(od + (cil - od) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tik);
+    };
+    raf = requestAnimationFrame(tik);
+    return () => cancelAnimationFrame(raf);
+  }, [cil]);
+  return v;
+}
+
+/** Prstencový graf podílu makroživin na celkové energii. */
+function PrstenceMakro({ cile }: { cile: Cile }) {
+  const eP = 4 * cile.bilkoviny;
+  const eS = 4 * cile.sacharidy;
+  const eT = 9 * cile.tuky;
+  const celkem = Math.max(1, eP + eS + eT);
+  const R = 54;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
+  const segmenty = [
+    { energie: eP, barva: "var(--primary)" },
+    { energie: eS, barva: "var(--accent)" },
+    { energie: eT, barva: "var(--muted)" },
+  ].map((s) => {
+    const podil = s.energie / celkem;
+    const seg = { ...s, delka: podil * C, posun: -offset };
+    offset += podil * C;
+    return seg;
+  });
+
+  return (
+    <svg viewBox="0 0 140 140" className="size-36 -rotate-90" aria-hidden>
+      <circle cx="70" cy="70" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="16" />
+      {segmenty.map((s, i) => (
+        <circle
+          key={i}
+          cx="70" cy="70" r={R} fill="none"
+          stroke={s.barva} strokeWidth="16"
+          strokeDasharray={`${Math.max(0, s.delka - 1.5)} ${C}`}
+          strokeDashoffset={s.posun}
+          className="transition-[stroke-dasharray,stroke-dashoffset] duration-300"
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** Odhad křivky váhy – přímá linie z aktuální na cílovou váhu. */
+function KrivkaVahy({ zVahy, doVahy, termin, hubnuti }: {
+  zVahy: number; doVahy: number; termin: Date | null; hubnuti: boolean;
+}) {
+  const x1 = 14, x2 = 306;
+  const y1 = hubnuti ? 18 : 62;
+  const y2 = hubnuti ? 62 : 18;
+  return (
+    <div className="rounded-card border border-border bg-surface p-4">
+      <div className="mb-1 flex items-baseline justify-between text-xs text-muted">
+        <span>Odhad průběhu váhy</span>
+        {termin && (
+          <span>
+            cíl {termin.toLocaleDateString("cs-CZ", { month: "long", year: "numeric" })}
+          </span>
+        )}
+      </div>
+      <svg viewBox="0 0 320 80" className="h-20 w-full" aria-hidden>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border)" strokeWidth="1.5" strokeDasharray="3 4" />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx={x1} cy={y1} r="4" fill="var(--primary)" />
+        <circle cx={x2} cy={y2} r="5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
+      </svg>
+      <div className="flex justify-between text-xs">
+        <span className="font-semibold tabular-nums">{formatujMakro(zVahy)} kg <span className="font-normal text-muted">dnes</span></span>
+        <span className="font-semibold tabular-nums">{formatujMakro(doVahy)} kg <span className="font-normal text-muted">cíl</span></span>
+      </div>
+    </div>
+  );
+}
+
 /** Souhrn – výsledný plán + ručně upravitelná čísla. */
-function KrokSouhrn({ plan, cile, setUpravy, cilTela }: {
+function KrokSouhrn({ nadpisRef, plan, cile, setUpravy, cilTela, aktualniVaha, cilovaVaha }: {
+  nadpisRef: React.Ref<HTMLHeadingElement>;
   plan: ReturnType<typeof spocitejPlan>;
   cile: Cile;
   setUpravy: (c: Cile) => void;
   cilTela: CilTela;
+  aktualniVaha: number;
+  cilovaVaha: number;
 }) {
-  const MAKRA: { klic: "bilkoviny" | "sacharidy" | "tuky"; nazev: string; barva: string }[] = [
-    { klic: "bilkoviny", nazev: "Bílkoviny", barva: "bg-primary" },
-    { klic: "sacharidy", nazev: "Sacharidy", barva: "bg-accent" },
-    { klic: "tuky", nazev: "Tuky", barva: "bg-muted" },
+  const MAKRA: { klic: "bilkoviny" | "sacharidy" | "tuky"; nazev: string; tecka: string }[] = [
+    { klic: "bilkoviny", nazev: "Bílkoviny", tecka: "bg-primary" },
+    { klic: "sacharidy", nazev: "Sacharidy", tecka: "bg-accent" },
+    { klic: "tuky", nazev: "Tuky", tecka: "bg-muted" },
   ];
-  const maxG = Math.max(cile.bilkoviny, cile.sacharidy, cile.tuky, 1);
+  const kcal = useCitaneCislo(cile.kalorie);
+  const hubnuti = cilTela === "zhubnout";
 
   return (
-    <KrokOtazka otazka="Tvůj plán" podtitul="Klepnutím na číslo ho můžeš doladit – makra se přepočítají.">
-      {/* velké kalorie */}
-      <div className="rounded-card border-2 border-primary bg-primary-soft p-5 text-center">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted">Denní cíl</div>
-        <EditovatelneCislo
-          hodnota={cile.kalorie}
-          naZmenu={(n) => setUpravy(cileZKcal(n, cile))}
-          velke
-        />
-        <div className="text-sm text-muted">kcal / den</div>
-        {plan.pouzitaPodlaha && (
-          <p className="mt-2 text-xs text-danger">
-            Výpočet vycházel pod bezpečné minimum – nastavili jsme nejnižší zdravý příjem.
-          </p>
-        )}
+    <KrokOtazka ref={nadpisRef} otazka="Tvůj plán" podtitul="Klepnutím na číslo ho doladíš – energie makroživin zůstane přesná.">
+      {/* prstenec makroživin + velké kalorie */}
+      <div className="relative mx-auto w-fit rounded-card border-2 border-primary/60 bg-primary-soft p-4">
+        <PrstenceMakro cile={cile} />
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="text-center">
+            <EditovatelneCislo
+              hodnota={kcal}
+              cil={cile.kalorie}
+              naZmenu={(n) => setUpravy(cileZKcal(n, cile))}
+              velke
+            />
+            <div className="text-xs font-semibold text-muted">kcal / den</div>
+          </div>
+        </div>
       </div>
+      {plan.pouzitaPodlaha && (
+        <p className="text-center text-xs text-danger">
+          Výpočet vycházel pod bezpečné minimum – nastavili jsme nejnižší zdravý příjem.
+        </p>
+      )}
 
-      {/* makra – editovatelné řádky s pruhem */}
-      <div className="space-y-3">
-        {MAKRA.map((m) => (
-          <div key={m.klic} className="rounded-card border border-border p-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold">{m.nazev}</span>
+      {/* makra – editovatelné řádky */}
+      <div className="space-y-2">
+        {MAKRA.map((m) => {
+          const energie = cile[m.klic] * (m.klic === "tuky" ? 9 : 4);
+          const podil = Math.round((energie / Math.max(1, cile.kalorie)) * 100);
+          return (
+            <div key={m.klic} className="flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3">
+              <span className={cn("size-2.5 shrink-0 rounded-full", m.tecka)} aria-hidden />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold">{m.nazev}</span>
+                <span className="block text-xs text-muted">{podil} % energie</span>
+              </span>
               <span className="flex items-baseline gap-1">
                 <EditovatelneCislo
                   hodnota={cile[m.klic]}
@@ -528,15 +787,14 @@ function KrokSouhrn({ plan, cile, setUpravy, cilTela }: {
                 <span className="text-sm text-muted">g</span>
               </span>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-              <div
-                className={cn("h-full rounded-full", m.barva)}
-                style={{ width: `${(cile[m.klic] / maxG) * 100}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* křivka váhy (kromě udržování) */}
+      {cilTela !== "udrzet" && platnaVaha(cilovaVaha) && cilovaVaha !== aktualniVaha && (
+        <KrivkaVahy zVahy={aktualniVaha} doVahy={cilovaVaha} termin={plan.terminCile} hubnuti={hubnuti} />
+      )}
 
       {/* stručný rozbor */}
       <div className="rounded-card bg-surface-2 px-4 py-3 text-sm text-muted">
@@ -544,43 +802,38 @@ function KrokSouhrn({ plan, cile, setUpravy, cilTela }: {
           Bazální metabolismus <span className="font-semibold text-fg">{formatujKcal(plan.bmr)} kcal</span>,
           s aktivitou <span className="font-semibold text-fg">{formatujKcal(plan.tdee)} kcal</span>
           {plan.korekceKcal !== 0 && (
-            <>, {cilTela === "zhubnout" ? "deficit" : "přídavek"}{" "}
+            <>, {hubnuti ? "deficit" : "přídavek"}{" "}
             <span className="font-semibold text-fg">{formatujKcal(Math.abs(plan.korekceKcal))} kcal</span></>
           )}
           .
         </p>
-        {plan.terminCile && (
-          <p className="mt-1">
-            Odhad dosažení cíle:{" "}
-            <span className="font-semibold text-fg">
-              {plan.terminCile.toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}
-            </span>
-          </p>
-        )}
       </div>
     </KrokOtazka>
   );
 }
 
 /** Číslo, které se po klepnutí změní v editovatelné pole. */
-function EditovatelneCislo({ hodnota, naZmenu, velke = false }: {
+function EditovatelneCislo({ hodnota, cil, naZmenu, velke = false }: {
   hodnota: number;
+  /** skutečná hodnota pro aria-label (hodnota může být animovaná) */
+  cil?: number;
   naZmenu: (n: number) => void;
   velke?: boolean;
 }) {
   const [edituji, setEdituji] = useState(false);
   const [text, setText] = useState(String(hodnota));
+  const labelHodnota = cil ?? hodnota;
 
   if (!edituji) {
     return (
       <button
         type="button"
-        onClick={() => { setText(String(hodnota)); setEdituji(true); }}
+        onClick={() => { setText(String(labelHodnota)); setEdituji(true); }}
         className={cn(
           "group inline-flex min-h-[44px] items-center gap-1.5 rounded-lg font-extrabold tabular-nums",
-          velke ? "px-3 text-4xl" : "px-1.5 text-lg hover:bg-surface-2",
+          velke ? "px-2 text-[2rem] leading-none" : "px-1.5 text-lg hover:bg-surface-2",
         )}
-        aria-label={`Upravit hodnotu ${hodnota}`}
+        aria-label={`Upravit hodnotu ${labelHodnota}`}
       >
         {formatujKcal(hodnota)}
         <Pencil className={cn("text-muted opacity-0 transition-opacity group-hover:opacity-100", velke ? "size-4" : "size-3")} />
@@ -601,12 +854,15 @@ function EditovatelneCislo({ hodnota, naZmenu, velke = false }: {
         setEdituji(false);
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Enter") {
+          e.stopPropagation();
+          (e.target as HTMLInputElement).blur();
+        }
         if (e.key === "Escape") setEdituji(false);
       }}
       className={cn(
         "w-28 rounded-lg border-2 border-primary bg-surface px-2 py-1 text-center font-extrabold tabular-nums",
-        velke ? "text-4xl" : "text-lg",
+        velke ? "text-3xl" : "text-lg",
       )}
     />
   );
