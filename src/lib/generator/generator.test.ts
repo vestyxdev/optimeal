@@ -688,6 +688,25 @@ describe("vymenJidloVTydnu", () => {
     const plan = vygenerujTydenniPlan(KATALOG, CILE);
     expect(vymenJidloVTydnu(KATALOG, plan, 9, "Oběd", CILE)).toBeNull();
   });
+
+  it("výměna respektuje cap rodin použitých jinde v týdnu", () => {
+    const den = vygenerujJidelnicek(KATALOG, CILE);
+    // jídlo bez kuřecích prsou – rodina „kureci prsa" má v týdnu 3
+    // použití → cap ji z náhrady vyloučí (kuřecí prsa mají nejlepší
+    // poměr a bez capu by se do jídla nabídla sama)
+    const nazev = Object.entries(den.jidelnicek).find(
+      ([, s]) => !s.jidla.some((j) => j.id === "1"),
+    )?.[0];
+    if (nazev === undefined) return;
+    const vysledek = vymenJidlo(
+      KATALOG, den, nazev, CILE, null, 0.85, new Map([["kureci prsa", 3]]),
+    );
+    if (vysledek !== null) {
+      expect(
+        vysledek.jidelnicek[nazev]!.jidla.every((j) => j.id !== "1"),
+      ).toBe(true);
+    }
+  });
 });
 
 describe("okrajové případy generátoru", () => {

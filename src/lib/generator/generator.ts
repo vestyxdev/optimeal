@@ -2047,6 +2047,7 @@ export function vymenJidlo(
   cile: Cile,
   filtr: FiltrPotraviny | null = null,
   poolMin = 0.85,
+  minuleDny: ReadonlyMap<string, number> = new Map(),
 ): DenVysledek | null {
   const stara = den.jidelnicek[nazevJidla];
   if (!stara) return null;
@@ -2073,7 +2074,7 @@ export function vymenJidlo(
     poolMin,
     nazevJidla,
     pouziteKlice,
-    new Map(),
+    minuleDny,
     true,
   );
   // vyberKandidata padá zpět na použité potraviny, když je fond malý –
@@ -2108,7 +2109,20 @@ export function vymenJidloVTydnu(
 ): TydenniPlan | null {
   const den = plan.dny[denIndex];
   if (!den) return null;
-  const novyDen = vymenJidlo(potraviny, den, nazevJidla, cile, filtr);
+  // rodiny použité ve zbývajících dnech týdne – výměna respektuje
+  // týdenní cap jako plán (jinak by uživatel převýměnou mohl
+  // vrátit rodinu, kterou cap právě vytlačil)
+  const tydenniKlice = new Map<string, number>();
+  for (const [d, v] of Object.entries(plan.dny)) {
+    if (+d === denIndex) continue;
+    for (const souhrn of Object.values(v.jidelnicek)) {
+      for (const j of souhrn.jidla) {
+        const klic = klicPodobnosti(j.nazev);
+        tydenniKlice.set(klic, (tydenniKlice.get(klic) ?? 0) + 1);
+      }
+    }
+  }
+  const novyDen = vymenJidlo(potraviny, den, nazevJidla, cile, filtr, 0.85, tydenniKlice);
   if (novyDen === null) return null;
 
   const dny = { ...plan.dny, [denIndex]: novyDen };
