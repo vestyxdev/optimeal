@@ -8,7 +8,10 @@ import { Card, CardNadpis } from "@/components/ui/Card";
 import { Input, Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { exportujMujData, stahniJson } from "@/lib/data/export";
+import { nactiAktivniCile } from "@/lib/data/profil";
+import { formatujKcal, formatujMakro } from "@/lib/cena";
 import { useMotiv } from "@/lib/motiv";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * Nastavení – vzhled, zabezpečení účtu (změna hesla), export dat
@@ -33,6 +36,7 @@ export function Nastaveni() {
       <h1 className="text-2xl font-extrabold tracking-tight">Nastavení</h1>
 
       {uzivatel && <SekceZabezpeceni />}
+      {uzivatel && <SekceCile />}
       {uzivatel && <SekceData />}
 
       {/* vzhled */}
@@ -165,6 +169,41 @@ function SekceZabezpeceni() {
           {uklada ? "Měním heslo…" : "Změnit heslo"}
         </Button>
       </form>
+    </Card>
+  );
+}
+
+/** Aktuální výživový plán + spuštění průvodce přepočtem. */
+function SekceCile() {
+  const dotazCile = useQuery({ queryKey: ["cile"], queryFn: nactiAktivniCile });
+  const cile = dotazCile.data ?? null;
+
+  return (
+    <Card>
+      <CardNadpis>Výživové cíle</CardNadpis>
+      {dotazCile.isLoading ? (
+        <p className="text-sm text-muted">Načítám cíle…</p>
+      ) : cile ? (
+        <p className="text-sm">
+          <span className="text-lg font-extrabold tabular-nums">{formatujKcal(cile.kalorie)} kcal</span>
+          <span className="text-muted">
+            {" "}· B {formatujMakro(cile.bilkoviny)} g · S {formatujMakro(cile.sacharidy)} g · T {formatujMakro(cile.tuky)} g
+          </span>
+        </p>
+      ) : (
+        <p className="text-sm text-muted">Cíle zatím nemáte nastavené.</p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Link
+          to="/cile"
+          className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm font-semibold text-fg transition-colors hover:bg-surface-2"
+        >
+          {cile ? "Přepočítat cíle" : "Spustit průvodce cíli"}
+        </Link>
+        <Link to="/ucet" className="text-sm text-muted hover:text-fg hover:underline">
+          Upravit ručně v Mém účtu →
+        </Link>
+      </div>
     </Card>
   );
 }

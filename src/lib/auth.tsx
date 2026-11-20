@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, supabaseNastaveno } from "./supabase";
+import { ulozCile, ulozProfil } from "./data/profil";
 
 /**
  * Autentizace – Supabase Auth (e-mail + heslo).
@@ -70,6 +71,10 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
           if (pred !== null && pred.id !== (novy?.id ?? null)) {
             klient.clear();
           }
+          // první přihlášení po hostovském průvodci cíli → přenést cíle
+          if (pred === null && novy !== null) {
+            migrujCileHosta().catch(() => {});
+          }
           return novy;
         });
       },
@@ -119,6 +124,28 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthKontext);
+}
+
+/**
+ * Host cíle z průvodce (/cile bez přihlášení) se uloží do
+ * localStorage; při prvním přihlášení je zapíšeme na účet
+ * a lokální kopii smažeme.
+ */
+async function migrujCileHosta(): Promise<void> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem("om-cile-host");
+    if (!raw) return;
+    localStorage.removeItem("om-cile-host");
+  } catch {
+    return; // localStorage nedostupný – nic k migraci
+  }
+  const host = JSON.parse(raw) as {
+    vstupy?: Parameters<typeof ulozProfil>[0];
+    cile?: { kalorie: number; bilkoviny: number; sacharidy: number; tuky: number };
+  };
+  if (host.vstupy) await ulozProfil(host.vstupy).catch(() => {});
+  if (host.cile) await ulozCile(host.cile, "auto").catch(() => {});
 }
 
 /** Většina chyb Supabase jde člověku vysvětlit česky. */

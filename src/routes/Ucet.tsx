@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/Select";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   nactiAktivniCile,
   nactiProfil,
@@ -412,13 +412,19 @@ export function Ucet() {
           </div>
         )}
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button
             onClick={() => mutaceUlozit.mutate(form)}
             disabled={mutaceUlozit.isPending}
           >
             {mutaceUlozit.isPending ? "Ukládám…" : "Uložit profil a cíle"}
           </Button>
+          <Link
+            to="/cile"
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            Přepočítat cíle průvodcem →
+          </Link>
         </div>
       </Card>
 

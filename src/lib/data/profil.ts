@@ -20,6 +20,8 @@ export interface Profil {
   pocetJidelDenne: number;
   dieta: string[];
   alergie: string[];
+  cilovaVahaKg: number | null;
+  tempoKgTydne: number | null;
 }
 
 interface RadkaProfilu {
@@ -37,6 +39,8 @@ interface RadkaProfilu {
   pocet_jidel_denne: number;
   dieta: string[];
   alergie: string[];
+  cilova_vaha_kg: number | null;
+  tempo_kg_tydne: number | null;
 }
 
 function naProfil(r: RadkaProfilu): Profil {
@@ -55,6 +59,8 @@ function naProfil(r: RadkaProfilu): Profil {
     pocetJidelDenne: r.pocet_jidel_denne,
     dieta: r.dieta ?? [],
     alergie: r.alergie ?? [],
+    cilovaVahaKg: r.cilova_vaha_kg === null ? null : Number(r.cilova_vaha_kg),
+    tempoKgTydne: r.tempo_kg_tydne === null ? null : Number(r.tempo_kg_tydne),
   };
 }
 
@@ -83,6 +89,8 @@ export async function ulozProfil(zmeny: {
   pocetJidelDenne?: number | undefined;
   dieta?: string[] | undefined;
   alergie?: string[] | undefined;
+  cilovaVahaKg?: number | null | undefined;
+  tempoKgTydne?: number | null | undefined;
 }): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -105,6 +113,8 @@ export async function ulozProfil(zmeny: {
       ...(zmeny.pocetJidelDenne !== undefined ? { pocet_jidel_denne: zmeny.pocetJidelDenne } : {}),
       ...(zmeny.dieta !== undefined ? { dieta: zmeny.dieta } : {}),
       ...(zmeny.alergie !== undefined ? { alergie: zmeny.alergie } : {}),
+      ...(zmeny.cilovaVahaKg !== undefined ? { cilova_vaha_kg: zmeny.cilovaVahaKg } : {}),
+      ...(zmeny.tempoKgTydne !== undefined ? { tempo_kg_tydne: zmeny.tempoKgTydne } : {}),
       upraveno: new Date().toISOString(),
     })
     .eq("id", uzivatel.user.id);

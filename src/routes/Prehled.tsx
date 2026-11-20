@@ -351,8 +351,8 @@ function PrihlasenyPrehled() {
               <p className="text-sm text-muted">
                 Cíl zatím nemáte – spočítáme ho z váhy, výšky a aktivity.
               </p>
-              <Link to="/ucet" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-                <Target className="size-4" /> Nastavit v Mém účtu
+              <Link to="/cile" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                <Target className="size-4" /> Spustit průvodce cíli
               </Link>
             </div>
           )}

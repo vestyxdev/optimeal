@@ -42,7 +42,7 @@ export function Registrace() {
       return;
     }
     toast.success("Účet vytvořen – vítejte v OptiMeal!");
-    naviguj("/ucet");
+    naviguj("/cile");
   }
 
   if (cekaNaEmail) {

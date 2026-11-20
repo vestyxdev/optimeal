@@ -13,6 +13,7 @@ import { NoveHeslo } from "@/routes/NoveHeslo";
 import { VyzadujePrihlaseni } from "@/components/layout/VyzadujePrihlaseni";
 import { Nenalezeno } from "@/routes/Nenalezeno";
 import { Podminky, Soukromi } from "@/routes/Pravni";
+import { CilPruvodce } from "@/routes/CilPruvodce";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { lazyRoute } from "@/lib/lazyRoute";
 
@@ -119,6 +120,7 @@ export default function App() {
               }
             />
             <Route path="/ucet" element={<Ucet />} />
+            <Route path="/cile" element={<CilPruvodce />} />
             <Route path="/nastaveni" element={<Nastaveni />} />
             <Route path="/soukromi" element={<Soukromi />} />
             <Route path="/podminky" element={<Podminky />} />
