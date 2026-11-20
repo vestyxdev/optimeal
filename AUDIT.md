@@ -221,3 +221,18 @@ All P0-P3 items above are now implemented and verified live against the producti
 - Verifikace: tsc čistý, 364/364 testů (+regresní blok vet falešných shod),
   audit matrix vegansky/vegetariansky/bezlepkovy/standard/mleko+lepek –
   všude „Bez problémů ✔", rodiny ≤3×, den 5 vegan 2201 kcal.
+
+
+## Kolo – druhové rodiny kotev + katalog browse + OFF EAN (commity 49620ec, 1480ccd, b83ad17, 9c3c1e8, db7881b)
+
+- **rodinaKotvy()**: druhová rodina zdroje bílkoviny (veprove/hovezi/drubez/ryba/vodnany/vejce/jehneci/susene_maso/tofu/tempeh/seitan/tvaroh/syr/jogurt). „Vepřová plec" a „Vepřová kýta" mají jiný dvouslovný klíč, ale stejnou rodinu → oběd+večeře už nejsou 2× vepřové v jednom dni (audit over_plan: dříve plec+kýta).
+- Rodinné klíče sdílí `pouziteKlice`/`minuleDny` s klicPodobnosti: denní deduplikace (bezRodiny) i týdenní cap (rodina max 4×, dvouslovný klíč max 3×) fungují pro druhy i generické sušené maso (Sušené maso Original vs Prémiové sušené maso). Malus minuleKolikrat počítá max(klíč, rodina−1).
+- Mléčné rodiny: tvaroh kotvil snídani ~6×/týden → vlastní rodiny tvaroh/syr/jogurt s capem 4 (tvaroh ~3×).
+- **Solver 4→6 kol**: po seškrtání fantómových kcal chyběla kola na doplnění sacharidů (den 6: −5,2 % kcal, −6,2 % S) → konverguje.
+- **Katalog browse**: jeNepotravinovy se nezobrazuje v procházení (kosmetika z drogistických feedů); při hledání se najde. Regex `plet` → `plet(?!ýn)` (pletýnka ≠ pleťový krém).
+- **OFF dohledání u uživatelského EAN** (db7881b): nacita allergens/traces/analysis/labels → alergeny+diety se ukládají jen když OFF data má; prázdné pole nemaže existující tagy.
+- **DB korekce**: vegansky odebrán 8 řádkům (wafer/nougat/pasta kari/chorizo/tuňáková/onion&cheese), mleko přidán 3 (onion&cheese, lemon cheesecake, VGTeam VegeCheese).
+- Kvalita dat (scripts/kvalita_dat.mjs): dietní kontradikce 56→5 (zbylé nejednoznačné – veto řeší), chybějící mleko 21→0.
+- Gitignore: dopln_tagy_off.log odtrackován.
+
+Ověřeno: tsc clean · 368/368 testů (+2 regrese rodiny) · audit matice (standard/vegan/vegetarian/mleko+lepek/1600/3000) – všude „Bez problémů".
