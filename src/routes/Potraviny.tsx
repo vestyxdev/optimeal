@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
-  Sparkles, Tag, Trash2, Wheat, X,
+  Sparkles, Tag, Trash2, TriangleAlert, Wheat, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -32,6 +32,8 @@ import {
   type KatalogPotravina,
   type OffNalezenaPotravina,
 } from "@/lib/data/potraviny";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
+import { obsahujeAlergen } from "@/lib/generator/generator";
 
 /**
  * Katalog potravin – živá data z `aktualni_ceny` (včetně slev a obchodu),
@@ -128,6 +130,12 @@ const PRAZDNY_FORM: FormPotravina = {
 export function Potraviny() {
   const { uzivatel } = useAuth();
   const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
+  const dotazProfil = useQuery({
+    queryKey: ["profil"],
+    queryFn: nactiProfil,
+    enabled: uzivatel !== null,
+  });
+  const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
   // stav filtrů žije v URL (?dotaz&kategorie&slevy&razeni) – sdílený
   // odkaz, refresh i tlačítko Zpět drží stejný pohled
   const [hledat, setHledat] = useState(
@@ -275,6 +283,7 @@ export function Potraviny() {
               key={p.id}
               p={p}
               uzivatelId={uzivatel?.id ?? null}
+              mojeAlergie={mojeAlergie}
               naUpravu={() => {
                 setEditovana(p);
                 setFormZobrazen(true);
@@ -322,6 +331,7 @@ export function Potraviny() {
                 key={p.id}
                 p={p}
                 uzivatelId={uzivatel?.id ?? null}
+                mojeAlergie={mojeAlergie}
                 naUpravu={() => {
                   setEditovana(p);
                   setFormZobrazen(true);
@@ -425,13 +435,16 @@ function AkcePotraviny({
 function RadekPotraviny({
   p,
   uzivatelId,
+  mojeAlergie = [],
   naUpravu,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
+  mojeAlergie?: string[];
   naUpravu: () => void;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
+  const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
 
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
@@ -454,10 +467,17 @@ function RadekPotraviny({
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
           ))}
         </span>
-        {(p.alergeny ?? []).length > 0 && (
-          <span className="block text-xs text-muted">
-            alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+        {shoda.length > 0 ? (
+          <span className="block text-xs font-semibold text-danger">
+            <TriangleAlert className="mr-1 inline size-3" aria-hidden />
+            obsahuje váš alergen: {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
           </span>
+        ) : (
+          (p.alergeny ?? []).length > 0 && (
+            <span className="block text-xs text-muted">
+              alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+            </span>
+          )
         )}
         <PasekMakro p={p} />
       </td>
@@ -504,13 +524,16 @@ function RadekPotraviny({
 function KartaPotraviny({
   p,
   uzivatelId,
+  mojeAlergie = [],
   naUpravu,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
+  mojeAlergie?: string[];
   naUpravu: () => void;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
+  const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   const Ikona = KATEGORIE_IKONY[p.kategorie ?? "ostatni"] ?? Package;
 
   return (
@@ -544,10 +567,17 @@ function KartaPotraviny({
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
             ))}
           </p>
-          {(p.alergeny ?? []).length > 0 && (
-            <p className="mt-0.5 text-xs text-muted">
-              alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+          {shoda.length > 0 ? (
+            <p className="mt-0.5 text-xs font-semibold text-danger">
+              <TriangleAlert className="mr-1 inline size-3" aria-hidden />
+              obsahuje váš alergen: {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
             </p>
+          ) : (
+            (p.alergeny ?? []).length > 0 && (
+              <p className="mt-0.5 text-xs text-muted">
+                alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+              </p>
+            )
           )}
           <PasekMakro p={p} />
           <div className="mt-2 flex items-baseline justify-between text-sm">
