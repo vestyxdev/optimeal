@@ -55,6 +55,20 @@ describe("porovnejObchody", () => {
     const v = porovnejObchody([{ foodId: "f3", gramy: 10, nazev: "Krůtí" }], hladiny);
     expect(v).toHaveLength(0);
   });
+
+  it("usetreno sčítá jen ověřené původní ceny (slevy)", () => {
+    const seSlevou: CenaObchodu = {
+      ...cena("r1", "Rohlík", 8, true),
+      puvodniCena: 10,
+    };
+    const mapa = new Map<string, CenaObchodu[]>([
+      ["f1", [seSlevou, cena("r2", "Lidl", 9)]],
+    ]);
+    const v = porovnejObchody([{ foodId: "f1", gramy: 200, nazev: "Kuřecí prso" }], mapa);
+    // 200 g × (10 − 8) Kč/100 g = 4 Kč úspory jen u Rohlíku
+    expect(v.find((s) => s.obchodId === "r1")).toMatchObject({ celkem: 16, usetreno: 4 });
+    expect(v.find((s) => s.obchodId === "r2")).toMatchObject({ celkem: 18, usetreno: 0 });
+  });
 });
 
 describe("deduplikujPolozky", () => {

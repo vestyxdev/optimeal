@@ -230,7 +230,14 @@ export function Nakup() {
                       ceny u {s.pokryti} z {polozky.filter((p) => p.foodId).length} položek
                     </span>
                   </span>
-                  <span className="tabular-nums font-semibold">≈ {formatujKc(s.celkem)} Kč</span>
+                  <span className="tabular-nums font-semibold">
+                    ≈ {formatujKc(s.celkem)} Kč
+                    {s.usetreno > 0 && (
+                      <span className="block text-right text-xs font-semibold text-accent">
+                        slevy −{formatujKc(s.usetreno)} Kč
+                      </span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

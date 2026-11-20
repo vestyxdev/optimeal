@@ -7,6 +7,8 @@ export interface HladinaObchodu {
   obchod: string;
   pokryti: number;
   celkem: number;
+  /** kolik zákazník v tomto obchodě ušetří ověřenými slevami */
+  usetreno: number;
   neznamych: number;
 }
 
@@ -33,6 +35,7 @@ export function porovnejObchody(
         obchod: c.obchod,
         pokryti: 0,
         celkem: 0,
+        usetreno: 0,
         neznamych: 0,
       };
       const nakup = spocitejNakupniBaleni({
@@ -40,8 +43,10 @@ export function porovnejObchody(
         gramy: p.gramy,
         baleniG: c.baleniG ?? p.baleniG ?? null,
         cenaZa100g: c.cena,
+        cenaBeznaZa100g: c.puvodniCena ?? null,
       });
       h.celkem += nakup.cenaCelkem ?? 0;
+      h.usetreno += nakup.usetreno;
       h.pokryti++;
       mapa.set(c.obchodId, h);
     }
@@ -50,6 +55,7 @@ export function porovnejObchody(
   for (const h of mapa.values()) {
     h.neznamych = polozky.length - h.pokryti;
     h.celkem = Math.round(h.celkem * 100) / 100;
+    h.usetreno = Math.round(h.usetreno * 100) / 100;
   }
   return [...mapa.values()].sort(
     (a, b) => a.celkem - b.celkem || b.pokryti - a.pokryti,
