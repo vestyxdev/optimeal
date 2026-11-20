@@ -115,9 +115,10 @@ describe("referencniCena", () => {
     expect(referencniCena(10, 10.05)).toBeNull();
     expect(referencniCena(10, 10.1)).toBe(10.1);
   });
-  it("původní nad 4× akční → null (pack-mismatch artefakt)", () => {
+  it("původní nad 2,5× akční → null (pack-mismatch artefakt)", () => {
     expect(referencniCena(5.03, 20.13)).toBeNull(); // −75 %+
-    expect(referencniCena(5.03, 20.12)).toBe(20.12); // těsně pod hranicí
+    expect(referencniCena(5.03, 12.58)).toBeNull(); // nad ~60 % hranice
+    expect(referencniCena(5.03, 12.57)).toBe(12.57); // těsně pod hranicí
   });
   it("neplatná aktuální cena → null", () => {
     expect(referencniCena(0, 10)).toBeNull();
@@ -139,7 +140,7 @@ describe("slevaProcenta", () => {
   it("bez ověřené původní → null", () => {
     expect(slevaProcenta(1.33, null)).toBeNull();
     expect(slevaProcenta(0, 10)).toBeNull();
-    expect(slevaProcenta(5.03, 20.13)).toBeNull(); // artefakt nad 4×
+    expect(slevaProcenta(5.03, 20.13)).toBeNull(); // artefakt nad 2,5×
   });
 });
 

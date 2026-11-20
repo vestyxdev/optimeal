@@ -43,8 +43,9 @@ RE_BEZNA = re.compile(
     re.IGNORECASE,
 )
 # Stejné meze jako view aktualni_ceny: původní musí znamenat aspoň
-# ~1 % slevu a nesmí přesáhnout 4× akční (nad tím pack-mismatch artefakt).
-MAX_NASOBEK = 4
+# ~1 % slevu a nesmí přesáhnout 2,5× akční (nad ~60 % pack-mismatch
+# artefakt – „běžně stojí" na detailu patří často většímu balení).
+MAX_NASOBEK = 2.5
 
 
 def _get(session: requests.Session, url: str, pokusy: int = 3) -> requests.Response | None:

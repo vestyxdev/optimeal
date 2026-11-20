@@ -239,9 +239,11 @@ class TestPlatnaPuvodni(unittest.TestCase):
         self.assertFalse(_platna_puvodni(10.05, 10.0))
         self.assertTrue(_platna_puvodni(10.1, 10.0))
 
-    def test_nad_ctyrnasobek_artefakt(self):
-        self.assertFalse(_platna_puvodni(20.13, 5.03))  # −75 %+ = pack mismatch
-        self.assertTrue(_platna_puvodni(20.12, 5.03))
+    def test_nad_dvaapulnasobek_artefakt(self):
+        # nad ~60 % slevy je u potravin téměř vždy pack-mismatch
+        self.assertFalse(_platna_puvodni(20.13, 5.03))  # −75 % artefakt
+        self.assertFalse(_platna_puvodni(12.6, 5.03))   # −60 %+ hranice
+        self.assertTrue(_platna_puvodni(12.57, 5.03))   # těsně pod 2,5×
 
     def test_nuly_a_zapory(self):
         self.assertFalse(_platna_puvodni(0, 5))

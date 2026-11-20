@@ -22,13 +22,16 @@ log = logging.getLogger("scraper.db")
 
 def _platna_puvodni(puvodni: float, cena: float) -> bool:
     """Sanity ověřené původní ceny – stejné meze jako view aktualni_ceny:
-    musí znamenat aspoň ~1 % slevu a nesmí přesáhnout 4× akční cenu
-    (nad tím jde o pack-mismatch artefakt, ne o reálnou přeškrtnutou cenu)."""
+    musí znamenat aspoň ~1 % slevu a nesmí přesáhnout 2,5× akční cenu
+    (nad ~60 % slevy jde v potravinářském letáku téměř vždy o
+    pack-mismatch artefakt – např. Kupi „běžně stojí" většího balení
+    normalizované menším obs.baleni_g). Bezna-check (≤2× typické ceny)
+    řeší DB trigger obs_puvodni_sanity, který zná foods.bezna_cena."""
     return (
         puvodni > 0
         and cena > 0
         and puvodni >= cena * 1.01
-        and puvodni <= cena * 4
+        and puvodni <= cena * 2.5
     )
 
 

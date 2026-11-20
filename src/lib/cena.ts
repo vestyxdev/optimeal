@@ -59,9 +59,9 @@ export function referencniCena(
   if (!Number.isFinite(aktualniCena) || aktualniCena <= 0) return null;
   if (puvodniCena == null || !Number.isFinite(puvodniCena)) return null;
   // Stejné meze jako view aktualni_ceny: původní cena musí znamenat
-  // aspoň ~1 % slevu a nesmí přesáhnout 4× aktuální – nad tím jde
-  // o pack-mismatch artefakt, ne o reálnou přeškrtnutou cenu.
-  if (puvodniCena < aktualniCena * 1.01 || puvodniCena > aktualniCena * 4) {
+  // aspoň ~1 % slevu a nesmí přesáhnout 2,5× aktuální – nad ~60 % slevy
+  // jde o pack-mismatch artefakt, ne o reálnou přeškrtnutou cenu.
+  if (puvodniCena < aktualniCena * 1.01 || puvodniCena > aktualniCena * 2.5) {
     return null;
   }
   return puvodniCena;
