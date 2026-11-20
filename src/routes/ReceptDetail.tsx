@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
-import { nactiProfil } from "@/lib/data/profil";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
@@ -61,12 +61,9 @@ export function ReceptDetail() {
   const ceny = dotazCeny.data ?? null;
   const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
   const alergeny = recept ? alergenyReceptu(recept) : [];
-  // bezlepková dieta = vyloučení lepku (stejná sémantika jako filtrujPotraviny)
-  const efektivniAlergie = [
-    ...(dotazProfil.data?.alergie ?? []),
-    ...(dotazProfil.data?.dieta?.includes("bezlepkovy") ? ["lepek"] : []),
-  ];
-  const mojeAlergeny = alergeny.filter((a) => efektivniAlergie.includes(a));
+  const mojeAlergeny = alergeny.filter((a) =>
+    efektivniAlergieProfilu(dotazProfil.data).includes(a),
+  );
 
   const kroky = recept
     ? recept.postup

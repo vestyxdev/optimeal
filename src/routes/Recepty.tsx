@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
-import { nactiProfil } from "@/lib/data/profil";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro } from "@/lib/cena";
 
 /**
@@ -37,11 +37,7 @@ export function Recepty() {
     queryFn: nactiProfil,
     enabled: uzivatel !== null,
   });
-  // efektivní alergeny uživatele – bezlepková dieta = vyloučení lepku
-  const mojeAlergie = [
-    ...(dotazProfil.data?.alergie ?? []),
-    ...(dotazProfil.data?.dieta?.includes("bezlepkovy") ? ["lepek"] : []),
-  ];
+  const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
 
   const filtrovane = kategorie ? recepty.filter((r) => r.kategorie === kategorie) : recepty;
   const kategorieVSeznamu = [...new Set(recepty.map((r) => r.kategorie))];

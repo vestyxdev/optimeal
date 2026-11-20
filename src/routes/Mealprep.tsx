@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Printer, ShoppingBasket, Save } from "lucide-react";
+import { Minus, Plus, Printer, ShoppingBasket, Save, TriangleAlert } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { KartaNakupu } from "@/components/jidelnicek/Vysledky";
-import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { useAuth } from "@/lib/auth";
+import { alergenyReceptu, nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId, ulozPlan } from "@/lib/data/plany";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { sestavMealprep, type MealprepVstup } from "@/lib/mealprep/mealprep";
 import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
@@ -60,7 +64,14 @@ function VolicPorci({
 
 export function Mealprep() {
   const klientQ = useQueryClient();
+  const { uzivatel } = useAuth();
   const [porce, setPorce] = useState<Record<string, number>>({});
+  const dotazProfil = useQuery({
+    queryKey: ["profil"],
+    queryFn: nactiProfil,
+    enabled: uzivatel !== null,
+  });
+  const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
 
   const dotazRecepty = useQuery({ queryKey: ["recepty"], queryFn: nactiRecepty });
   const recepty = dotazRecepty.data ?? [];
@@ -157,6 +168,7 @@ export function Mealprep() {
           {recepty.map((recept) => {
             const rozbor = spocitejRecept(recept, dotazCeny.data ?? null);
             const vybrano = porce[recept.id] ?? 0;
+            const shodaAlergie = alergenyReceptu(recept).filter((a) => mojeAlergie.includes(a));
             return (
               <div key={recept.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
@@ -165,6 +177,15 @@ export function Mealprep() {
                     <span className="text-xs text-muted">
                       {KATEGORIE_NAZVY[recept.kategorie] ?? recept.kategorie}
                     </span>
+                    {shodaAlergie.length > 0 && (
+                      <Badge
+                        tono="danger"
+                        title={`Obsahuje vaše alergeny: ${shodaAlergie.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}`}
+                      >
+                        <TriangleAlert className="size-3" aria-hidden />
+                        alergen
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-0.5 text-xs text-muted">
                     {formatujKcal(rozbor.naPorci.kalorie)} kcal · {formatujCastku(rozbor.naPorci.cena)} Kč / porci

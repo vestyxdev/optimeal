@@ -64,6 +64,20 @@ function naProfil(r: RadkaProfilu): Profil {
   };
 }
 
+/**
+ * Efektivní alergeny profilu – k deklarovaným alergiím přidává
+ * dieta→alergen mapování (bezlepková dieta = vyloučení lepku,
+ * stejná sémantika jako filtrujPotraviny v generátoru).
+ */
+export function efektivniAlergieProfilu(
+  profil: Pick<Profil, "alergie" | "dieta"> | null | undefined,
+): string[] {
+  return [
+    ...(profil?.alergie ?? []),
+    ...(profil?.dieta?.includes("bezlepkovy") ? ["lepek"] : []),
+  ];
+}
+
 /** Načte profil přihlášeného uživatele (trigger ho vytváří při registraci). */
 export async function nactiProfil(): Promise<Profil | null> {
   const klient = supabase;
