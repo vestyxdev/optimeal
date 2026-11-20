@@ -14,6 +14,12 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
+        // verzovaná cesta assetů – otočí VŠECHNY url chunků najednou,
+        // takže prohlížečem otrávené cache záznamy (např. text/html
+        // uložený pod starou url s immutable hlavičkou) přestanou vadit
+        entryFileNames: "assets/v2/[name]-[hash].js",
+        chunkFileNames: "assets/v2/[name]-[hash].js",
+        assetFileNames: "assets/v2/[name]-[hash][extname]",
         // vendor chunky se mění jen při upgradeu závislostí → dlouhá cache,
         // aplikační kód se mění při každém release
         codeSplitting: {
