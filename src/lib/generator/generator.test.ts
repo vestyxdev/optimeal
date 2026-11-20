@@ -1176,3 +1176,73 @@ describe("reálný katalog – cukrovinky, nepotraviny, cizí názvy", () => {
     expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere")).toBe(80);
   });
 });
+
+describe("zeleninová strana – skutečná zelenina před luštěninami", () => {
+  const ZEL_SACH = [
+    { ...p("ry1", "Jasmínová rýže", 7.5, 78, 0.6, 350, 4), skore: 5 },
+    // luštěnina s vyšším skórem – bez malusu by vyhrála strana
+    { ...p("fa1", "Urid černé fazole celé", 8, 20, 0.6, 120, 9), skore: 9 },
+    { ...p("ra1", "Rajče", 0.9, 3.9, 0.2, 20, 6), skore: 4 },
+  ];
+  const KAT_ZEL = {
+    bilkovinova: [{ ...p("k1", "Kuřecí prsa", 23, 0, 2.6, 114, 20), skore: 5 }],
+    sacharidova: ZEL_SACH,
+    tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+  } as never;
+
+  it("rajče vítězí nad fazolemi, i když mají lepší cenové skóre", () => {
+    const jidla = naplanujJidlo(KAT_ZEL, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "zelenina")?.id).toBe("ra1");
+  });
+
+  it("bez skutečné zeleniny zůstávají luštěniny nouzovou variantou", () => {
+    const kat = {
+      ...(KAT_ZEL as object),
+      sacharidova: ZEL_SACH.filter((x) => x.id !== "ra1"),
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "zelenina")?.id).toBe("fa1");
+  });
+});
+
+describe("alkohol a nápoje – nikdy v jídelníčku", () => {
+  it("lihovina s vysokým skórem se nevybere ani jako kotva", () => {
+    const kat = {
+      bilkovinova: [
+        { ...p("a1", "Tatratea Ibišek a červený čaj 37 % obj.", 30, 0, 0, 200, 10), skore: 99 },
+        { ...p("k1", "Kuřecí prsa", 23, 0, 2.6, 114, 20), skore: 5 },
+      ],
+      sacharidova: [{ ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 }],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    for (const nazev of ["Snídaně", "Oběd", "Večeře", "Svačina"]) {
+      const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, nazev);
+      expect(jidla.some((j) => j.id === "a1"), nazev).toBe(false);
+    }
+  });
+
+  it("kávový nápoj a ochucená voda nejsou potravina pro jídlo", () => {
+    expect(jeJunk({ nazev: "Coffee Espresso Milk" })).toBe(true);
+    expect(jeJunk({ nazev: "Dobrá Voda neperlivá - Jahoda a malina" })).toBe(true);
+    expect(jeJunk({ nazev: "Želé s ovocnými a zeleninovými šťávami" })).toBe(true);
+    expect(jeJunk({ nazev: "Kopr a másličko bramborové lupínky" })).toBe(true);
+  });
+});
+
+describe("denní solver – vyvažování jídel", () => {
+  it("žádné hlavní jídlo neodchýlí se o víc než ~55 % od svého podílu", () => {
+    // regrese: pevné pořadí krácení (Snídaně→Večeře) umělo nechat
+    // snídani na 937 kcal a srazit oběd na 40 g kotvu
+    const cile = { kalorie: 2200, bilkoviny: 150, sacharidy: 220, tuky: 75 };
+    const podily = podilyProPocetJidel(4);
+    for (let den = 1; den <= 3; den++) {
+      const v = vygenerujJidelnicek(KATALOG_REALNY, cile, den);
+      for (const [nazev, s] of Object.entries(v.jidelnicek)) {
+        const cilKcal = cile.kalorie * (podily[nazev] ?? 0.25);
+        const pomer = s.kalorie / cilKcal;
+        expect(pomer, `${nazev} den ${den}`).toBeGreaterThanOrEqual(0.45);
+        expect(pomer, `${nazev} den ${den}`).toBeLessThanOrEqual(1.55);
+      }
+    }
+  });
+});
