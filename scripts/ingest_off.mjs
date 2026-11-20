@@ -87,7 +87,10 @@ async function fetchStrana(kategorie, strana, pokus = 0) {
     json: "1",
   });
   try {
-    const r = await fetch(`${OFF_API}?${params}`, { headers: { "User-Agent": UA } });
+    const r = await fetch(`${OFF_API}?${params}`, {
+      headers: { "User-Agent": UA },
+      signal: AbortSignal.timeout(30_000),
+    });
     if (r.status === 429 || r.status >= 500) {
       if (pokus < 5) {
         const wait = 5000 * (pokus + 1) + Math.random() * 3000;

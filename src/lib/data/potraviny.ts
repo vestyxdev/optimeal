@@ -374,6 +374,7 @@ async function fetchOff(url: string): Promise<Response> {
   try {
     odpoved = await fetch(url, {
       headers: { "User-Agent": "OptiMeal/2.0 (https://github.com/vestyxdev/optimeal)" },
+      signal: AbortSignal.timeout(15_000),
     });
   } catch {
     throw new Error("Nepodařilo se připojit k OpenFoodFacts – zkontrolujte připojení k internetu.");
