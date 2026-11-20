@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CalendarDays, Printer, Save, ShoppingBasket, Trash2 } from "lucide-react";
+import { Printer, Save, ShoppingBasket, Sparkles, Trash2 } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +14,7 @@ import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { formatujKc } from "@/lib/cena";
+import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth";
 import {
   filtrujPotraviny,
@@ -248,40 +249,47 @@ export function Jidelnicek() {
 
       {/* formulář cílů */}
       <Card>
-        <CardNadpis>Vaše denní cíle</CardNadpis>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div>
-            <Label htmlFor="kcal">Kalorie (kcal)</Label>
-            <Input
-              id="kcal" type="number" inputMode="numeric" min={0}
-              value={cileText.kalorie}
-              onChange={(e) => setCileText({ ...cileText, kalorie: e.target.value })}
-            />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardNadpis className="mb-0">Vaše denní cíle</CardNadpis>
+          {/* segmentovaný přepínač den/týden */}
+          <div
+            className="flex rounded-pill border border-border bg-surface-2 p-0.5"
+            role="tablist"
+            aria-label="Rozsah plánu"
+          >
+            {(["den", "tyden"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={typ === t}
+                onClick={() => {
+                  if (typ !== t) {
+                    setTyp(t);
+                    setVysledek(null);
+                  }
+                }}
+                className={cn(
+                  "min-h-[36px] rounded-pill px-4 text-sm font-semibold transition-colors",
+                  typ === t
+                    ? "bg-primary text-primary-fg shadow-card"
+                    : "text-muted hover:text-fg",
+                )}
+              >
+                {t === "den" ? "Den" : "Týden"}
+              </button>
+            ))}
           </div>
-          <div>
-            <Label htmlFor="b">Bílkoviny (g)</Label>
-            <Input
-              id="b" type="number" inputMode="numeric" min={0}
-              value={cileText.bilkoviny}
-              onChange={(e) => setCileText({ ...cileText, bilkoviny: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="s">Sacharidy (g)</Label>
-            <Input
-              id="s" type="number" inputMode="numeric" min={0}
-              value={cileText.sacharidy}
-              onChange={(e) => setCileText({ ...cileText, sacharidy: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="t">Tuky (g)</Label>
-            <Input
-              id="t" type="number" inputMode="numeric" min={0}
-              value={cileText.tuky}
-              onChange={(e) => setCileText({ ...cileText, tuky: e.target.value })}
-            />
-          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <PoleCile id="kcal" nazev="Kalorie" jednotka="kcal" hodnota={cileText.kalorie}
+            naZmenu={(v) => setCileText({ ...cileText, kalorie: v })} />
+          <PoleCile id="b" nazev="Bílkoviny" jednotka="g" hodnota={cileText.bilkoviny}
+            naZmenu={(v) => setCileText({ ...cileText, bilkoviny: v })} />
+          <PoleCile id="s" nazev="Sacharidy" jednotka="g" hodnota={cileText.sacharidy}
+            naZmenu={(v) => setCileText({ ...cileText, sacharidy: v })} />
+          <PoleCile id="t" nazev="Tuky" jednotka="g" hodnota={cileText.tuky}
+            naZmenu={(v) => setCileText({ ...cileText, tuky: v })} />
         </div>
 
         {filtr && (filtr.diety.length > 0 || filtr.alergeny.length > 0) && (
@@ -298,17 +306,8 @@ export function Jidelnicek() {
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button onClick={generuj} disabled={dotazPotraviny.isLoading}>
+            <Sparkles className="size-4" />
             {typ === "den" ? "Vygenerovat den" : "Vygenerovat týden"}
-          </Button>
-          <Button
-            varianta="outline"
-            onClick={() => {
-              setTyp(typ === "den" ? "tyden" : "den");
-              setVysledek(null);
-            }}
-          >
-            <CalendarDays className="size-4" />
-            {typ === "den" ? "Přepnout na týden" : "Přepnout na den"}
           </Button>
           {vysledek && uzivatel && (
             <Button
@@ -380,14 +379,27 @@ export function Jidelnicek() {
           <CardNadpis>Mé plány ({dotazPlany.data?.length})</CardNadpis>
           <ul className="divide-y divide-border text-sm">
             {dotazPlany.data?.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-2">
-                <Link to={`/plany/${p.id}`} className="font-medium hover:text-primary hover:underline">
-                  {p.typ === "tyden" ? "Týdenní" : p.typ === "mealprep" ? "Mealprep" : "Denní"} · {p.cil_kalorie} kcal
-                  <span className="text-muted"> · {new Date(p.vytvoreno).toLocaleString("cs-CZ")}</span>
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                <Link
+                  to={`/plany/${p.id}`}
+                  className="flex min-w-0 items-center gap-2.5 font-medium hover:text-primary hover:underline"
+                >
+                  <Badge
+                    tono={p.typ === "mealprep" ? "accent" : "neutral"}
+                    className="shrink-0"
+                  >
+                    {p.typ === "tyden" ? "Týden" : p.typ === "mealprep" ? "Mealprep" : "Den"}
+                  </Badge>
+                  <span className="truncate tabular-nums">
+                    {formatujKc(p.cil_kalorie)} kcal
+                    <span className="font-normal text-muted">
+                      {" "}· {new Date(p.vytvoreno).toLocaleString("cs-CZ")}
+                    </span>
+                  </span>
                 </Link>
                 <button
                   onClick={() => setSmazanyPlanId(p.id)}
-                  className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  className="grid size-9 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat plán"
                   aria-label="Smazat plán"
                 >
@@ -410,6 +422,30 @@ export function Jidelnicek() {
         potvrdit="Smazat"
         destruktivni
       />
+    </div>
+  );
+}
+
+/** Pole cíle – název nahoře, jednotka jako suffix uvnitř pole. */
+function PoleCile({ id, nazev, jednotka, hodnota, naZmenu }: {
+  id: string; nazev: string; jednotka: string; hodnota: string;
+  naZmenu: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Label htmlFor={id}>{nazev}</Label>
+      <div className="relative">
+        <Input
+          id={id} type="number" inputMode="numeric" min={0}
+          value={hodnota}
+          onChange={(e) => naZmenu(e.target.value)}
+          aria-label={`${nazev} (${jednotka})`}
+          className="pr-12 font-semibold tabular-nums"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted">
+          {jednotka}
+        </span>
+      </div>
     </div>
   );
 }

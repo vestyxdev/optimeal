@@ -10,6 +10,8 @@ import { Select } from "@/components/ui/Select";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/cn";
+import { Check } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   nactiAktivniCile,
@@ -71,7 +73,8 @@ const ALERGENY_VOLBY: [string, string][] = [
   ["vodnany", "Měkkýši"],
 ];
 
-function CheckVolba({
+/** Přepínač jako čip – velký dotykový cíl, zaškrtnutý má zelenou. */
+function CipVolba({
   popisek,
   zaskrtnuto,
   onZmena,
@@ -81,15 +84,83 @@ function CheckVolba({
   onZmena: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 text-sm">
-      <input
-        type="checkbox"
-        checked={zaskrtnuto}
-        onChange={(e) => onZmena(e.target.checked)}
-        className="size-4 accent-primary"
-      />
+    <button
+      type="button"
+      aria-pressed={zaskrtnuto}
+      onClick={() => onZmena(!zaskrtnuto)}
+      className={cn(
+        "flex min-h-[44px] items-center gap-2 rounded-pill border-2 px-3.5 text-sm font-medium",
+        "transition-[border-color,background-color,transform] duration-150 active:scale-[0.97]",
+        zaskrtnuto
+          ? "border-primary bg-primary-soft text-fg"
+          : "border-border text-muted hover:border-primary/40 hover:text-fg",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-5 shrink-0 place-items-center rounded-full border-2 transition-colors",
+          zaskrtnuto ? "border-primary bg-primary text-primary-fg" : "border-border",
+        )}
+      >
+        {zaskrtnuto && <Check className="om-pop size-3" strokeWidth={3.5} />}
+      </span>
       {popisek}
-    </label>
+    </button>
+  );
+}
+
+/** Barvy maker sdílené s průvodcem – B zelená, S limetka, T neutrální. */
+const MAKRO_BARVY: Record<"bilkoviny" | "sacharidy" | "tuky", string> = {
+  bilkoviny: "bg-primary",
+  sacharidy: "bg-accent",
+  tuky: "bg-muted",
+};
+
+/** „Cenovka“ souhrnu cílů – velké kcal, poměrový pás energie a řádky maker. */
+function SouhrnCilu({ cile, poznamka }: { cile: CileVyziva; poznamka?: string }) {
+  const eB = cile.bilkoviny * 4;
+  const eS = cile.sacharidy * 4;
+  const eT = cile.tuky * 9;
+  const energie = Math.max(1, eB + eS + eT);
+  const makra: { klic: keyof typeof MAKRO_BARVY; nazev: string; g: number; pct: number }[] = [
+    { klic: "bilkoviny", nazev: "Bílkoviny", g: cile.bilkoviny, pct: (eB / energie) * 100 },
+    { klic: "sacharidy", nazev: "Sacharidy", g: cile.sacharidy, pct: (eS / energie) * 100 },
+    { klic: "tuky", nazev: "Tuky", g: cile.tuky, pct: (eT / energie) * 100 },
+  ];
+  return (
+    <div className="rounded-card border border-border bg-surface-2 p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="om-display text-3xl font-extrabold tabular-nums tracking-tight">
+          {formatujKcal(cile.kalorie)}
+          <span className="ml-1.5 text-base font-semibold text-muted">kcal / den</span>
+        </span>
+        {poznamka && <span className="text-xs font-medium text-muted">{poznamka}</span>}
+      </div>
+      <div className="mt-3 flex h-2 overflow-hidden rounded-pill bg-border" role="img"
+        aria-label={`Rozdělení energie: bílkoviny ${Math.round(makra[0]!.pct)} %, sacharidy ${Math.round(makra[1]!.pct)} %, tuky ${Math.round(makra[2]!.pct)} %`}>
+        {makra.map((m) => (
+          <div
+            key={m.klic}
+            className={MAKRO_BARVY[m.klic]}
+            style={{ width: `${m.pct}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {makra.map((m) => (
+          <div key={m.klic} className="min-w-0">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted">
+              <span className={cn("size-2 shrink-0 rounded-full", MAKRO_BARVY[m.klic])} />
+              {m.nazev}
+            </div>
+            <div className="mt-0.5 text-sm font-bold tabular-nums">
+              {formatujMakro(m.g)} g
+              <span className="ml-1 text-xs font-normal text-muted">{Math.round(m.pct)} %</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -351,9 +422,9 @@ export function Ucet() {
             <p className="mb-2 text-xs text-muted">
               Generátor použije jen potraviny vyhovující všem vybraným dietám.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {DIETA_VOLBY.map(([klic, nazev]) => (
-                <CheckVolba
+                <CipVolba
                   key={klic}
                   popisek={nazev}
                   zaskrtnuto={form.dieta.includes(klic)}
@@ -373,9 +444,9 @@ export function Ucet() {
             <p className="mb-2 text-xs text-muted">
               Potraviny s těmito alergény se v jídelníčku neobjeví.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {ALERGENY_VOLBY.map(([klic, nazev]) => (
-                <CheckVolba
+                <CipVolba
                   key={klic}
                   popisek={nazev}
                   zaskrtnuto={form.alergie.includes(klic)}
@@ -400,15 +471,12 @@ export function Ucet() {
           </p>
         )}
         {nahled && (
-          <div className="mt-4 rounded-card border border-border bg-surface-2 p-4 text-sm">
-            <div className="font-semibold">Vypočtený denní cíl</div>
-            <div className="mt-1 text-muted">
-              {formatujKcal(nahled.kalorie)} kcal · B {formatujMakro(nahled.bilkoviny)} g · S {formatujMakro(nahled.sacharidy)} g · T {formatujMakro(nahled.tuky)} g
-            </div>
-            <div className="mt-0.5 text-xs text-muted">
-              Bilkoviny 30 % · sacharidy 40 % · tuky 30 % energie
-              {form.teloTukProcento != null ? " (Katch-McArdle)" : " (Mifflin-St Jeor)"}
-            </div>
+          <div className="mt-4">
+            <div className="mb-1.5 text-sm font-semibold">Vypočtený denní cíl</div>
+            <SouhrnCilu
+              cile={nahled}
+              poznamka={form.teloTukProcento != null ? "Katch–McArdle" : "Mifflin–St Jeor"}
+            />
           </div>
         )}
 
@@ -432,24 +500,7 @@ export function Ucet() {
       {aktivni && (
         <Card>
           <CardNadpis>Aktivní cíle</CardNadpis>
-          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <div className="rounded-card bg-surface-2 p-3">
-              <div className="text-xs text-muted">Kalorie</div>
-              <div className="text-lg font-extrabold">{formatujKcal(aktivni.kalorie)} kcal</div>
-            </div>
-            <div className="rounded-card bg-surface-2 p-3">
-              <div className="text-xs text-muted">Bílkoviny</div>
-              <div className="text-lg font-extrabold">{formatujMakro(aktivni.bilkoviny)} g</div>
-            </div>
-            <div className="rounded-card bg-surface-2 p-3">
-              <div className="text-xs text-muted">Sacharidy</div>
-              <div className="text-lg font-extrabold">{formatujMakro(aktivni.sacharidy)} g</div>
-            </div>
-            <div className="rounded-card bg-surface-2 p-3">
-              <div className="text-xs text-muted">Tuky</div>
-              <div className="text-lg font-extrabold">{formatujMakro(aktivni.tuky)} g</div>
-            </div>
-          </div>
+          <SouhrnCilu cile={aktivni} />
           <p className="mt-3 text-xs text-muted">
             Tyto hodnoty se předvyplní v Jídelníčku. Přepočítají se při uložení
             profilu – nebo je můžete v Jídelníčku doladit ručně.
