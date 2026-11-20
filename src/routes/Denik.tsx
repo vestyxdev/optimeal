@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2 } from "lucide-react";
@@ -31,8 +31,9 @@ import {
 import { nactiKatalogPotravin } from "@/lib/data/potraviny";
 import { nactiAktivniCile } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
+import { lazyKomponenta } from "@/lib/lazyRoute";
 
-const DenikTyden = lazy(() => import("@/components/denik/DenikTyden"));
+const DenikTyden = lazyKomponenta(() => import("@/components/denik/DenikTyden"));
 
 /**
  * Jídelní deník – denní přehled snědených jídel.

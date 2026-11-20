@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -26,8 +26,9 @@ import { SerieObsah } from "@/components/denik/SerieKarta";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
 import { nactiAktualniSlevy, nactiVerejneAkce } from "@/lib/data/potraviny";
+import { lazyKomponenta } from "@/lib/lazyRoute";
 
-const MakroGraf = lazy(() => import("@/components/prehled/MakroGraf"));
+const MakroGraf = lazyKomponenta(() => import("@/components/prehled/MakroGraf"));
 
 /**
  * Přehled – přihlášenému uživateli živý dashboard (cíl, poslední plán,

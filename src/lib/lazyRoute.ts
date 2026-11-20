@@ -15,39 +15,59 @@ import { lazy, type ComponentType, type LazyExoticComponent } from "react";
  */
 const KLIC = "om-chunk-reload";
 
-export function lazyRoute<C extends ComponentType<object>>(
+/** Import s jednorázovým reloadem při selhání (zastaralý chunk). */
+async function importSObnovou<T>(nacti: () => Promise<T>): Promise<T> {
+  try {
+    const modul = await nacti();
+    try {
+      sessionStorage.removeItem(KLIC);
+    } catch {
+      /* sessionStorage nedostupný – nevadí */
+    }
+    return modul;
+  } catch (chyba) {
+    let uzObnoveno = true;
+    try {
+      uzObnoveno = sessionStorage.getItem(KLIC) === "1";
+      if (!uzObnoveno) sessionStorage.setItem(KLIC, "1");
+    } catch {
+      /* privátní režim apod. – prostě chybu propagovat */
+    }
+    if (!uzObnoveno) {
+      window.location.reload();
+      // reload překreslí stránku; promise záměrně neodpovídá,
+      // ať React nevykreslí fallback/error screen mezitím
+      return new Promise<T>(() => {});
+    }
+    try {
+      sessionStorage.removeItem(KLIC);
+    } catch {
+      /* ignorovat */
+    }
+    throw chyba;
+  }
+}
+
+// komponenty mají různé props – stejná signatura jako React.lazy (ComponentType<any>)
+
+/** Lazy routa – modul s pojmenovaným exportem komponenty. */
+export function lazyRoute<C extends ComponentType<any>>(
   nacti: () => Promise<Record<string, unknown>>,
   exportovane: string,
 ): LazyExoticComponent<C> {
   return lazy(async () => {
-    try {
-      const modul = await nacti();
-      try {
-        sessionStorage.removeItem(KLIC);
-      } catch {
-        /* sessionStorage nedostupný – nevadí */
-      }
-      return { default: modul[exportovane] as C };
-    } catch (chyba) {
-      let uzObnoveno = true;
-      try {
-        uzObnoveno = sessionStorage.getItem(KLIC) === "1";
-        if (!uzObnoveno) sessionStorage.setItem(KLIC, "1");
-      } catch {
-        /* privátní režim apod. – prostě chybu propagovat */
-      }
-      if (!uzObnoveno) {
-        window.location.reload();
-        // reload překreslí stránku; promise záměrně neodpovídá,
-        // ať React nevykreslí fallback/error screen mezitím
-        return new Promise<{ default: C }>(() => {});
-      }
-      try {
-        sessionStorage.removeItem(KLIC);
-      } catch {
-        /* ignorovat */
-      }
-      throw chyba;
-    }
+    const modul = await importSObnovou(nacti);
+    return { default: modul[exportovane] as C };
   });
+}
+
+/**
+ * Lazy vnitřní komponenta s default exportem (grafy, těžké části
+ * stránky) – stejná pojistka jako lazyRoute, jinak by selhání
+ * sdíleného chunku propadlo do ErrorBoundary.
+ */
+export function lazyKomponenta<C extends ComponentType<any>>(
+  nacti: () => Promise<{ default: C }>,
+): LazyExoticComponent<C> {
+  return lazy(() => importSObnovou(nacti));
 }
