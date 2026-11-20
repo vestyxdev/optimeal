@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dnesISO,
+  dnyVTextu,
   jidloPlanuNaPoznamku,
   kopiePoznamky,
   makraProMnozstvi,
@@ -8,6 +9,7 @@ import {
   posledniPredchoziDen,
   posunDen,
   sectiPrijem,
+  spocitejSerii,
   nazevTypuJidla,
   typJidlaZNazvu,
   type NovaPoznamka,
@@ -221,5 +223,94 @@ describe("posledniPredchoziDen", () => {
 
   it("prázdné okno → null", () => {
     expect(posledniPredchoziDen([], "2026-11-19")).toBeNull();
+  });
+});
+
+describe("spocitejSerii", () => {
+  const DNES = "2026-11-19";
+
+  it("žádné zápisy → série 0 a prázný týden", () => {
+    const s = spocitejSerii([], DNES);
+    expect(s.aktualni).toBe(0);
+    expect(s.nejdelsi).toBe(0);
+    expect(s.dnesZapsano).toBe(false);
+    expect(s.tyden).toHaveLength(7);
+    expect(s.tyden.every((d) => !d.zapsano)).toBe(true);
+    expect(s.tyden[6]?.iso).toBe(DNES);
+  });
+
+  it("jen dnešek → série 1", () => {
+    const s = spocitejSerii([DNES, DNES], DNES);
+    expect(s.aktualni).toBe(1);
+    expect(s.dnesZapsano).toBe(true);
+  });
+
+  it("souvislá řada končící dneškem se počítá celá", () => {
+    const s = spocitejSerii(
+      ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"],
+      DNES,
+    );
+    expect(s.aktualni).toBe(4);
+    expect(s.nejdelsi).toBe(4);
+  });
+
+  it("dnešek bez zápisu sérii nepřeruší – startuje z včerejška", () => {
+    const s = spocitejSerii(
+      ["2026-11-17", "2026-11-18"],
+      DNES,
+    );
+    expect(s.aktualni).toBe(2);
+    expect(s.dnesZapsano).toBe(false);
+  });
+
+  it("mezera před včerejškem sérii ukončí", () => {
+    const s = spocitejSerii(
+      ["2026-11-15", "2026-11-16", "2026-11-18"],
+      DNES,
+    );
+    // včera (18.) zapsáno → série 1, i když 17. chybí
+    expect(s.aktualni).toBe(1);
+  });
+
+  it("poslední zápis předevčírem → série 0", () => {
+    const s = spocitejSerii(["2026-11-17", "2026-11-16"], DNES);
+    expect(s.aktualni).toBe(0);
+    expect(s.nejdelsi).toBe(2);
+  });
+
+  it("nejdelsi najde nejdelší běh i mimo aktuální sérii", () => {
+    const s = spocitejSerii(
+      [
+        "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05",
+        "2026-11-10",
+        "2026-11-19",
+      ],
+      DNES,
+    );
+    expect(s.aktualni).toBe(1);
+    expect(s.nejdelsi).toBe(5);
+  });
+
+  it("série přes hranici měsíce i roku", () => {
+    const s = spocitejSerii(
+      ["2026-12-30", "2026-12-31", "2027-01-01"],
+      "2027-01-01",
+    );
+    expect(s.aktualni).toBe(3);
+  });
+
+  it("tyden označí zapsané dny včetně dneška", () => {
+    const s = spocitejSerii(["2026-11-15", DNES], DNES);
+    expect(s.tyden.map((d) => d.zapsano)).toEqual([
+      false, false, true, false, false, false, true,
+    ]);
+  });
+});
+
+describe("dnyVTextu", () => {
+  it("skloňuje 1 den, 2–4 dny, 5+ dní", () => {
+    expect(dnyVTextu(1)).toBe("den");
+    expect(dnyVTextu(3)).toBe("dny");
+    expect(dnyVTextu(21)).toBe("dní");
   });
 });

@@ -21,6 +21,8 @@ import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
+import { nactiSerii } from "@/lib/data/denik";
+import { SerieObsah } from "@/components/denik/SerieKarta";
 import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
 import { nactiAktualniSlevy, nactiVerejneAkce } from "@/lib/data/potraviny";
@@ -196,6 +198,12 @@ function PrihlasenyPrehled() {
   const dotazPlan = useQuery({ queryKey: ["posledni_plan"], queryFn: nactiPosledniPlan });
   const dotazSeznamy = useQuery({ queryKey: ["me_nakupni_seznamy"], queryFn: nactiMeNakupniSeznamy });
   const dotazSlevy = useQuery({ queryKey: ["aktualni_slevy"], queryFn: () => nactiAktualniSlevy(10) });
+  const dotazSerie = useQuery({
+    queryKey: ["denik", "serie"],
+    queryFn: nactiSerii,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
 
   const profil = dotazProfil.data ?? null;
   const cile = dotazCile.data ?? null;
@@ -410,6 +418,13 @@ function PrihlasenyPrehled() {
               Otevřít nákupy <ArrowRight className="size-4" />
             </Link>
           </Card>
+
+          {/* série zapisování do deníku */}
+          {dotazSerie.data && (
+            <Card>
+              <SerieObsah serie={dotazSerie.data} />
+            </Card>
+          )}
 
           {rozpocet !== null && (
             <Card>

@@ -1,7 +1,7 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, Flame, NotebookPen, Plus, Repeat, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { GramazPill } from "@/components/ui/GramazPill";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -9,11 +9,14 @@ import { Skeleton } from "@/components/ui/Nacitani";
 import { Prstenec } from "@/components/ui/Prstenec";
 import type { PolozkaVyberu } from "@/components/ui/VyberPotraviny";
 import { DenikZapis } from "@/components/denik/DenikZapis";
+import { SerieKarta } from "@/components/denik/SerieKarta";
 import {
   dnesISO,
+  dnyVTextu,
   makraProMnozstvi,
   nactiDenik,
   nactiDenikRozsah,
+  nactiSerii,
   podilNaCili,
   posledniPredchoziDen,
   posunDen,
@@ -62,6 +65,12 @@ export function Denik() {
   const dotazTyden = useQuery({
     queryKey: ["denik", "tyden", datum],
     queryFn: () => nactiDenikRozsah(posunDen(datum, -6), datum),
+  });
+  // série zapisování – klíč pod "denik", takže se po každém zápisu/smazání přenačte sama
+  const dotazSerie = useQuery({
+    queryKey: ["denik", "serie"],
+    queryFn: nactiSerii,
+    staleTime: 60 * 1000,
   });
   // katalog se stahuje až při prvním otevření zápisu (6,5k řádků → lazy)
   const dotazKatalog = useQuery({
@@ -154,6 +163,21 @@ export function Denik() {
   );
   const jeDnes = datum === dnesISO();
 
+  // oslava – když se po zápisu série prodlouží, krátce poblahopřejeme
+  const minulaSerie = useRef<number | null>(null);
+  useEffect(() => {
+    const s = dotazSerie.data;
+    if (!s) return;
+    if (
+      minulaSerie.current !== null &&
+      s.aktualni > minulaSerie.current &&
+      s.dnesZapsano
+    ) {
+      toast.success(`Série: ${s.aktualni} ${dnyVTextu(s.aktualni)} v řadě!`);
+    }
+    minulaSerie.current = s.aktualni;
+  }, [dotazSerie.data]);
+
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       {/* ---- hlavička + navigace dnem ---- */}
@@ -199,10 +223,13 @@ export function Denik() {
         </div>
       </div>
 
+      {/* ---- série zapisování ---- */}
+      {dotazSerie.data && <SerieKarta serie={dotazSerie.data} />}
+
       {/* ---- souhrn dne ---- */}
       <section className="rounded-2xl bg-surface p-4" aria-label="Souhrn příjmu za den">
         <div className="flex items-center gap-2">
-          <Flame className="size-4 text-accent" />
+          <Target className="size-4 text-primary" />
           <h2 className="text-sm font-bold text-fg">
             Příjem za {formatujDatum(datum)}
           </h2>

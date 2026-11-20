@@ -176,6 +176,76 @@ export function posunDen(iso: string, oDny: number): string {
 }
 
 /* ------------------------------------------------------------------
+ * Série zapisování (streak) – čistý výpočet nad sadou zapsaných dnů
+ * ---------------------------------------------------------------- */
+
+export interface SerieDeniku {
+  /** po sobě jdoucí zapsané dny končící dneškem (nebo včerejškem – dnešek se ještě „nepokazil“) */
+  aktualni: number;
+  /** nejdelší série v načteném okně */
+  nejdelsi: number;
+  /** dnešek už má aspoň jeden záznam */
+  dnesZapsano: boolean;
+  /** posledních 7 dnů (nejstarší → dnes) s příznakem zápisu */
+  tyden: { iso: string; zapsano: boolean }[];
+}
+
+/**
+ * Spočítá sérii z množiny dnů (YYYY-MM-DD) se záznamem.
+ * Dnešek bez zápisu sérii nepřeruší – počítá se až po půlnoci,
+ * proto série startuje z včerejška, dokud dnes nic není.
+ */
+export function spocitejSerii(dny: Iterable<string>, dnes: string): SerieDeniku {
+  const sada = new Set(dny);
+
+  const start = sada.has(dnes) ? dnes : posunDen(dnes, -1);
+  let aktualni = 0;
+  for (let d = start; sada.has(d); d = posunDen(d, -1)) aktualni++;
+
+  let nejdelsi = 0;
+  let beh = 0;
+  let predchozi: string | null = null;
+  for (const d of [...sada].sort()) {
+    beh = predchozi !== null && d === posunDen(predchozi, 1) ? beh + 1 : 1;
+    if (beh > nejdelsi) nejdelsi = beh;
+    predchozi = d;
+  }
+
+  const tyden = Array.from({ length: 7 }, (_, i) => {
+    const iso = posunDen(dnes, i - 6);
+    return { iso, zapsano: sada.has(iso) };
+  });
+
+  return { aktualni, nejdelsi, dnesZapsano: sada.has(dnes), tyden };
+}
+
+/** Český tvar „den/dny/dní“ pro popisek série. */
+export function dnyVTextu(n: number): string {
+  if (n === 1) return "den";
+  if (n >= 2 && n <= 4) return "dny";
+  return "dní";
+}
+
+/** Jak daleko zpět se deník pro sérii načítá (pokryje i víceletou sérii). */
+const OKNO_SERIE_DNI = 400;
+
+/** Série zapisování – stačí sloupec zapsano_dne za posledních ~400 dnů. */
+export async function nactiSerii(): Promise<SerieDeniku> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient
+    .from("diary_entries")
+    .select("zapsano_dne")
+    .gte("zapsano_dne", posunDen(dnesISO(), -OKNO_SERIE_DNI));
+  if (error) throw new Error(`Sérii se nepodařilo načíst: ${error.message}`);
+  return spocitejSerii(
+    (data ?? []).map((r) => r.zapsano_dne as string),
+    dnesISO(),
+  );
+}
+
+/* ------------------------------------------------------------------
  * Databázová vrstva
  * ---------------------------------------------------------------- */
 
