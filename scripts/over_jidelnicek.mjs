@@ -35,20 +35,26 @@ const {
   jeCenaSpolehliva, kusovaGramaz, klicPodobnosti,
 } = await import("../src/lib/generator/generator.ts");
 
-const args = process.argv.slice(2).filter((a) => a !== "--tyden");
+const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const tydenni = process.argv.includes("--tyden");
+const argHodnota = (klic) => process.argv.find((a) => a.startsWith(`--${klic}=`))?.split("=")[1] ?? "";
+const filtr = {
+  diety: argHodnota("diety").split(",").filter(Boolean),
+  alergeny: argHodnota("alergeny").split(",").filter(Boolean),
+};
+const maFiltr = filtr.diety.length > 0 || filtr.alergeny.length > 0;
 const cile = {
   kalorie: +(args[0] ?? 2200),
   bilkoviny: +(args[1] ?? 150),
   sacharidy: +(args[2] ?? 220),
   tuky: +(args[3] ?? 70),
 };
-console.log(`Cíle: ${cile.kalorie} kcal | B ${cile.bilkoviny} | S ${cile.sacharidy} | T ${cile.tuky}${tydenni ? " | TÝDEN (7 dnů, rotace rodin)" : ""}\n`);
+console.log(`Cíle: ${cile.kalorie} kcal | B ${cile.bilkoviny} | S ${cile.sacharidy} | T ${cile.tuky}${tydenni ? " | TÝDEN (7 dnů, rotace rodin)" : ""}${maFiltr ? ` | FILTR diety=[${filtr.diety}] alergeny=[${filtr.alergeny}]` : ""}\n`);
 
 // --tyden: reálný týdenní plán (minuleDny rotace rodin), jinak 3 nezávislé dny
 const dnyVysledky = tydenni
-  ? Object.entries(vygenerujTydenniPlan(potraviny, cile).dny).map(([d, v]) => [+d, v])
-  : [1, 2, 3].map((d) => [d, vygenerujJidelnicek(potraviny, cile, d)]);
+  ? Object.entries(vygenerujTydenniPlan(potraviny, cile, 4, maFiltr ? filtr : null).dny).map(([d, v]) => [+d, v])
+  : [1, 2, 3].map((d) => [d, vygenerujJidelnicek(potraviny, cile, d, 0.85, 4, maFiltr ? filtr : null)]);
 
 let problemy = 0;
 const flag = (msg) => { problemy++; console.log(`      ⚠ ${msg}`); };
