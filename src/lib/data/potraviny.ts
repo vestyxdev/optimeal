@@ -14,6 +14,14 @@ export interface KatalogPotravina extends Potravina {
   ean: string | null;
 }
 
+/** České názvy alergenů EU-14 (klíče = foods.alergeny). */
+export const ALERGEN_NAZVY: Record<string, string> = {
+  lepek: "lepek", korisi: "korýši", vejce: "vejce", ryby: "ryby",
+  arasidy: "arašídy", soja: "sója", mleko: "mléko", orisky: "ořechy",
+  skorocel: "celer", horcice: "hořčice", sezam: "sezam",
+  sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
+};
+
 /** Sloupce view aktualni_ceny potřebné pro UI (vynechává retailer_id). */
 export const SLOUPCE_AKTUALNI_CENY =
   "food_id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie," +

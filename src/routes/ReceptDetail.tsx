@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Pencil, Printer, Tag, Trash2, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, Pencil, Printer, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -12,6 +12,8 @@ import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
@@ -50,8 +52,21 @@ export function ReceptDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const dotazProfil = useQuery({
+    queryKey: ["profil"],
+    queryFn: nactiProfil,
+    enabled: uzivatel !== null,
+  });
+
   const ceny = dotazCeny.data ?? null;
   const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
+  const alergeny = recept ? alergenyReceptu(recept) : [];
+  // bezlepková dieta = vyloučení lepku (stejná sémantika jako filtrujPotraviny)
+  const efektivniAlergie = [
+    ...(dotazProfil.data?.alergie ?? []),
+    ...(dotazProfil.data?.dieta?.includes("bezlepkovy") ? ["lepek"] : []),
+  ];
+  const mojeAlergeny = alergeny.filter((a) => efektivniAlergie.includes(a));
 
   const kroky = recept
     ? recept.postup
@@ -86,8 +101,14 @@ export function ReceptDetail() {
               </span>
             )}
             <span>zdroj: {recept?.zdroj}</span>
-            {recept && alergenyReceptu(recept).length > 0 && (
-              <span>alergeny: {alergenyReceptu(recept).join(", ")}</span>
+            {alergeny.length > 0 && (
+              <span>alergeny: {alergeny.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}</span>
+            )}
+            {mojeAlergeny.length > 0 && (
+              <Badge tono="danger">
+                <TriangleAlert className="size-3" aria-hidden />
+                obsahuje vaše alergeny: {mojeAlergeny.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+              </Badge>
             )}
           </div>
         </div>

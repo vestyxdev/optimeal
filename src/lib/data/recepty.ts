@@ -1,4 +1,5 @@
 import type { Potravina } from "@/lib/generator/generator";
+import { ALERGEN_Z_NAZVU, nazevNasvedcujeAlergenu } from "@/lib/generator/generator";
 import { rpcChybi, supabase } from "@/lib/supabase";
 import { lisiSeKalorie } from "@/lib/vyziva/hodnota";
 
@@ -81,9 +82,16 @@ function naRecept(r: RadkaReceptu): Recept {
   };
 }
 
-/** Sjednocení alergenů všech surovin receptu (pro zobrazení/badge). */
+/** Sjednocení alergenů všech surovin receptu (pro zobrazení/badge).
+ *  Tagy doplňuje jmenná síť – netagované suroviny (retail scrape)
+ *  by jinak alergen v receptu skryly. */
 export function alergenyReceptu(recept: Recept): string[] {
-  return [...new Set(recept.suroviny.flatMap((s) => s.alergeny ?? []))];
+  const vysledek = new Set(recept.suroviny.flatMap((s) => s.alergeny ?? []));
+  for (const klic of Object.keys(ALERGEN_Z_NAZVU)) {
+    if (vysledek.has(klic)) continue;
+    if (recept.suroviny.some((s) => nazevNasvedcujeAlergenu(s.nazev, klic))) vysledek.add(klic);
+  }
+  return [...vysledek];
 }
 
 /** Select receptů vč. miniatur surovin; před migrací 0009 fallback bez obrazku. */

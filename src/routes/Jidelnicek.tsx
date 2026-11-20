@@ -11,6 +11,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek } from "@/components/jidelnicek/Vysledky";
 import { nactiPotravinySeSlevami, nactiMePlany, smazPlan, ulozPlan } from "@/lib/data/plany";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { formatujKc } from "@/lib/cena";
@@ -48,12 +49,6 @@ const DIETA_NAZVY: Record<string, string> = {
   vegetariansky: "vegetariánská",
   vegansky: "veganská",
   bezlepkovy: "bezlepková",
-};
-const ALERGEN_NAZVY: Record<string, string> = {
-  lepek: "lepek", korisi: "korýši", vejce: "vejce", ryby: "ryby",
-  arasidy: "arašídy", soja: "sója", mleko: "mléko", orisky: "ořechy",
-  skorocel: "celer", horcice: "hořčice", sezam: "sezam",
-  sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
 };
 
 /** Výchozí cíle – použité i jako záchrana při neplatném vstupu. */

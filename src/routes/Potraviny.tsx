@@ -22,6 +22,7 @@ import {
   hledejOpenFoodFactsVice,
   hledejPodleEanLokalne,
   nactiOffPodleEan,
+  ALERGEN_NAZVY,
   normalizujEan,
   nactiKatalogPotravin,
   nactiPotravinu,
@@ -44,13 +45,6 @@ const KATEGORIE: Record<string, string> = {
   peckoviny_obily: "Pečivo a obiloviny",
   suchary_testoviny: "Suchary a těstoviny",
   ostatni: "Ostatní",
-};
-
-const ALERGEN_NAZVY: Record<string, string> = {
-  lepek: "lepek", korisi: "korýši", vejce: "vejce", ryby: "ryby",
-  arasidy: "arašídy", soja: "sója", mleko: "mléko", orisky: "ořechy",
-  skorocel: "celer", horcice: "hořčice", sezam: "sezam",
-  sulfit: "oxid siřičitý", lupina: "lupina", vodnany: "měkkýši",
 };
 
 const DIETA_NAZVY: Record<string, string> = {

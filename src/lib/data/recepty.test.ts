@@ -156,4 +156,20 @@ describe("alergenyReceptu", () => {
     ]);
     expect(alergenyReceptu(r)).toEqual([]);
   });
+
+  it("jmenná síť doplní alergen i bez tagů (netagovaný retail scrape)", () => {
+    const r = recept(1, [
+      { foodId: "a", nazev: "Ementaler 45%", gramyNaPorce: 30, poznamka: null, alergeny: [] },
+      { foodId: "b", nazev: "Špagety", gramyNaPorce: 80, poznamka: null, alergeny: [] },
+    ]);
+    expect(alergenyReceptu(r).sort()).toEqual(["lepek", "mleko"]);
+  });
+
+  it("jmenná síť respektuje frázové výjimky (arašídové máslo ≠ mléko)", () => {
+    const r = recept(1, [
+      { foodId: "a", nazev: "Arašídové máslo", gramyNaPorce: 20, poznamka: null, alergeny: [] },
+      { foodId: "b", nazev: "Banán", gramyNaPorce: 100, poznamka: null, alergeny: [] },
+    ]);
+    expect(alergenyReceptu(r)).toEqual(["arasidy"]);
+  });
 });

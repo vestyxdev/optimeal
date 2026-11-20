@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ChefHat, Clock, Coins, Flame, Plus } from "lucide-react";
+import { ChefHat, Clock, Coins, Flame, Plus, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { useAuth } from "@/lib/auth";
-import { nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { alergenyReceptu, nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro } from "@/lib/cena";
 
 /**
@@ -30,6 +32,17 @@ export function Recepty() {
     queryFn: () => nactiPotravinyPodleId(foodIds),
     enabled: foodIds.length > 0,
   });
+  const dotazProfil = useQuery({
+    queryKey: ["profil"],
+    queryFn: nactiProfil,
+    enabled: uzivatel !== null,
+  });
+  // efektivní alergeny uživatele – bezlepková dieta = vyloučení lepku
+  const mojeAlergie = [
+    ...(dotazProfil.data?.alergie ?? []),
+    ...(dotazProfil.data?.dieta?.includes("bezlepkovy") ? ["lepek"] : []),
+  ];
+
   const filtrovane = kategorie ? recepty.filter((r) => r.kategorie === kategorie) : recepty;
   const kategorieVSeznamu = [...new Set(recepty.map((r) => r.kategorie))];
 
@@ -105,12 +118,22 @@ export function Recepty() {
           Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-32" />)}
         {filtrovane.map((recept) => {
           const rozbor = spocitejRecept(recept, dotazCeny.data ?? null);
+          const shodaAlergie = alergenyReceptu(recept).filter((a) => mojeAlergie.includes(a));
           return (
             <Link key={recept.id} to={`/recepty/${recept.id}`} className="group">
               <Card className="h-full transition-colors group-hover:border-primary">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-semibold text-fg">{recept.nazev}</h2>
                   <div className="flex shrink-0 gap-1.5">
+                    {shodaAlergie.length > 0 && (
+                      <Badge
+                        tono="danger"
+                        title={`Obsahuje vaše alergeny: ${shodaAlergie.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}`}
+                      >
+                        <TriangleAlert className="size-3" aria-hidden />
+                        alergen
+                      </Badge>
+                    )}
                     {uzivatel && recept.userId === uzivatel.id && (
                       <Badge tono="primary">Vlastní</Badge>
                     )}
