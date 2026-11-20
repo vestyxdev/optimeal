@@ -264,7 +264,7 @@ export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?:
  * jen jako samostatná slova (máslový chléb zůstane pečivem).
  */
 const PRISADA_RE =
-  /\b(olej\b|olio\b|oil\b|oel\b|olaj\b|öl\b|napraforg|sonnenblumen|huile|olivov|margarin|s[aá]dl|mouk|cukr|sirup|ocet|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|mayonnaise|mayo\b|tatarsk|tatark|om[áa][čc]k|sauces?|dresink|dressing|nápoj|n[áa]pojov|j[ií][šš]k|rama\b|gh[ií]\b|ghee|hera\b|perla\b|flora\b|zlat[áa] han|rozt[ií]rateln[ýy] tuk)|želatin/i;
+  /\b(olej\b|olio\b|oil\b|oel\b|olaj\b|öl\b|napraforg|sonnenblumen|huile|olivov|margarin|s[aá]dl|lůj|mouk|múk|cukr|sirup|syrup|ocet|tapioc|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|bulion|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|mayonnaise|mayo\b|tatarsk|tatark|om[áa][čc]k|sauces?|dresink|dressing|hořčic|kremžsk|senf\b|mustard|ochucovadl|kucharek|kucharka|vegeta\b|krupic|nápoj|n[áa]pojov|j[ií][šš]k|rama\b|gh[ií]\b|ghee|hera\b|perla\b|flora\b|zlat[áa] han|rozt[ií]rateln[ýy] tuk)|želatin/i;
 
 /** Je potravina kuchyňská surovina, ne samostatná složka jídla? */
 export function jePrisada(p: { nazev: string }): boolean {
@@ -330,11 +330,12 @@ const SVACINA_ANCHOR_ANTI_RE =
  * Totéž platí pro mléčné nápoje – „45 g mléka jako tukový doplněk"
  * je hloupost, stejně jako jogurt v roli tuku. */
 const TUK_ANTI_RE =
-  /čokol[áa]d|pralink|bonb[oó]n|karamel|nug[áa]t|marcip|l[íi]z[áa]tk|žel[eé] bonb|gumov|z[áa]kusk|dort|zmrzlin|pern[íi]k|kol[áa][čc]|škub[áa]nk|bucht|str[úu]dl|mazanec|v[áa]no[cč]k|tartalet|pusink|marshmallow|mochi|halva|rahat|krokant|ml[ée]k|jogurt|skyr|kef[íi]r|zakysan|lip[áa]nek|acidofiln/i;
+  /čokol[áa]d|pralink|bonb[oó]n|karamel|nug[áa]t|marcip|l[íi]z[áa]tk|žel[eé] bonb|gumov|z[áa]kusk|dort|zmrzlin|pern[íi]k|kol[áa][čc]|škub[áa]nk|bucht|str[úu]dl|mazanec|v[áa]no[cč]k|tartalet|pusink|marshmallow|mochi|halva|rahat|krokant|ml[ée]k|jogurt|skyr|kef[íi]r|zakysan|lip[áa]nek|acidofiln|zel[íi]|chl[ée]b|rohl[íi]k|housk|veka|baget|pe[čc]iv|dalam[aá]nek|bread\b|toast/i;
 
-/** Dezerty – nekothví žádné jídlo (cheesecake k snídani není snídaně). */
+/** Dezerty a polévky – nekothví žádné jídlo (cheesecake k snídani
+ * není snídaně, „Hrachová polévka" není večeře). */
 const DEZERT_ANTI_RE =
-  /cheesecake|z[áa]kusk|dort|zmrzlin|tiramisu|cr[èe]me|panna cotta|tartalet|škub[áa]nk|mazanec|v[áa]no[cč]k|halva|rahat/i;
+  /cheesecake|z[áa]kusk|dort|zmrzlin|tiramisu|cr[èe]me|panna cotta|tartalet|škub[áa]nk|mazanec|v[áa]no[cč]k|halva|rahat|pol[ée]vk|v[ýy]var/i;
 
 /**
  * Ryby a mořské plody – nekothví snídani (tuňákové vločky k snídani
@@ -424,7 +425,7 @@ export function jeWheyPrasek(p: { nazev: string }): boolean {
  * džem – to jsou legitimní (byť sladké) potraviny.
  */
 const JUNK_RE =
-  /čokol[áa]d|chocolat|choco|cocoa|kakao(?!.*máslo)|lindor|lindt|pralin|bonb[oó]n|bonbonier|dražé|drazee|lokum|rahat|mochi|marshmallow|halva|nug[áa]t|marcip[áa]n|karamell|karamel|haribo|skittles|snickers|bounty|twix|kitkat|kit kat|kinder|raffaello|tic.?tac|mentos|bonpari|žuvač|zmrzlin|gelato|sorbet|nanuk|míša|kopečkov|pusink|mousse|pudink|puding|pudding|žel[ée](?!\w)|chips|crisps|lupínk|lupinek|chipsy|perliv|neperliv|\bvoda\b|water\b|džus|juice|kombucha|ice.?tea|k[áa]v|coffee|espresso|latt[ée]|cappuccino|macchiato|čaj(?!\w)|tea(?!\w)|limon[áa]d|cr[èe]me(?!.*fraiche)|tiramisu|cheesecake|brownie|muffin|cupcake|donut|doughnut|z[áa]kusk|dort|větrník|věneček|kremrol|piškot|sušenk|biscuit|keks|oplatk|oblátk|vafle|wafl|škubánek|mazanec|vánočk|str[úu]dl|kol[áa][čc]|frg[aá]l|bucht|perník|medovník|laskonk|kokosk|pařížsk|punčov|bábovk|tartalet|jelly|candy|fudge|brittle|truffle|energy.?drink|cola|limon[áa]d|soda|fanta|sprite/i;
+  /čokol[áa]d|chocolat|choco|cocoa|kakao(?!.*máslo)|lindor|lindt|pralin|bonb[oó]n|bonbonier|dražé|drazee|lokum|rahat|mochi|marshmallow|halva|nug[áa]t|marcip[áa]n|karamell|karamel|haribo|skittles|snickers|bounty|twix|kitkat|kit kat|kinder|raffaello|tic.?tac|mentos|bonpari|žuvač|zmrzlin|gelato|sorbet|nanuk|míša|kopečkov|pusink|mousse|pudink|puding|pudding|žel[ée](?!\w)|chips|crisps?d?\b|lupínk|lupinek|chipsy|perliv|neperliv|\bvoda\b|water\b|džus|juice|kombucha|ice.?tea|k[áa]v|coffee|espresso|latt[ée]|cappuccino|macchiato|čaj(?!\w)|tea(?!\w)|nápoj|napitie|drink|ml[ée]ko|\bmilk\b|hrne[čc]k|limon[áa]d|cr[èe]me(?!.*fraiche)|tiramisu|cheesecake|brownie|muffin|cupcake|donut|doughnut|z[áa]kusk|dort|větrník|věneček|kremrol|piškot|sušenk|sušenek|biscuit|biscotti|cantuccin|baiocch|cookies?\b|keks|oplatk|oblátk|vafle|wafl|škubánek|mazanec|vánočk|str[úu]dl|kol[áa][čc]|frg[aá]l|bucht|perník|medovník|laskonk|kokosk|pařížsk|punčov|bábovk|tartalet|jelly|candy|fudge|brittle|truffle|energy.?drink|cola|limon[áa]d|soda|fanta|sprite/i;
 
 /** Sladkost/cukrovinka – nesmí do žádného jídla. */
 export function jeJunk(p: { nazev: string }): boolean {
@@ -448,7 +449,7 @@ export function jeNepotravinovy(p: { nazev: string }): boolean {
  * Tatratea nemá co dělat v jídelníčku. Lookaheads hlídají falešné
  * zásahy: rump (steak), ginger/origin (gin), pivoňka (pivo). */
 const ALKOHOL_RE =
-  /%\s*(obj|vol)|alkohol|lik[ée]r|whisk|vodka|rum(?!\w)|tequila|absint|brandy|bourbon|cognac|gin(?!\w)|slivovic|borovičk|becherovk|fernet|tatratea|j[äa]germeister|v[íi]no(?!v[ýy])|vinn[ýy](?!\s+ocet)|prosecco|champagne|sekt(?!\w)|pivo(?!ň)|pilsner|lager|beer|ale(?!\w)|cider(?!\w)|medovin|burčák|portsk|sherry|vermut|martini|mojito|daiquiri|nealkoholick[ée]\s*piv/i;
+  /%\s*(obj|vol)|alkohol|lik[ée]r|whisk|vodka|rum(?!\w)|tequila|absint|brandy|bourbon|cognac|gin(?!\w)|slivovic|borovičk|becherovk|fernet|tatratea|j[äa]germeister|v[íi]no(?!v[ýy])|vinn[ýy](?!\s+ocet)|prosecco|champagne|sekt(?!\w)|pivo(?!ň)|pilsner|lager|beer|ale(?!\w)|cider(?!\w)|medovin|burčák|portsk|sherry|vermut|martini|mojito|daiquiri|syrah|shiraz|merlot|cabernet|chardonnay|riesling|pinot|sauvignon|malbec|zinfandel|grenache|tempranillo|sangiovese|nebbiolo|frankovka|rulandsk|muškát|tramín|veltlin|chianti|rioja|bordeaux|nealkoholick[ée]\s*piv/i;
 
 /** Zakázáno pro daný typ jídla:
  * – všude: nepotraviny, cukrovinky, tvrdé suplementy
@@ -472,7 +473,7 @@ const ZELENINA_RE =
 /** Složené produkty, které zeleninu jen „obsahují" – müsli s mrkví,
  * polévková směs nebo džus není zeleninová strana jídla. */
 const ZELENINA_ANTI_RE =
-  /müsli|musli|granola|kaše|vlo[čc]k|pudink|pudding|džus|juice|džem|marmel|kompot|mošt|sirup|nápoj|dražé|lokum|halva|čokol|choco|krém|pomaz|paštik|terrin|polévk|v[ýy]var|n[áa]pl[ňn]|polev|těstovin|r[ýy]ž|kn[ěe]dlík|pizz|tortill|wrap|chips|crisps|burger|om[áa][čc]k|risott|rizoto|tortel|raviol|agnolott|kroužk|smetan|n[áa]kyp|dupetk|krekr|crack|sušen.*(ananas|mango|ban[áa]n|datl|rozink|brusink|meruňk|fík|švestk|brosk|jahod|malin|bor[ůu]vk|hrozink)|tyčink|croissant|smoothie/i;
+  /müsli|musli|granola|kaše|vlo[čc]k|pudink|pudding|džus|juice|džem|marmel|kompot|mošt|sirup|nápoj|dražé|lokum|halva|čokol|choco|krém|pomaz|paštik|terrin|polévk|v[ýy]var|n[áa]pl[ňn]|polev|těstovin|r[ýy]ž|kn[ěe]dlík|pizz|tortill|wrap|chips|crisps|burger|om[áa][čc]k|risott|rizoto|tortel|raviol|agnolott|kroužk|smetan|n[áa]kyp|dupetk|krekr|crack|sušen.*(ananas|mango|ban[áa]n|datl|rozink|brusink|meruňk|fík|švestk|brosk|jahod|malin|bor[ůu]vk|hrozink)|tyčink|croissant|smoothie|pasta\b|topink|crouton|stir.?fry|crispbread|knuspi|kn[äa]cke/i;
 
 /** Luštěniny jako zeleninová strana – jedí se, ale na talíři
  * strany prohrávají s opravdovou zeleninou (rajče, okurka,
@@ -491,14 +492,14 @@ const ZELENINA_SKUTECNA_RE =
 /** Váhy kusů běžných potravin (g) – porce se počítá v celých kusech. */
 const KUSOVA_PORCE: [RegExp, number][] = [
   [/vejce|vejec/i, 60],
-  [/chlebíč|kn[aä]cke|k[řr]upav/i, 10],
+  [/chlebíč(?!kov)|kn[aä]cke|k[řr]upav[éeáý]?\s+(pe[čc]iv|chleb|kn[äa]cke)/i, 10],
   [/rohl[íi]k/i, 43],
   [/chl[ée]b(?!íč|i[čc]k|ovn)|chleba/i, 40],
   [/housk/i, 55],
   [/kaiserk/i, 50],
   [/dalam[aá]nek|rožek|rozek/i, 45],
   [/veka/i, 70],
-  [/toast/i, 35],
+  [/toast|toust/i, 35],
   [/tortill|wrap/i, 65],
   [/ban[áa]n/i, 120],
   [/jablk/i, 170],
@@ -528,7 +529,7 @@ const MLECNE_RE =
   /jogurt|skyr|tvaroh|cottage|kef[íi]r|ml[ée]k|zakysan|acidofiln|lip[áa]nek|smetanov[ýy] n[áa]poj/i;
 
 const SUCHE_SACH_RE =
-  /r[ýy]ž|t[ěe]stovin|spaget|penne|fusilli|nudl|kuskus|bulgur|quino|tarho[ňn]|pohank|jahel|vlo[čc]k|ovsen|müsli|musli|granola|krupič|cereal|kornflejk|cornflakes|kn[aä]cke|k[řr]upav|křupk/i;
+  /r[ýy]ž|t[ěe]stovin|spaget|penne|fusilli|nudl|kuskus|bulgur|quino|tarho[ňn]|pohank|jahel|vlo[čc]k|ovsen|müsli|musli|granola|krupič|cereal|kornflejk|cornflakes|kn[aä]cke|k[řr]upav|křupk|ka[šs](?!tan|mír|el)/i;
 
 const OLEJ_TUK_RE =
   /\b(olej|olio|oil|oel|olaj|öl)\b|olivov.*olej|m[áa]slo|gh[íi]|ghee|s[áa]dl|tuk[^ ]* rozt|napraforg|sonnenblumen|huile|margarin|hera\b|perla\b|flora\b|majon[eé]z|mayonnaise|mayo\b/i;
@@ -628,7 +629,7 @@ export function vyberKandidata(
   vhodnostRe: RegExp | null = null,
   nevhodnostRe: RegExp | null = null,
   pouziteKlice: Set<string> = new Set(),
-  minuleDny: Set<string> = new Set(),
+  minuleDny: ReadonlyMap<string, number> = new Map(),
 ): Kandidat | null {
   if (kandidati.length === 0) return null;
 
@@ -659,9 +660,10 @@ export function vyberKandidata(
   const MALUS_MINULE_DNY = 0.5;
   const jeVhodny = (p: Kandidat) => vhodnostRe !== null && vhodnostRe.test(p.nazev);
   const jeNevhodny = (p: Kandidat) => nevhodnostRe !== null && nevhodnostRe.test(p.nazev);
-  // rodina už použitá v předchozích dnech týdne – měkký malus, ať se
-  // kotvy/doplňky rotují napříč týdnem (sušené maso ne každý den)
-  const jeMinulyDen = (p: Kandidat) => minuleDny.has(klicPodobnosti(p.nazev));
+  // rodina už použitá v předchozích dnech týdne – malus se stupňuje
+  // podle počtu použití (×0,5 po 1. dni, ×0,25 po 2., ×0,125 po 3.) –
+  // jinak by nejvýhodnější položka kotvila týden pořád dokola
+  const minuleKolikrat = (p: Kandidat) => minuleDny.get(klicPodobnosti(p.nazev)) ?? 0;
   const nejlepsi = kandidati.reduce((m, p) => Math.max(m, p.skore), 0);
   if (nejlepsi > 0) {
     const srovnatelni = kandidati.filter(
@@ -669,7 +671,7 @@ export function vyberKandidata(
         p.skore *
           (jeVhodny(p) ? BONUS_VHODNOSTI : 1) *
           (jeNevhodny(p) ? MALUS_NEVHODNOSTI : 1) *
-          (jeMinulyDen(p) ? MALUS_MINULE_DNY : 1) >=
+          Math.pow(MALUS_MINULE_DNY, minuleKolikrat(p)) >=
         nejlepsi * poolMin,
     );
     if (srovnatelni.length > 0) {
@@ -789,7 +791,7 @@ export function naplanujJidlo(
   poolMin = 0.85,
   nazevJidla = "",
   pouziteKlice: Set<string> = new Set(),
-  minuleDny: Set<string> = new Set(),
+  minuleDny: ReadonlyMap<string, number> = new Map(),
   vynutitNepouzite = false,
 ): Jidlo[] {
   const jidla: Jidlo[] = [];
@@ -1098,7 +1100,7 @@ export function vygenerujJidelnicek(
   poolMin = 0.85,
   pocetJidel = 4,
   filtr: FiltrPotraviny | null = null,
-  minuleDny: Set<string> = new Set(),
+  minuleDny: ReadonlyMap<string, number> = new Map(),
 ): DenVysledek {
   // ochrana proti poškozeným cílům (NaN / Infinity / záporná čísla
   // z DB nebo formuláře) – raději nulový plán než NaN ve výsledku
@@ -1198,7 +1200,7 @@ function doladujDen(
   pouziteKlice: Set<string>,
   denniPosun: number | null,
   poolMin: number,
-  minuleDny: Set<string>,
+  minuleDny: ReadonlyMap<string, number>,
 ): void {
   if (cile.kalorie <= 0) return;
 
@@ -1654,15 +1656,16 @@ export function vygenerujTydenniPlan(
     cenaBezna: 0,
   };
 
-  // rodiny potravin použité v předchozích dnech – měkký malus,
+  // rodiny potravin použité v předchozích dnech – stupňovaný malus,
   // ať se týden skutečně různí (ne 7× sušené maso + křupavý sýr)
-  const tydenniKlice = new Set<string>();
+  const tydenniKlice = new Map<string, number>();
   for (let den = 1; den <= 7; den++) {
     const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel, filtr, tydenniKlice);
     dny[den] = vysledek;
     for (const souhrn of Object.values(vysledek.jidelnicek)) {
       for (const j of souhrn.jidla) {
-        tydenniKlice.add(klicPodobnosti(j.nazev));
+        const klic = klicPodobnosti(j.nazev);
+        tydenniKlice.set(klic, (tydenniKlice.get(klic) ?? 0) + 1);
       }
     }
 
@@ -1748,7 +1751,7 @@ export function vymenJidlo(
     poolMin,
     nazevJidla,
     pouziteKlice,
-    new Set(),
+    new Map(),
     true,
   );
   // vyberKandidata padá zpět na použité potraviny, když je fond malý –

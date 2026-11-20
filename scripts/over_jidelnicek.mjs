@@ -31,23 +31,30 @@ const potraviny = r.rows.map((x) => ({
 }));
 
 const {
-  vygenerujJidelnicek, jeSuplementTvrdy, jeSuplementSnack,
-  jeCenaSpolehliva, kusovaGramaz,
+  vygenerujJidelnicek, vygenerujTydenniPlan, jeSuplementTvrdy, jeSuplementSnack,
+  jeCenaSpolehliva, kusovaGramaz, klicPodobnosti,
 } = await import("../src/lib/generator/generator.ts");
 
+const args = process.argv.slice(2).filter((a) => a !== "--tyden");
+const tydenni = process.argv.includes("--tyden");
 const cile = {
-  kalorie: +(process.argv[2] ?? 2200),
-  bilkoviny: +(process.argv[3] ?? 150),
-  sacharidy: +(process.argv[4] ?? 220),
-  tuky: +(process.argv[5] ?? 70),
+  kalorie: +(args[0] ?? 2200),
+  bilkoviny: +(args[1] ?? 150),
+  sacharidy: +(args[2] ?? 220),
+  tuky: +(args[3] ?? 70),
 };
-console.log(`Cíle: ${cile.kalorie} kcal | B ${cile.bilkoviny} | S ${cile.sacharidy} | T ${cile.tuky}\n`);
+console.log(`Cíle: ${cile.kalorie} kcal | B ${cile.bilkoviny} | S ${cile.sacharidy} | T ${cile.tuky}${tydenni ? " | TÝDEN (7 dnů, rotace rodin)" : ""}\n`);
+
+// --tyden: reálný týdenní plán (minuleDny rotace rodin), jinak 3 nezávislé dny
+const dnyVysledky = tydenni
+  ? Object.entries(vygenerujTydenniPlan(potraviny, cile).dny).map(([d, v]) => [+d, v])
+  : [1, 2, 3].map((d) => [d, vygenerujJidelnicek(potraviny, cile, d)]);
 
 let problemy = 0;
 const flag = (msg) => { problemy++; console.log(`      ⚠ ${msg}`); };
+const rodinyKotv = new Map();
 
-for (let d = 1; d <= 3; d++) {
-  const den = vygenerujJidelnicek(potraviny, cile, d);
+for (const [d, den] of dnyVysledky) {
   const cel = den.celkem;
   console.log(`=== Den ${d}: ${Math.round(cel.kalorie)} kcal | B ${cel.bilkoviny.toFixed(1)}/${cile.bilkoviny} | S ${cel.sacharidy.toFixed(1)}/${cile.sacharidy} | T ${cel.tuky.toFixed(1)}/${cile.tuky} | ${cel.cena.toFixed(0)} Kč ===`);
   for (const [nazev, s] of Object.entries(den.jidelnicek)) {
@@ -75,8 +82,12 @@ for (let d = 1; d <= 3; d++) {
       }
       if (kusovaGramaz(j.nazev) === null && j.gramy % 5 !== 0)
         flag(`nečistá gramáž: ${j.nazev} ${j.gramy} g`);
-      if (j.cena > 0 && j.cena < 3 && j.gramy >= 50)
-        flag(`podezřele nízká cena porce: ${j.nazev} ${j.cena} Kč za ${j.gramy} g`);
+      if (j.cena > 0 && j.gramy >= 50 && j.cena / (j.gramy / 100) < 0.8)
+        flag(`podezřele nízká cena/100g: ${j.nazev} ${j.cena} Kč za ${j.gramy} g`);
+      if (j.role === "kotva" && tydenni) {
+        const klic = klicPodobnosti(j.nazev);
+        rodinyKotv.set(klic, (rodinyKotv.get(klic) ?? 0) + 1);
+      }
     }
     if (/oběd|večeře/i.test(nazev) && !maZeleninu)
       flag(`${nazev} bez zeleninové strany`);
@@ -86,6 +97,14 @@ for (let d = 1; d <= 3; d++) {
   for (const [m, v, c] of [["B", cel.bilkoviny, cile.bilkoviny], ["S", cel.sacharidy, cile.sacharidy], ["T", cel.tuky, cile.tuky]])
     if (v < c * 0.95 || v > c * 1.05) flag(`${m} mimo ±5 %: ${v.toFixed(1)}/${c}`);
   console.log();
+}
+
+// týdenní pestrost kotev – stejná rodina max 3× za týden
+if (tydenni) {
+  const opakovane = [...rodinyKotv.entries()].filter(([, n]) => n > 3).sort((a, b) => b[1] - a[1]);
+  for (const [klic, n] of opakovane) flag(`kotva-rodina ${n}× za týden: ${klic}`);
+  const top = [...rodinyKotv.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  console.log(`Nejčastější kotvy týdne: ${top.map(([k, n]) => `${k}×${n}`).join(", ")}\n`);
 }
 
 // kolik položek katalogu má necenitelnou cenu
