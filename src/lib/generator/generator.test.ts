@@ -18,6 +18,7 @@ import {
   naplanujJidlo,
   panelTik,
   podilyProPocetJidel,
+  rodinaKotvy,
   sestavNakupniSeznam,
   SNIDANE_KOTVA_ANTI_RE,
   vymenJidlo,
@@ -1451,6 +1452,50 @@ describe("živý katalog – audit 7denního plánu", () => {
       [platky] as never, 0, [], 1, 0.6, /proteinov/i, null, new Set(), minule,
     );
     expect(v2?.id).toBe("a");
+  });
+
+  it("druhová rodina kotvy – normalizace názvů", () => {
+    expect(rodinaKotvy("Vepřová plec")).toBe("veprove");
+    expect(rodinaKotvy("Vepřová kýta")).toBe("veprove");
+    // druhově kvalifikované uzeniny – druh vítězí nad generickým vepřovým
+    expect(rodinaKotvy("Krůtí šunka")).toBe("drubez");
+    expect(rodinaKotvy("Kuřecí salám")).toBe("drubez");
+    expect(rodinaKotvy("Sušené krůtí maso jerky")).toBe("drubez");
+    // generické sušené maso bez druhu – vlastní rodina
+    expect(rodinaKotvy("Sušené maso Original")).toBe("susene_maso");
+    expect(rodinaKotvy("Prémiové sušené maso sriracha")).toBe("susene_maso");
+    expect(rodinaKotvy("Beef Jerky Cracked Pepper")).toBe("hovezi");
+    expect(rodinaKotvy("Tuňáková pomazánka (tuna)")).toBe("ryba");
+    expect(rodinaKotvy("Krabí tyčky")).toBe("vodnany");
+    expect(rodinaKotvy("Hovězí svíčková")).toBe("hovezi");
+    // rostlinné přílohy bez druhu → bez rodiny
+    expect(rodinaKotvy("Rýže basmati")).toBeNull();
+    expect(rodinaKotvy("Brambory")).toBeNull();
+  });
+
+  it("druhová rodina z dnešního dne vyloučí stejnou kotvu (vepřová plec + kýta)", () => {
+    // regrese: oběd „Vepřová plec" a večeře „Vepřová kýta" – jiný
+    // dvouslovný klíč, stejná druhová rodina → opakovaná bílkovina v dni
+    const plec = { ...p("a", "Vepřová plec", 20, 0, 10, 210, 8), skore: 10 };
+    const kyta = { ...p("b", "Vepřová kýta", 20, 0, 8, 190, 8), skore: 9 };
+    const prsa = { ...p("c", "Kuřecí prsa", 23, 0, 3, 120, 8), skore: 5 };
+    // „veprove" v pouziteKlice (záznam kotvy oběda) → kýta nesmí vyhrát
+    const v = vyberKandidata(
+      [kyta, prsa] as never, 0, [], 1, 0.6, null, null, new Set(["veprove"]), new Map(),
+    );
+    expect(v?.id).toBe("c");
+    // druhová rodina ≥4× v týdnu vypadne taky (veprove má strop 4, ne 3)
+    const minule = new Map([["veprove", 4]]);
+    const v2 = vyberKandidata(
+      [plec, prsa] as never, 0, [], 1, 0.6, null, null, new Set(), minule,
+    );
+    expect(v2?.id).toBe("c");
+    // pod stropem (3 < 4) rodina není tvrdě vyloučená – když je jediným
+    // kandidátem, stále se vybere (malus ji jen znevýhodňuje)
+    const v3 = vyberKandidata(
+      [plec] as never, 0, [], 1, 0.6, null, null, new Set(), new Map([["veprove", 3]]),
+    );
+    expect(v3?.id).toBe("a");
   });
 
   it("potravina s fantómovými kcal (>35 % nad makra) nemůže být kotva", () => {

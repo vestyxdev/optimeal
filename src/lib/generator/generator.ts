@@ -440,6 +440,40 @@ export function klicPodobnosti(nazev: string): string {
 }
 
 /**
+ * „Rodina" zdroje bílkoviny podle druhu – hrubší než klicPodobnosti.
+ * „Vepřová plec" a „Vepřová kýta" mají jiný dvouslovný klíč, ale
+ * stejnou rodinu „veprove" → druhá kotva v tentýž den se vyloučí
+ * a v týdnu se rodina počítá pod jedním stropu (4, výjimky níž).
+ * Pořadí řádků řeší druhově kvalifikované názvy: „krůtí šunka" je
+ * drůbež, ne vepřové – proto druhy před generickými uzeninami.
+ */
+const RODINY_KOTEV: [RegExp, string][] = [
+  [/tofu/i, "tofu"],
+  [/tempeh/i, "tempeh"],
+  [/seitan/i, "seitan"],
+  [/vejce|vaje[čc]|\beggs?\b|omelet/i, "vejce"],
+  [/krevet|shrimp|prawn|krab(?!i)|humr|lobster|garn[áa]t|kalam[áa]r|squid|chobotnic|octopus|mu[šš]l|mussel|úst[řr]ic|oyster|sl[áa]vk/i, "vodnany"],
+  [/losos|salmon|tu[ňn][áa]k|\btuna\b|tresk|\bcod\b|makrel|kapr\b|pstruh|trout|sardink|sardel|sprat|ančov|anchov|pangas|halibut|cand[áa]t|štik|úho[řr]|\beel\b|herring|sle[ďd]|tilapi|sumec|\bfish\b|ryb/i, "ryba"],
+  [/jehn[ěeč]|\blamb\b|skopov/i, "jehneci"],
+  [/ku[řr]e|chicken|kr[ůu]t(?!on)|turkey|dr[ůu]be[žz]|poultry|kachn|\bduck\b|hus[ay]|ba[žz]ant|perli[čc]/i, "drubez"],
+  [/hov[ěe]z|\bbeef\b|telec|zverin|venison|srnč|jelen|dan[ěe]k|buvol/i, "hovezi"],
+  // generické sušené maso bez druhu – „Sušené maso Original" a
+  // „Prémiové sušené maso" jsou pořád tatáž kotva; druhové verze
+  // („sušené maso krůtí") padají do druhy díky pořadí výše
+  [/sušen[éeý]\s+maso|dried\s+meat|jerky|biltong/i, "susene_maso"],
+  // generické uzeniny bez druhu = ve českém kontextu vepřové
+  [/vep[řr]|\bpork\b|šunk|sal[áa]m|klob[áa]s|kabanoss?|p[áa]rk|frankfurt|wiener|hotdog|wurst|sausage|pepperoni|chorizo|prosciutt|jam[oó]n|slanin|bacon|speck?|schinken|utopen|tla[čc]enk|prešt|\bham\b(?!é)|kanec|divoč[áa]k/i, "veprove"],
+];
+
+/** Rodina zdroje bílkoviny z názvu, nebo null (rostlinné přílohy apod.). */
+export function rodinaKotvy(nazev: string): string | null {
+  for (const [re, rodina] of RODINY_KOTEV) {
+    if (re.test(nazev)) return rodina;
+  }
+  return null;
+}
+
+/**
  * „Kulinářská vhodnost" pro typ jídla – snídaně se nesestavuje
  * z beef jerky a oběd z müsli. Měkká preference: vhodné potraviny
  * jdou do výběru první, když žádná nekandiduje, vezme se plný pool
@@ -803,22 +837,31 @@ export function vyberKandidata(
 
   // 1b) a nejen to – preferujeme i potraviny, jejichž „rodina" se dnes
   //     neobjevila: „Sušené maso hovězí" i „Sušené maso krůtí" je pořád
-  //     sušené maso. Bez klíčů kandidátů filtr přeskočíme.
-  const bezRodiny = kandidati.filter((p) => !pouziteKlice.has(klicPodobnosti(p.nazev)));
+  //     sušené maso, a „Vepřová plec" i „Vepřová kýta" pořád vepřové.
+  //     Klíč podobnosti i druhovou rodinu kotvy bereme z jedné mapy.
+  const bezRodiny = kandidati.filter((p) => {
+    if (pouziteKlice.has(klicPodobnosti(p.nazev))) return false;
+    const r = rodinaKotvy(p.nazev);
+    return r === null || !pouziteKlice.has(r);
+  });
   if (bezRodiny.length > 0) {
     kandidati = bezRodiny;
   }
 
-  // 1c) rodina použitá ≥3× v předchozích dnech týdne vypadne úplně.
-  //     Měkký malus ji nedokáže zastavit, když je jedinou kulinářsky
-  //     vhodnou položkou poolu (vegan: proteinové plátky jako jediná
-  //     snídaňová kotva → 7× za týden, i když skóre malus zdeformoval
-  //     pod práh a fallback vrátil plný pool bez penalizace).
-  //     Bez alternativ se rodina vrátí – plán musí fungovat vždy.
+  // 1c) rodina použitá ≥3× (druhová rodina kotvy ≥4×) v předchozích
+  //     dnech týdne vypadne úplně. Měkký malus ji nedokáže zastavit,
+  //     když je jedinou kulinářsky vhodnou položkou poolu (vegan:
+  //     proteinové plátky jako jediná snídaňová kotva → 7× za týden,
+  //     i když skóre malus zdeformoval pod práh a fallback vrátil plný
+  //     pool bez penalizace). Bez alternativ se rodina vrátí – plán
+  //     musí fungovat vždy.
   const MAX_POUZITI_TYDEN = 3;
-  const cerstve = kandidati.filter(
-    (p) => (minuleDny.get(klicPodobnosti(p.nazev)) ?? 0) < MAX_POUZITI_TYDEN,
-  );
+  const MAX_RODINY_TYDEN = 4;
+  const cerstve = kandidati.filter((p) => {
+    if ((minuleDny.get(klicPodobnosti(p.nazev)) ?? 0) >= MAX_POUZITI_TYDEN) return false;
+    const r = rodinaKotvy(p.nazev);
+    return r === null || (minuleDny.get(r) ?? 0) < MAX_RODINY_TYDEN;
+  });
   if (cerstve.length > 0) {
     kandidati = cerstve;
   }
@@ -848,7 +891,13 @@ export function vyberKandidata(
   // rodina už použitá v předchozích dnech týdne – malus se stupňuje
   // podle počtu použití (×0,5 po 1. dni, ×0,25 po 2., ×0,125 po 3.) –
   // jinak by nejvýhodnější položka kotvila týden pořád dokola
-  const minuleKolikrat = (p: Kandidat) => minuleDny.get(klicPodobnosti(p.nazev)) ?? 0;
+  const minuleKolikrat = (p: Kandidat) => {
+    const r = rodinaKotvy(p.nazev);
+    return Math.max(
+      minuleDny.get(klicPodobnosti(p.nazev)) ?? 0,
+      r === null ? 0 : (minuleDny.get(r) ?? 0) - 1, // druhová rodina má vyšší strop – malus o úroveň slabší
+    );
+  };
   const nejlepsi = kandidati.reduce((m, p) => Math.max(m, p.skore), 0);
   if (nejlepsi > 0) {
     const srovnatelni = kandidati.filter(
@@ -1025,6 +1074,8 @@ export function naplanujJidlo(
   const oznac = (p: Potravina) => {
     pouziteId.push(p.id);
     pouziteKlice.add(klicPodobnosti(p.nazev));
+    const rodina = rodinaKotvy(p.nazev);
+    if (rodina !== null) pouziteKlice.add(rodina);
   };
 
   const pridej = (p: Potravina, gramy: number, role: RoleJidla) => {
@@ -1571,6 +1622,8 @@ function doladujDen(
         cil.s.jidla.push(jidlo);
         pouziteId.push(kandidat.id);
         pouziteKlice.add(klicPodobnosti(kandidat.nazev));
+        const rodinaK = rodinaKotvy(kandidat.nazev);
+        if (rodinaK !== null) pouziteKlice.add(rodinaK);
         prepocitej(cil.s);
         return true;
       }
@@ -1670,6 +1723,8 @@ function doladujDen(
           cil.s.jidla.push(jidlo);
           pouziteId.push(k.p.id);
           pouziteKlice.add(klicPodobnosti(k.p.nazev));
+          const rodinaK = rodinaKotvy(k.p.nazev);
+          if (rodinaK !== null) pouziteKlice.add(rodinaK);
           prepocitej(cil.s);
           return true;
         }
@@ -1816,7 +1871,7 @@ function doladujDen(
     return zmena;
   };
 
-  for (let kolo = 0; kolo < 4; kolo++) {
+  for (let kolo = 0; kolo < 6; kolo++) {
     const s = soucty();
     const chybi = {
       b: cile.bilkoviny - s.b,
@@ -2004,6 +2059,8 @@ export function vygenerujTydenniPlan(
       for (const j of souhrn.jidla) {
         const klic = klicPodobnosti(j.nazev);
         tydenniKlice.set(klic, (tydenniKlice.get(klic) ?? 0) + 1);
+        const rodina = rodinaKotvy(j.nazev);
+        if (rodina !== null) tydenniKlice.set(rodina, (tydenniKlice.get(rodina) ?? 0) + 1);
       }
     }
 
@@ -2075,7 +2132,14 @@ export function vymenJidlo(
   const puvodnePouzite = new Set(pouziteId);
   // i „rodiny" použitých potravin se vyhýbáme – náhrada má být opravdu jiná
   const pouziteKlice = new Set(
-    Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => klicPodobnosti(j.nazev))),
+    Object.values(den.jidelnicek).flatMap((s) =>
+      s.jidla.flatMap((j) => {
+        const rodina = rodinaKotvy(j.nazev);
+        return rodina === null
+          ? [klicPodobnosti(j.nazev)]
+          : [klicPodobnosti(j.nazev), rodina];
+      }),
+    ),
   );
   const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
   const jidla = naplanujJidlo(
@@ -2135,6 +2199,8 @@ export function vymenJidloVTydnu(
       for (const j of souhrn.jidla) {
         const klic = klicPodobnosti(j.nazev);
         tydenniKlice.set(klic, (tydenniKlice.get(klic) ?? 0) + 1);
+        const rodina = rodinaKotvy(j.nazev);
+        if (rodina !== null) tydenniKlice.set(rodina, (tydenniKlice.get(rodina) ?? 0) + 1);
       }
     }
   }
