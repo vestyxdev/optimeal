@@ -80,7 +80,7 @@ export interface FiltrPotraviny {
  */
 export const ALERGEN_Z_NAZVU: Record<string, RegExp> = {
   lepek:
-    /p[šs]en|[žz]itn|je[čc]men|oves|[šs]pald|spelt|chleb(?!íč)|rohl[íi]k|housk|baget|t[ěe]stovin|testovin|nudl|[šs]paget|lasagn|penne|fusill|farfalle|tagliatell|rigatoni|gnocchi|makaron|knedl|mouk|múk|strouhan|panko|bulgur|cous ?cous|kuskus|seitan|tarhoň|pern[íi]k|kol[áa][čc]|bucht|croissant|koblih|su[šs]enk|pizza|tortill|wrap\b|kn[äa]ck|crispbread|crackers?|müsli|musli|granola|[šs]trúdl|strudl|[čc]ere[áa]l|vlo[čc]k|triti|pečiv/i,
+    /p[šs]en|[žz]itn|je[čc]men|oves|[šs]pald|spelt|chl[éeé]b(?!íč)|rohl[íi]k|housk|baget|t[ěe]stovin|testovin|nudl|[šs]paget|lasagn|penne|fusill|farfalle|tagliatell|rigatoni|gnocchi|makaron|knedl|mouk|múk|strouhan|panko|bulgur|cous ?cous|kuskus|seitan|tarhoň|pern[íi]k|kol[áa][čc]|bucht|croissant|koblih|su[šs]enk|pizza|tortill|wrap\b|kn[äa]ck|crispbread|crackers?|müsli|musli|granola|[šs]trúdl|strudl|[čc]ere[áa]l|vlo[čc]k|triti|pečiv/i,
   mleko:
     /ml[eé]k|s[ýy]r|tvaroh|jogurt|zakysan|smetan|m[áa]sl|kef[íi]r|skyr|mozzarell|eidam|gouda|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|puding|zmrzlin|nanuk|[čc]okol[áa]d|srv[áa]tk|whey|kazein|kasein|casein|laktoz|bechamel|feta\b|bryndz|parenic|camembert|cheddar|brie\b|lu[čc]in|lip[áa]nek/i,
   vejce: /vaj|vejc|[žz]loutk|majon[eé]z|mayonnaise|mayo\b|egg\b|tiramisu/i,
@@ -96,14 +96,46 @@ export const ALERGEN_Z_NAZVU: Record<string, RegExp> = {
   sulfit: /sulfit|si[řr][íi][čc]it|\bv[íi]n|\bvinn|ocet|octov|su[šs]en[éeé] (ovoce|raj[čc])/i,
   lupina: /lupin/i,
   korisi:
-    /kor[ýy][šs]|korys|krevet|krab|langust|humr|\brak|raci|shrimp|scampi|garn[áa]t/i,
+    /kor[ýy][šs]|korys|krevet|krab(?!i)|langust|humr|\brak[aů]?\b|\braci\b|shrimp|scampi|garn[áa]t/i,
   vodnany:
-    /m[ěe]kk[ýy][šs]|mekkys|[úu]st[řr]ic|mu[šs]l|chobotnic|s[éeé]pi|olih|kalam[áa]r|sl[áa]vk|vongole/i,
+    /m[ěe]kk[ýy][šs]|mekkys|[úu]st[řr]ic|mu[šs]l(?!i)|chobotnic|s[éeé]pi|olih|kalam[áa]r|sl[áa]vk|vongole/i,
 };
 
-/** Název potraviny nasvědčuje přítomnosti alergenu? Síť pro chybějící tagy. */
+/**
+ * Celonázvové námitky – deklarovaný „bez X" vyvrací jakýkoliv důkaz
+ * alergenu z názvu (Bezlepková pizza, Bezvaječné těstoviny).
+ * Pozn.: bezlaktózové ≠ bezmlečné – laktóza není mléčný protein,
+ * bezlaktózové mléko alergii neřeší → výjimka tu záměrně není.
+ */
+const ALERGEN_VYRAZ_VYNECH: Record<string, RegExp> = {
+  lepek: /bez.?lepk|gluten.?free|bez.?glutenu|pro celiaky/i,
+  vejce: /bezvaje[čc]|bez.?vajec|egg.?free/i,
+  mleko: /bez.?ml[eé]k|milk.?free|dairy.?free/i,
+};
+
+/**
+ * Fráze vynechané před testem názvu – „arašídové máslo" je rostlinné
+ * máslo (ne mléčné), „ryzlink vlašský" je vinná odrůda (ne vlašáky),
+ * „s humusem" je půdní substrát (ne hummus).
+ */
+export const ALERGEN_FRAZE_VYNECH: Record<string, RegExp> = {
+  mleko:
+    /(?:ara[šs][íi]d|peanut|ke[šs]u|kesu|mandl|mandel|l[íi]sk|pist[áa]c|pekan|vla[šs]sk|makadam|para ?o[řr]ech|o[řr]echov|o[řr][íi][šs]k|kokos|kakao|bambuck|karit|shea|rostlinn|slune[čc]nic|d[ýy][ňn]|m[áa]k|konopn|ln[ěe]n|chia|sezam|tahini|ag[áa]v)[a-zá-žěščřžýíéůúó]*\s+m[áa]sl\w*/gi,
+  orisky:
+    /vla[šs]sk\w*\s+(?:pozdn[íi]|sb[ěe]r|m[íi]stn[íi]|ryzlink|v[íi]n|hrozn)|(?:ryzlink|veltlin|müller|mueller|thurgau|sauvignon|sylv[áa]nsk|frankovk|ruland|tram[íi]n|mu[šs]k[áa]t|pinot|chardonnay)\w*\s+vla[šs]sk\w*/gi,
+  sezam: /\bhumus(?:em|u|ov[éeéý]|n[íi]m?)\w*/gi,
+};
+
+/** Název potraviny nasvědčuje přítomnosti alergenu? Síť pro chybějící tagy.
+ *  Respektuje deklarované „bez X" námitky a před testem vynechává
+ *  zavádějící fráze (rostlinná másla, vinné odrůdy, půdní humus). */
 export function nazevNasvedcujeAlergenu(nazev: string, alergen: string): boolean {
-  return ALERGEN_Z_NAZVU[alergen]?.test(nazev) ?? false;
+  if (ALERGEN_VYRAZ_VYNECH[alergen]?.test(nazev)) return false;
+  const re = ALERGEN_Z_NAZVU[alergen];
+  if (!re) return false;
+  const vynech = ALERGEN_FRAZE_VYNECH[alergen];
+  const vycistene = vynech ? nazev.replace(vynech, " ") : nazev;
+  return re.test(vycistene);
 }
 
 /** Potravina obsahuje alergen – podle tagu NEBO názvu (tagy pokrývají jen část katalogu). */
@@ -486,7 +518,7 @@ export function jeJunk(p: { nazev: string }): boolean {
  * (kosmetika, drogerie, krmiva, tablety) – vyloučení ze všech jídel.
  */
 const NEPOTRAVINA_RE =
-  /s[ée]rum|pleťov|plet|kosmeti|šampon|m[ýy]dl|dezinfek|parf[ée]m|toaletn|prac[íi]\s|detergent|dopln[ěe]k stravy|tableta|kapsl|vitam[íi]n|probiotik|kolagen|omega.?3|hořčík|magnez|veterin[áa]r|granule pro|krmiv|pipet|antiparazit|odčerv/i;
+  /s[ée]rum|pleťov|plet|kosmeti|šampon|m[ýy]dl|dezinfek|parf[ée]m|toaletn|prac[íi]\s|detergent|dopln[ěe]k stravy|tableta|kapsl|vitam[íi]n|probiotik|kolagen|omega.?3|hořčík|magnez|veterin[áa]r|granule pro|krmiv|pipet|antiparazit|odčerv|substr[aá]t|hnojiv|podest[ýy]l|pokojov[ée] rostlin|tr[áa]vn[íi]k|zahradni[čc]|insekticid|pesticid/i;
 
 /** Nepotravina (kosmetika, drogerie, krmivo, tablety). Vejce
  * obohacená o omega-3 jsou potravina, ne doplněk stravy. */

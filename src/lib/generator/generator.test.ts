@@ -428,6 +428,28 @@ describe("filtrujPotraviny", () => {
     expect(nazevNasvedcujeAlergenu("Hummus klasik", "sezam")).toBe(true);
     expect(nazevNasvedcujeAlergenu("Seitan marinovaný", "lepek")).toBe(true);
     expect(nazevNasvedcujeAlergenu("Mandle natural", "orisky")).toBe(true);
+    expect(nazevNasvedcujeAlergenu("Chléb pšeniční", "lepek")).toBe(true);
+  });
+
+  it("jmenná síť respektuje námitky «bez X» a zavádějící fráze", () => {
+    // deklarované „bez“ vyvrací důkaz z názvu
+    expect(nazevNasvedcujeAlergenu("Pizza korpus bezlepkový", "lepek")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Cestoviny bezvaječné", "vejce")).toBe(false);
+    // rostlinná „máslo" není mléčné máslo
+    expect(nazevNasvedcujeAlergenu("Arašídové máslo", "mleko")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Kakaové máslo", "mleko")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Arašídové máslo se srvátkou", "mleko")).toBe(true);
+    // vinná odrůda ≠ vlašské ořechy; krabička/rakytník/Racio ≠ korýši
+    expect(nazevNasvedcujeAlergenu("Ryzlink vlašský pozdní sběr", "orisky")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Krabička zákusků", "korisi")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Sušenka s rakytníkem", "korisi")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Racio rýžové chlebíčky", "korisi")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Marakuja", "korisi")).toBe(false);
+    // müsli není měkkýš; půdní humus není hummus
+    expect(nazevNasvedcujeAlergenu("Musli bar", "vodnany")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Substrát s humusem", "sezam")).toBe(false);
+    // bezlaktózové mléko alergii neřeší – zůstává mléčný alergen
+    expect(nazevNasvedcujeAlergenu("Bezlaktózové mléko", "mleko")).toBe(true);
   });
 
   it("obsahujeAlergen kombinuje tag i název", () => {
