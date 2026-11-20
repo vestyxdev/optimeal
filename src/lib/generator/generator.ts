@@ -18,6 +18,8 @@
  * Všechny funkce jsou ČISTÉ (vstup → výstup) – snadno testovatelné.
  */
 
+import { lisiSeKalorie } from "../vyziva/hodnota.ts";
+
 /* ============================================================
  * TYPY
  * ============================================================ */
@@ -82,7 +84,7 @@ export const ALERGEN_Z_NAZVU: Record<string, RegExp> = {
   lepek:
     /p[šs]en|[žz]itn|je[čc]men|oves|[šs]pald|spelt|chl[éeé]b(?!íč)|rohl[íi]k|housk|baget|t[ěe]stovin|testovin|nudl|[šs]paget|lasagn|penne|fusill|farfalle|tagliatell|rigatoni|gnocchi|makaron|knedl|mouk|múk|strouhan|panko|bulgur|cous ?cous|kuskus|seitan|tarhoň|pern[íi]k|kol[áa][čc]|bucht|croissant|koblih|su[šs]enk|pizza|tortill|wrap\b|kn[äa]ck|crispbread|crackers?|müsli|musli|granola|[šs]trúdl|strudl|[čc]ere[áa]l|vlo[čc]k|triti|pečiv/i,
   mleko:
-    /ml[eé]k|s[ýy]r|tvaroh|jogurt|zakysan|smetan|m[áa]sl|kef[íi]r|skyr|mozzarell|eidam|gouda|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|puding|zmrzlin|nanuk|[čc]okol[áa]d|srv[áa]tk|whey|kazein|kasein|casein|laktoz|bechamel|feta\b|bryndz|parenic|camembert|cheddar|brie\b|lu[čc]in|lip[áa]nek/i,
+    /ml[eé]k|s[ýy]r(?!up)|tvaroh|jogurt|zakysan|smetan|m[áa]sl|kef[íi]r|skyr|mozzarell|eidam|gouda|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|puding|zmrzlin|nanuk|[čc]okol[áa]d|srv[áa]tk|whey|kazein|kasein|casein|laktoz|bechamel|feta\b|bryndz|parenic|camembert|cheddar|brie\b|lu[čc]in|lip[áa]nek|cottage|cheese|quark|curd|halloumi|paneer/i,
   vejce: /vaj|vejc|[žz]loutk|majon[eé]z|mayonnaise|mayo\b|egg\b|tiramisu/i,
   ryby:
     /ryb(?![ií]z)|losos|tu[ňn][áa]k|tuna\b|sardink|sardel|makrel|kapr\b|pstruh|cand[áa]t|[šs]tik|[úu]ho[řr]|tresk|halibut|pangas|anchov|an[čc]ovi[čc]k|garn[áa]t|mo[řr]sk[éeé] ryb/i,
@@ -125,6 +127,48 @@ export const ALERGEN_FRAZE_VYNECH: Record<string, RegExp> = {
     /vla[šs]sk\w*\s+(?:pozdn[íi]|sb[ěe]r|m[íi]stn[íi]|ryzlink|v[íi]n|hrozn)|(?:ryzlink|veltlin|müller|mueller|thurgau|sauvignon|sylv[áa]nsk|frankovk|ruland|tram[íi]n|mu[šs]k[áa]t|pinot|chardonnay)\w*\s+vla[šs]sk\w*/gi,
   sezam: /\bhumus(?:em|u|ov[éeéý]|n[íi]m?)\w*/gi,
 };
+
+/* ------------------------------------------------------------
+ * Dietní tag vs. název – síť proti chybným tagům zdrojových dat
+ * (OFF tagy jsou crowdsourcované: „Cottage Cheese Pažitka" nesl
+ * dietní tag vegansky a mléčný alergen neměl vůbec žádný).
+ * Rostlinná deklarace v názvu („ovesné mléko", „alternativa
+ * kefíru", „tofu paštika", „bezvaječné těstoviny") veto ruší –
+ * jde o skutečné rostlinné produkty se živočišně-znějícím stylem.
+ * ------------------------------------------------------------ */
+
+/** Rostlinnost deklarovaná v názvu – ruší jakékoliv dietní veto.
+ *  Zahrnuje i známé rostlinné značky (Not milk, Beyond meat, LikeMeat). */
+const DIETA_ROSTL_DEKLARACE_RE =
+  /vegan|rostlinn|rostlinn[ýéě]|plant.?based|veggie|vegetari[áa]n|alternativ|aletrnativ|bez.?ml[eé]k|bez.?laktóz|dairy.?free|milk.?free|bez.?vajec|bezvaje[čc]|egg.?free|tofu|tempeh|seitan|not.?m[íi]lk|beyond\b|like.?meat/i;
+
+/** Rostlinná báze před živočišně-znějícím slovem – „kokosový jogurt",
+ *  „mandlová smetana", „arašídové máslo", „soya sausages", „potato milk". */
+const DIETA_ROSTL_BAZE_RE =
+  /(?:ovesn|ovsen|sójov|sojov|rýžov|ryzov|mandlov|kokosov|kešu|kesu|konopn|hrachov|špaldov|spaldov|lískooříškov|liskov|bramborov|lupinov|pistáciov|vlašsk|arašíd|araš[íi]d|peanut|ořechov|oříšk|mandel|mandl|cizrnov|makov|slunečnic|dýň|kakaov|bambuck|karit|oat|soya|soy\b|rice|coconut|almond|cashew|hazelnut|walnut|macadamia|hemp|pea\b|potato|quinoa|amaranth|chickpea|lentil|fava|buckwheat)[a-zá-žěščřžýíéůúó]*\s+(?:ml[eé]k|jogurt|smetan|kef[íi]r|s[ýy]r|m[áa]sl|tvaroh|paštik|pastik|pudink|zmrzlin|nanuk|dezert|klob[áa]s|sal[áa]m|šunk|p[aá]rk|cheese|milk|butter|cream|yogurt|yoghurt|sausages?|burgers?|nuggets?|meat\b|ice.?cream)\w*/i;
+
+/** Mléko/vejce v názvu – veganské veto (vegetarián mléko smí). */
+const DIETA_MLEKO_VEJCE_RE =
+  /ml[eé]k|s[ýy]r(?!up)|cottage|cheese|quark|curd|tvaroh|jogurt|skyr|smetan|kef[íi]r|m[áa]sl|eidam|gouda|mozzarell|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|feta\b|bryndz|parenic|camembert|cheddar|brie\b|halloumi|paneer|taven[ýy]|srv[áa]tk|whey|kazein|kasein|casein|bechamel|pannacott|vejce|vaje[čc]|[žz]loutk|majon[ée]z|mayo\b|egg\b|tiramisu|omelet|milk\b|\bbutter\b|cream\b|yogurt|yoghurt|ice.?cream|pudding/i;
+
+/** Maso/ryby/želatina v názvu – veto pro veganskou i vegetariánskou. */
+const DIETA_MASO_RYBY_RE =
+  /\bmaso|masit|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|telec|jehn[ěeč]|drůbež|šunk|sal[áa]m|klob[áa]s|chorizo|paštik|pastik|slanin|bacon|p[áa]rk|frankfurt|kabanos|jerky|prosciutt|kan[čc]|zaj[íi]c|bažant|kachn|hus[ay]|zverin|utopen|tla[čc]enk|jatern|j[íi]trnic|prešt|gyros|kebab\b|pork|ham\b|\bmeat\b|beef|chicken|turkey|poultry|salami|sausage|pepperoni|bologna|mortadella|lard\b|duck\b|lamb\b|goose\b|venison|mince\b|meatball|hotdog|wiener|schnitzel|wurst|bratwurst|leber|schinken|fleisch|carne\b|pollo|jam[oó]n|ryb(?!í[zž])|losos|tu[ňn][áa]k|tuna\b|sardink|sardel|makrel|kapr\b|pstruh|cand[áa]t|šti[ck]|úho[řr]|tresk|halibut|pangas|anchov|ančovičk|krevet|garn[áa]t|krab(?!i)|humr|\brak[au]?\b|raci\b|kor[ýy]š|kalam[áa]r|mušle|úst[řr]ic|slávk|chobotnic|sepie|oliheň|fish\b|salmon|herring|shrimp|prawn|lobster|squid|octopus|clam\b|mussel|oyster|eel\b|cod\b|trout|želatin|zselatin/i;
+
+/** Med/želatina apod. – navíc jen pro veganskou dietu. */
+const DIETA_VEGAN_EXTRA_RE = /\bmed\b|medov|včel[íi]|propolis|honey/i;
+
+/**
+ * Název vylučuje dietní tag? Vrací true, když se potravina tváří
+ * živočišně a není to z názvu zjevně rostlinná verze. Aplikuje se
+ * jen na diety se zdrojově nejistými tagy (veganská, vegetariánská).
+ */
+export function nazevVylucujeDietu(nazev: string, dieta: string): boolean {
+  if (dieta !== "vegansky" && dieta !== "vegetariansky") return false;
+  if (DIETA_ROSTL_DEKLARACE_RE.test(nazev) || DIETA_ROSTL_BAZE_RE.test(nazev)) return false;
+  if (DIETA_MASO_RYBY_RE.test(nazev)) return true;
+  return dieta === "vegansky" && (DIETA_MLEKO_VEJCE_RE.test(nazev) || DIETA_VEGAN_EXTRA_RE.test(nazev));
+}
 
 /** Název potraviny nasvědčuje přítomnosti alergenu? Síť pro chybějící tagy.
  *  Respektuje deklarované „bez X" námitky a před testem vynechává
@@ -172,7 +216,10 @@ export function filtrujPotraviny(
   if (diety.length === 0 && alergeny.length === 0) return potraviny;
   return potraviny.filter(
     (p) =>
-      diety.every((d) => (p.diety ?? []).includes(d)) &&
+      // dietní tag nestačí – crowdsourcované tagy občas lžou
+      // („Cottage Cheese Pažitka" s tagem vegansky), jmenná
+      // síť chybný tag přehlasuje, deklaraci rostlinnosti respektuje
+      diety.every((d) => (p.diety ?? []).includes(d) && !nazevVylucujeDietu(p.nazev, d)) &&
       alergeny.every((a) => !obsahujeAlergen(p, a)),
   );
 }
@@ -746,6 +793,20 @@ export function vyberKandidata(
     kandidati = bezRodiny;
   }
 
+  // 1c) rodina použitá ≥3× v předchozích dnech týdne vypadne úplně.
+  //     Měkký malus ji nedokáže zastavit, když je jedinou kulinářsky
+  //     vhodnou položkou poolu (vegan: proteinové plátky jako jediná
+  //     snídaňová kotva → 7× za týden, i když skóre malus zdeformoval
+  //     pod práh a fallback vrátil plný pool bez penalizace).
+  //     Bez alternativ se rodina vrátí – plán musí fungovat vždy.
+  const MAX_POUZITI_TYDEN = 3;
+  const cerstve = kandidati.filter(
+    (p) => (minuleDny.get(klicPodobnosti(p.nazev)) ?? 0) < MAX_POUZITI_TYDEN,
+  );
+  if (cerstve.length > 0) {
+    kandidati = cerstve;
+  }
+
   // 2) rotujeme jen mezi cenově srovnatelnými kandidáty.
   //    vhodnostRe: kulinářsky vhodné potraviny dostanou bonus ×2,5 při
   //    posuzování srovnatelnosti (vhodná potravina „dotáhne" až 2,5×
@@ -908,7 +969,12 @@ export function naplanujJidlo(
   // doplněk mají vlastní preference + protivzory (tyčinka není oběd,
   // špagety nejsou svačina). Vše měkké – bez kandidátů plný pool.
   const typJ = typJidlaZ_nazvu(nazevJidla);
-  const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, typJ);
+  const zakazane = (p: Potravina) =>
+    zakazaneProTyp(p, typJ) ||
+    // fantómové kcal: deklarované kcal se liší od součtu maker o >35 %
+    // (Lunter Wok&Bowl: 220 uvedeno vs 88 z maker → +317 kcal mimo
+    // solver v jednom jídle). Taková data plán zkreslí obousměrně.
+    lisiSeKalorie(p.kalorie, p.bilkoviny, p.sacharidy, p.tuky);
   const reKotva = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : OBED_VECERE_RE;
   const antiKotva = kotvaAntiRe(typJ);
   const rePriloha = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : PRILOHA_RE;
@@ -1416,7 +1482,9 @@ function doladujDen(
     if (chyba <= 1) return false;
     for (const cil of serazenaJidla()) {
       let pool: Kandidat[];
-      const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, cil.typJ);
+      const zakazane = (p: Potravina) =>
+        zakazaneProTyp(p, cil.typJ) ||
+        lisiSeKalorie(p.kalorie, p.bilkoviny, p.sacharidy, p.tuky);
       if (makro === "tuky") {
         // olej patří do hlavního jídla (10 g k pokrmu), k snídani/svačině
         // preferujeme ořechy a sýry – čistý tuk v jídelní formě
@@ -1507,7 +1575,9 @@ function doladujDen(
       tuky: cile.tuky * 1.05 - s.t,
     };
     for (const cil of serazenaJidla()) {
-      const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, cil.typJ);
+      const zakazane = (p: Potravina) =>
+        zakazaneProTyp(p, cil.typJ) ||
+        lisiSeKalorie(p.kalorie, p.bilkoviny, p.sacharidy, p.tuky);
       // sacharidový doplněk má sedět k jídlu – jinak končí jogurt
       // jako „příloha" oběda
       const reSach =

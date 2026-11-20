@@ -3,6 +3,7 @@ import {
   BONUS_SLEVY,
   filtrujPotraviny,
   nazevNasvedcujeAlergenu,
+  nazevVylucujeDietu,
   obsahujeAlergen,
   jeCenaSpolehliva,
   jeJunk,
@@ -1410,6 +1411,98 @@ describe("živý katalog – audit 7denního plánu", () => {
     const kotva = jidla.find((j) => j.role === "kotva");
     expect(kotva!.kalorie).toBeLessThanOrEqual(600 * 0.7 + 1);
     expect(jidla.find((j) => j.role === "zelenina")).toBeDefined();
+  });
+
+  it("rodina použitá ≥3× v týdnu vypadne z výběru, dokud existuje alternativa", () => {
+    // regrese: vegan audit – proteinové plátky kotvily snídani 7× za
+    // týden. Měkký malus je srazil pod práh srovnatelnosti, ale prázdný
+    // srovnatelný pool vrátil plný seznam a jediná „vhodná" položka
+    // (proteinov~ → snídaňová vhodnost) vyhrála znovu.
+    const platky = { ...p("a", "Proteinové plátky z hrášku", 20, 10, 10, 220, 5), skore: 10 };
+    const seitan = { ...p("b", "Seitan natural", 20, 5, 3, 127, 4), skore: 5 };
+    const minule = new Map([["proteinove platky", 3]]);
+    for (let poradi = 0; poradi < 4; poradi++) {
+      const v = vyberKandidata(
+        [platky, seitan] as never, poradi, [], 1, 0.6, /proteinov/i, null, new Set(), minule,
+      );
+      expect(v?.id).toBe("b");
+    }
+    // bez alternativ se rodina vrátí – plán nesmí skončit bez kotvy
+    const v2 = vyberKandidata(
+      [platky] as never, 0, [], 1, 0.6, /proteinov/i, null, new Set(), minule,
+    );
+    expect(v2?.id).toBe("a");
+  });
+
+  it("potravina s fantómovými kcal (>35 % nad makra) nemůže být kotva", () => {
+    // regrese: Lunter Wok&Bowl (220 kcal uvedeno, 88 z maker) vyrobil
+    // +317 kcal mimo solver v jednom jídle → den na +8,7 % kcal
+    const kat = {
+      bilkovinova: [
+        { ...p("f1", "Wok bowl fantom", 15, 5, 3, 220, 5), skore: 99 },
+        { ...p("k1", "Seitan natural", 25, 3, 3, 139, 8), skore: 5 },
+      ],
+      sacharidova: [
+        { ...p("z1", "Červená řepa", 1.7, 9.6, 0.2, 45, 1.7), skore: 5 },
+        { ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 },
+      ],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "kotva")?.id).toBe("k1");
+    expect(jidla.some((j) => j.id === "f1")).toBe(false);
+  });
+
+  it("dietní veto: živočišný název přehlasuje chybný veganský tag", () => {
+    // regrese: Cottage Cheese Pažitka nesl crowdsourcovaný tag vegansky
+    expect(nazevVylucujeDietu("Cottage Cheese Pažitka", "vegansky")).toBe(true);
+    expect(nazevVylucujeDietu("Tuňáková pomazánka (tuna)", "vegansky")).toBe(true);
+    expect(nazevVylucujeDietu("Tuňáková pomazánka (tuna)", "vegetariansky")).toBe(true);
+    expect(nazevVylucujeDietu("Pasta Basta kari - kuřecí", "vegetariansky")).toBe(true);
+    expect(nazevVylucujeDietu("Kefír černý rybíz", "vegansky")).toBe(true);
+    // vegetarián mléko smí – kefír je pro něj v pořádku
+    expect(nazevVylucujeDietu("Kefír černý rybíz", "vegetariansky")).toBe(false);
+    // rostlinné deklarace a báze veto ruší – skutečné vegan produkty
+    for (const n of [
+      "Ovesné mléko",
+      "Kokosový jogurt",
+      "Mandlová alternativa jogurtu s vanilkou",
+      "Alternativa kefíru s příchutí višní",
+      "Vegan sýrová pomazánka",
+      "Patifu - prémiová tofu paštika toskánská",
+      "Bezvaječné těstoviny",
+      "Tatarská omáčka bez vajec",
+      "Arašídové máslo",
+      "Rostlinné máslo",
+      "Klobáskový seitan",
+      "Špaldová alternativa smetany",
+      "Cizrnové jídlo s kokosovým mlékem",
+    ]) {
+      expect(nazevVylucujeDietu(n, "vegansky"), n).toBe(false);
+      expect(nazevVylucujeDietu(n, "vegetariansky"), n).toBe(false);
+    }
+    // jiné diety síť neřeší
+    expect(nazevVylucujeDietu("Cottage Cheese", "bezlepkovy")).toBe(false);
+  });
+
+  it("veganský filtr propustí rostlinné mléko, ale ne chybně tagovaný cottage", () => {
+    const katalog = [
+      p("c1", "Cottage Cheese Pažitka", 11, 3, 4, 95, 40),
+      p("o1", "Ovesné mléko", 1, 7, 3, 60, 40),
+      p("s1", "Seitan natural", 25, 3, 3, 139, 8),
+    ];
+    katalog[0]!.diety = ["vegansky", "vegetariansky"];
+    katalog[1]!.diety = ["vegansky", "vegetariansky"];
+    katalog[2]!.diety = ["vegansky", "vegetariansky"];
+    const prošlé = filtrujPotraviny(katalog, { diety: ["vegansky"], alergeny: [] }).map((x) => x.id);
+    expect(prošlé).toEqual(["o1", "s1"]);
+  });
+
+  it("syrup není sýr – jmenná síť mléka nemá falešnou shodu na sirup", () => {
+    expect(nazevNasvedcujeAlergenu("BIO Rice syrup", "mleko")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Javorový sirup", "mleko")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Cottage Cheese Pažitka", "mleko")).toBe(true);
+    expect(nazevNasvedcujeAlergenu("Sýrová pomazánka", "mleko")).toBe(true);
   });
 });
 
