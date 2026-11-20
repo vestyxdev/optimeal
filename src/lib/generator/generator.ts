@@ -588,7 +588,7 @@ export function jeJunk(p: { nazev: string }): boolean {
  * (kosmetika, drogerie, krmiva, tablety) – vyloučení ze všech jídel.
  */
 const NEPOTRAVINA_RE =
-  /s[ée]rum|pleťov|plet|kosmeti|šampon|m[ýy]dl|dezinfek|parf[ée]m|toaletn|prac[íi]\s|detergent|dopln[ěe]k stravy|tableta|kapsl|vitam[íi]n|probiotik|kolagen|omega.?3|hořčík|magnez|veterin[áa]r|granule pro|krmiv|pipet|antiparazit|odčerv|substr[aá]t|hnojiv|podest[ýy]l|pokojov[ée] rostlin|tr[áa]vn[íi]k|zahradni[čc]|insekticid|pesticid/i;
+  /s[ée]rum|pleťov|plet(?!ýn)|kosmeti|šampon|m[ýy]dl|dezinfek|parf[ée]m|toaletn|prac[íi]\s|detergent|dopln[ěe]k stravy|tableta|kapsl|vitam[íi]n|probiotik|kolagen|omega.?3|hořčík|magnez|veterin[áa]r|granule pro|krmiv|pipet|antiparazit|odčerv|substr[aá]t|hnojiv|podest[ýy]l|pokojov[ée] rostlin|tr[áa]vn[íi]k|zahradni[čc]|insekticid|pesticid/i;
 
 /** Nepotravina (kosmetika, drogerie, krmivo, tablety). Vejce
  * obohacená o omega-3 jsou potravina, ne doplněk stravy. */

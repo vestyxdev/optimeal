@@ -1,4 +1,5 @@
 import type { KatalogPotravina } from "@/lib/data/potraviny";
+import { jeNepotravinovy } from "@/lib/generator/generator";
 import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { gramyBilkovinNa100Kc } from "@/lib/vyziva/hodnota";
 
@@ -70,6 +71,10 @@ export function filtrujKatalog(
   const vybrane = potraviny.filter((p) => {
     if (kategorie !== "vse" && p.kategorie !== kategorie) return false;
     if (jenSlevy && !p.sleva) return false;
+    // bez dotazu (procházení) nepotraviny schováváme – kosmetika/séry
+    // z drogistických feedů by jinak zaplňovala „ostatni"; při hledání
+    // je uživatelův záměr důležitější než heuristika → zobrazit
+    if (dot === "" && jeNepotravinovy(p)) return false;
     if (dot === "") return true;
     const s = skoreShody(bezDiakritiky(p.nazev), dot);
     if (s > 0) {
