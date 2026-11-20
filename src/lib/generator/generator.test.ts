@@ -1229,6 +1229,117 @@ describe("alkohol a nápoje – nikdy v jídelníčku", () => {
   });
 });
 
+describe("živý katalog – audit 7denního plánu", () => {
+  it("kotva potřebuje ≥4 g bílkovin na 100 g (špenát/zelí nekothví)", () => {
+    const kat = {
+      bilkovinova: [
+        // „bilkovinový" poměrem B:kcal, ale jen 2,9 g B/100 g
+        { ...p("sp1", "Špenát krájený mražený", 2.9, 3.6, 0.4, 25, 2), skore: 99 },
+        { ...p("k1", "Kuřecí prsa", 23, 0, 2.6, 114, 20), skore: 5 },
+      ],
+      sacharidova: [{ ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 }],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "kotva")?.id).toBe("k1");
+  });
+
+  it("měkký spodek: když jiné bílkoviny nejsou, kotví i nízkobílkovinná", () => {
+    const kat = {
+      bilkovinova: [{ ...p("sp1", "Špenát krájený", 2.9, 3.6, 0.4, 25, 2), skore: 9 }],
+      sacharidova: [{ ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 }],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "kotva")?.id).toBe("sp1");
+  });
+
+  it("banánový květ a hummus/pomazánky nejsou kusové potraviny", () => {
+    // „Banánový květ" nesmí dostat 120 g kus banánu (4 ks = 480 g)
+    expect(kusovaGramaz("Banánový květ ve slaném nálevu")).toBeNull();
+    expect(kusovaGramaz("Avokádový hummus")).toBeNull();
+    expect(kusovaGramaz("Hummus cizrnová pomazánka se smaženou cibulkou")).toBeNull();
+    expect(kusovaGramaz("Banán")).toBe(120);
+  });
+
+  it("seitan mix/směs je přísada, hotový seitan kotví", () => {
+    expect(jePrisada({ nazev: "Seitan mix" })).toBe(true);
+    expect(jePrisada({ nazev: "Seitanová směs" })).toBe(true);
+    expect(jePrisada({ nazev: "Marinovaný seitan" })).toBe(false);
+    expect(jePrisada({ nazev: "Seitan na houbách" })).toBe(false);
+  });
+
+  it("gelee, mražený krém a dezert jsou junk", () => {
+    expect(jeJunk({ nazev: "Gelee mit bananen geschmack" })).toBe(true);
+    expect(jeJunk({ nazev: "Vanilkový mražený krém s malinami" })).toBe(true);
+    expect(jeJunk({ nazev: "Kaštanový dezert" })).toBe(true);
+  });
+
+  it("jerky má vlastní porci 30–60 g, ne masových 80–250", () => {
+    expect(zaokrouhliGramaz({ nazev: "Sušené maso hovězí" }, 500, "kotva", "svacina")).toBe(60);
+    expect(zaokrouhliGramaz({ nazev: "Beef Jerky Cracked Pepper" }, 500, "kotva", "svacina")).toBe(60);
+    expect(zaokrouhliGramaz({ nazev: "Sušené maso hovězí" }, 10, "kotva", "svacina")).toBe(30);
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 500, "kotva", "svacina")).toBe(250);
+  });
+
+  it("stupňovaný malus minulých dnů vytlačí opakovanou rodinu", () => {
+    const kandidati = [
+      { ...p("a", "Alfa", 10, 0, 0, 40, 1), skore: 10 },
+      { ...p("b", "Beta", 10, 0, 0, 40, 1), skore: 9 },
+      { ...p("c", "Celta", 10, 0, 0, 40, 1), skore: 8 },
+    ] as never;
+    // alfa 3× minulé dny (×0,125), beta 1× (×0,5) – obě pod práh,
+    // rotace musí padnout na celtu bez ohledu na offset
+    const minule = new Map([["alfa", 3], ["beta", 1]]);
+    for (let poradi = 0; poradi < 4; poradi++) {
+      const v = vyberKandidata(kandidati, poradi, [], 1, 0.6, null, null, new Set(), minule);
+      expect(v?.id).toBe("c");
+    }
+  });
+
+  it("fantómové kcal (deklarované ≫ makra) prohrávají výběr", () => {
+    // sardinky v oleji: 200 kcal deklarováno, makra dají jen ~130
+    const konzistentni = { ...p("a", "Alfa konzistentní", 10, 10, 5, 130, 5), skore: 8 };
+    const fantom = { ...p("b", "Beta fantom", 10, 10, 5, 200, 4), skore: 9 };
+    const v = vyberKandidata(
+      [fantom, konzistentni] as never, 0, [], 1, 0.6, null, null, new Set(), new Map(),
+    );
+    expect(v?.id).toBe("a");
+  });
+
+  it("zeleninová strana nebere hotová jídla nad 150 kcal/100 g", () => {
+    const kat = {
+      bilkovinova: [{ ...p("k1", "Kuřecí prsa", 23, 0, 2.6, 114, 20), skore: 5 }],
+      sacharidova: [
+        // „zeleninová směs" jako hotový pokrm v omáčce – 433 kcal/100 g
+        { ...p("z1", "Zeleninová směs s rajčaty a bazalky", 8, 12, 38, 433, 6), skore: 99 },
+        { ...p("z2", "Červená řepa", 1.7, 9.6, 0.2, 45, 1.7), skore: 5 },
+        { ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 },
+      ],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 30, 60, 15, 600, [], 1, 0.85, "Oběd");
+    expect(jidla.find((j) => j.role === "zelenina")?.id).toBe("z2");
+  });
+
+  it("hutná kotva nespotřebuje celý kalorický rozpočet talíře", () => {
+    // hustá kotva (60 g B, 500 kcal /100 g) – bez stropu by si vzala
+    // celých 600 kcal a na přílohu+zeleninu by nic nezbylo
+    const kat = {
+      bilkovinova: [{ ...p("h1", "Seitan hustý", 60, 2, 5, 500, 20), skore: 9 }],
+      sacharidova: [
+        { ...p("z1", "Červená řepa", 1.7, 9.6, 0.2, 45, 1.7), skore: 5 },
+        { ...p("r1", "Rýže", 7.5, 78, 0.6, 350, 4), skore: 5 },
+      ],
+      tukova: [{ ...p("o1", "Olivový olej", 0, 0, 100, 884, 9), skore: 5 }],
+    } as never;
+    const jidla = naplanujJidlo(kat, 0, 60, 60, 15, 600, [], 1, 0.85, "Oběd");
+    const kotva = jidla.find((j) => j.role === "kotva");
+    expect(kotva!.kalorie).toBeLessThanOrEqual(600 * 0.7 + 1);
+    expect(jidla.find((j) => j.role === "zelenina")).toBeDefined();
+  });
+});
+
 describe("denní solver – vyvažování jídel", () => {
   it("žádné hlavní jídlo neodchýlí se o víc než ~55 % od svého podílu", () => {
     // regrese: pevné pořadí krácení (Snídaně→Večeře) umělo nechat

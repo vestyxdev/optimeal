@@ -264,7 +264,7 @@ export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?:
  * jen jako samostatná slova (máslový chléb zůstane pečivem).
  */
 const PRISADA_RE =
-  /\b(olej\b|olio\b|oil\b|oel\b|olaj\b|öl\b|napraforg|sonnenblumen|huile|olivov|margarin|s[aá]dl|lůj|mouk|múk|cukr|sirup|syrup|ocet|tapioc|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|bulion|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|mayonnaise|mayo\b|tatarsk|tatark|om[áa][čc]k|sauces?|dresink|dressing|hořčic|kremžsk|senf\b|mustard|ochucovadl|kucharek|kucharka|vegeta\b|krupic|nápoj|n[áa]pojov|j[ií][šš]k|rama\b|gh[ií]\b|ghee|hera\b|perla\b|flora\b|zlat[áa] han|rozt[ií]rateln[ýy] tuk|cooking|seitan\w*\s+(mix|sm[ěe]s)|sm[ěe]s na seitan)|želatin/i;
+  /\b(olej\b|olio\b|oil\b|oel\b|olaj\b|öl\b|napraforg|sonnenblumen|huile|olivov|margarin|s[aá]dl|lůj|mouk|múk|cukr|sirup|syrup|ocet|tapioc|s[oóůu][lľ]\b|ko[řr]en[íi]|drožd|kyp[řr]ic|jedl[aá] sod|bobkov|major[aá]n|sko[řr]ic|km[íi]n|pep[řr]\b|buj[oó]n|bu[ďd]on|bulion|maggi|m[aá]slo\b|med\b|caro\b|majon[eé]z|mayonnaise|mayo\b|tatarsk|tatark|om[áa][čc]k|sauces?|dresink|dressing|hořčic|kremžsk|senf\b|mustard|ochucovadl|kucharek|kucharka|vegeta\b|krupic|nápoj|n[áa]pojov|j[ií][šš]k|rama\b|gh[ií]\b|ghee|hera\b|perla\b|flora\b|zlat[áa] han|rozt[ií]rateln[ýy] tuk|cooking|seitan\S*\s+(mix|sm[ěe]s)|sm[ěe]s na seitan)|želatin/i;
 
 /** Je potravina kuchyňská surovina, ne samostatná složka jídla? */
 export function jePrisada(p: { nazev: string }): boolean {
