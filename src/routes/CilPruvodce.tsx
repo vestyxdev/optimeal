@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth";
 import { nactiProfil, ulozCile, ulozProfil } from "@/lib/data/profil";
+import { nactiKalibraci } from "@/lib/data/kalibrace";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
 import { cn } from "@/lib/cn";
 import type { Aktivita, Cile, CilTela, Pohlavi } from "@/lib/vyziva/cile";
@@ -57,6 +58,7 @@ interface Stav {
   vek: string;
   vyska: string;
   vaha: string;
+  tuk: string;
   cilTela: CilTela | null;
   cilovaVaha: string;
   tempo: number;
@@ -68,6 +70,7 @@ const VYCHOZI: Stav = {
   vek: "30",
   vyska: "175",
   vaha: "80",
+  tuk: "",
   cilTela: null,
   cilovaVaha: "70",
   tempo: 0.5,
@@ -106,6 +109,7 @@ export function CilPruvodce() {
       vek: profil.vekRoku ? String(profil.vekRoku) : s.vek,
       vyska: profil.vyskaCm ? String(profil.vyskaCm) : s.vyska,
       vaha: profil.vahaKg ? String(profil.vahaKg) : s.vaha,
+      tuk: profil.teloTukProcento ? String(profil.teloTukProcento) : s.tuk,
       cilTela: profil.cilTela ?? s.cilTela,
       cilovaVaha: profil.cilovaVahaKg ? String(profil.cilovaVahaKg) : s.cilovaVaha,
       tempo: profil.tempoKgTydne ?? s.tempo,
@@ -125,9 +129,20 @@ export function CilPruvodce() {
   }, [aktualniKrok]);
 
   const cisla = useMemo(
-    () => ({ vek: cislo(stav.vek), vyska: cislo(stav.vyska), vaha: cislo(stav.vaha), cilovaVaha: cislo(stav.cilovaVaha) }),
-    [stav.vek, stav.vyska, stav.vaha, stav.cilovaVaha],
+    () => ({
+      vek: cislo(stav.vek), vyska: cislo(stav.vyska), vaha: cislo(stav.vaha),
+      cilovaVaha: cislo(stav.cilovaVaha), tuk: cislo(stav.tuk),
+    }),
+    [stav.vek, stav.vyska, stav.vaha, stav.cilovaVaha, stav.tuk],
   );
+
+  // adaptivní kalibrace TDEE z deníku + historie váhy (přihlášený)
+  const dotazKalibrace = useQuery({
+    queryKey: ["kalibrace"],
+    queryFn: nactiKalibraci,
+    enabled: uzivatel !== null,
+  });
+  const kalibrace = dotazKalibrace.data ?? null;
 
   // průběžný plán – počítá se živě na kroku tempo i souhrn
   const plan = useMemo(() => {
@@ -140,10 +155,12 @@ export function CilPruvodce() {
       vyskaCm: cisla.vyska,
       vahaKg: cisla.vaha,
       cilTela,
+      teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
       ...(cilTela !== "udrzet" ? { cilovaVahaKg: cisla.cilovaVaha } : {}),
       tempoKgTydne: stav.tempo,
+      ...(kalibrace ? { kalibrace: { tdeeNamerene: kalibrace.tdeeNamerene, vaha: kalibrace.vaha } } : {}),
     });
-  }, [stav.pohlavi, stav.treninky, stav.tempo, cilTela, cisla]);
+  }, [stav.pohlavi, stav.treninky, stav.tempo, cilTela, cisla, kalibrace]);
 
   const cile = upravy ?? plan?.cile ?? null;
 
@@ -158,6 +175,7 @@ export function CilPruvodce() {
               cilTela, vahaKg: cisla.vaha, vyskaCm: cisla.vyska, vekRoku: cisla.vek,
               cilovaVahaKg: cilTela === "udrzet" ? null : cisla.cilovaVaha,
               tempoKgTydne: cilTela === "udrzet" ? null : stav.tempo,
+              teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
             },
             cile: c,
           }));
@@ -175,6 +193,7 @@ export function CilPruvodce() {
         vekRoku: cisla.vek,
         cilovaVahaKg: cilTela === "udrzet" ? null : cisla.cilovaVaha,
         tempoKgTydne: cilTela === "udrzet" ? null : stav.tempo,
+        teloTukProcento: Number.isFinite(cisla.tuk) ? cisla.tuk : null,
       });
       await ulozCile(c, upravy ? "manual" : "auto");
     },
@@ -284,11 +303,42 @@ export function CilPruvodce() {
                 <VolicCisla id="cile-vaha" popis="Váha" jednotka="kg" hodnota={stav.vaha}
                   naZmenu={(v) => setStav({ ...stav, vaha: v })} min={30} max={300} />
               </div>
+
+              {/* pokročilé – % tuku přepne na přesnější rovnici */}
+              <button
+                type="button"
+                onClick={() => setStav({ ...stav, tuk: stav.tuk === "" ? "20" : "" })}
+                className={cn(
+                  "flex min-h-[44px] w-full items-center justify-between gap-2 rounded-card border px-4 py-2.5 text-sm transition-colors",
+                  stav.tuk !== "" ? "border-primary bg-primary-soft" : "border-dashed border-border text-muted hover:text-fg",
+                )}
+                aria-pressed={stav.tuk !== ""}
+              >
+                <span className="font-semibold">Znám % tělesného tuku</span>
+                <span className="text-xs">{stav.tuk !== "" ? "zapnuto – přesnější výpočet" : "nepovinné, zvyšuje přesnost"}</span>
+              </button>
+              {stav.tuk !== "" && (
+                <VolicCisla id="cile-tuk" popis="Tuk" jednotka="%" hodnota={stav.tuk}
+                  naZmenu={(v) => setStav({ ...stav, tuk: v })} min={3} max={60} krok={0.5} />
+              )}
+
               {plan && (
-                <p className="rounded-card bg-surface-2 px-4 py-3 text-sm text-muted">
-                  Odhad základního výdeje: <span className="font-semibold text-fg">{formatujKcal(plan.bmr)} kcal</span>,
-                  s aktivitou <span className="font-semibold text-fg">{formatujKcal(plan.tdee)} kcal</span> denně.
-                </p>
+                <div className="rounded-card bg-surface-2 px-4 py-3 text-sm text-muted">
+                  <p>
+                    Odhad základního výdeje: <span className="font-semibold text-fg">{formatujKcal(plan.bmr)} kcal</span>,
+                    s aktivitou <span className="font-semibold text-fg">{formatujKcal(plan.tdee)} kcal</span> denně.
+                  </p>
+                  <p className="mt-1 flex flex-wrap gap-x-2 text-xs">
+                    {plan.rovnice === "katch" && (
+                      <span className="font-semibold text-ok">Katch–McArdle z beztuké hmotnosti</span>
+                    )}
+                    {plan.kalibrovano && kalibrace && (
+                      <span className="font-semibold text-ok">
+                        kalibrováno z {kalibrace.dnyDeniku} dní deníku
+                      </span>
+                    )}
+                  </p>
+                </div>
               )}
             </KrokOtazka>
           )}
@@ -807,6 +857,13 @@ function KrokSouhrn({ nadpisRef, plan, cile, setUpravy, cilTela, aktualniVaha, c
           )}
           .
         </p>
+        {(plan.rovnice === "katch" || plan.kalibrovano) && (
+          <p className="mt-1 text-xs">
+            {plan.rovnice === "katch" && <span className="font-semibold text-ok">Katch–McArdle</span>}
+            {plan.rovnice === "katch" && plan.kalibrovano && " · "}
+            {plan.kalibrovano && <span className="font-semibold text-ok">kalibrováno z tvého deníku a váhy</span>}
+          </p>
+        )}
       </div>
     </KrokOtazka>
   );

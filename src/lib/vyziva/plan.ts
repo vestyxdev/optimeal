@@ -4,13 +4,17 @@ import { doladMakra, type Aktivita, type Cile, type CilTela, type Pohlavi } from
  * Vědecký výpočet kalorického plánu (Cal AI styl) – čisté funkce
  * pro průvodce cíli i jeho testy.
  *
- * BMR:  Mifflin-St Jeor (muž +5 / žena −161)
- * TDEE: BMR × faktor aktivity zvolené podle tréninků týdně
- * Tempo: 1 kg hmotnosti ≈ 7 700 kcal → denní korekce = kg/týden × 1100
- * Podlahy: muž 1 500 kcal, žena 1 200 kcal (bezpečnostní minimum)
- * Makra: bílkoviny 1,8–2,2 g/kg cílové váhy (priorita zachování
- *        svalů / růstu), tuky 25 % kcal (min. 0,7 g/kg), sacharidy
- *        zbytek – a doladMakra garantuje 4B+4S+9T ≡ kcal přesně.
+ * BMR:  Katch–McArdle (370 + 21,6 × beztuká hmotnost), když je známé
+ *       % tělesného tuku – přesnější pro hubená i těžší těla;
+ *       jinak Mifflin-St Jeor (muž +5 / žena −161).
+ * TDEE: BMR × faktor aktivity zvolené podle tréninků týdně.
+ *       Když máme deník a historii váhy, výsledek se váženě
+ *       kalibruje na NAMĚŘENÝ výdej (příjem − Δkg×7700/dny).
+ * Tempo: 1 kg hmotnosti ≈ 7 700 kcal → denní korekce = kg/týden × 1100.
+ * Podlahy: muž 1 500 kcal, žena 1 200 kcal (bezpečnostní minimum).
+ * Makra: bílkoviny 1,8–2,2 g/kg cílové (u známého % tuku beztuké)
+ *        hmotnosti, tuky 25 % kcal (min. 0,7 g/kg), sacharidy zbytek –
+ *        doladMakra garantuje 4B+4S+9T ≡ kcal přesně.
  */
 
 export const KCAL_NA_KG = 7700;
@@ -39,13 +43,29 @@ export function rozsahTempa(cil: CilTela): { min: number; max: number; vychozi: 
   return { min: 0, max: 0, vychozi: 0 }; // udržet – tempo se neřeší
 }
 
-/** BMR Mifflin-St Jeor. */
+/** Rozumová mez pro % tělesného tuku (stejná jako CHECK v DB). */
+export const TUK_MEZ = { min: 3, max: 60 } as const;
+
+/** Beztuká (libová) hmotnost v kg – null když % tuku není známé. */
+export function bezttukaHmotnost(vahaKg: number, tukProcento?: number | null): number | null {
+  if (tukProcento === null || tukProcento === undefined) return null;
+  if (!Number.isFinite(tukProcento) || tukProcento < TUK_MEZ.min || tukProcento > TUK_MEZ.max) return null;
+  return vahaKg * (1 - tukProcento / 100);
+}
+
+/**
+ * BMR – při známém % tuku Katch–McArdle (beztuká hmotnost),
+ * jinak Mifflin-St Jeor.
+ */
 export function spocitejBmr(v: {
   vahaKg: number;
   vyskaCm: number;
   vekRoku: number;
   pohlavi: Pohlavi;
+  teloTukProcento?: number | null;
 }): number {
+  const lbm = bezttukaHmotnost(v.vahaKg, v.teloTukProcento);
+  if (lbm !== null) return 370 + 21.6 * lbm;
   return (
     10 * v.vahaKg + 6.25 * v.vyskaCm - 5 * v.vekRoku + (v.pohlavi === "m" ? 5 : -161)
   );
@@ -76,10 +96,18 @@ export interface VstupyPlanu {
   vyskaCm: number;
   vahaKg: number;
   cilTela: CilTela;
+  /** % tělesného tuku – když je známé, počítá se Katch–McArdle */
+  teloTukProcento?: number | null;
   /** cílová váha – povinná pro zhubnout/zhodnotit */
   cilovaVahaKg?: number;
   /** kg/týden – ignoruje se u „udrzet" */
   tempoKgTydne?: number;
+  /**
+   * Kalibrace z reálných dat (deník + historie váhy):
+   * namereny TDEE se váženě zamíchá s odhadem z rovnice.
+   * vaha v rozsahu 0–1 – kolik důvěry má měření (viz spocitejKalibraci).
+   */
+  kalibrace?: { tdeeNamerene: number; vaha: number };
 }
 
 export interface Plan {
@@ -92,6 +120,10 @@ export interface Plan {
   pouzitaPodlaha: boolean;
   /** odhadované datum dosažení cílové váhy (null u udržet) */
   terminCile: Date | null;
+  /** použitá rovnice BMR – „katch" = přesnější, známe % tuku */
+  rovnice: "katch" | "mifflin";
+  /** true, když se TDEE kalibrovalo na data z deníku a váhy */
+  kalibrovano: boolean;
 }
 
 /** Denní korekce kalorií z tempa: kg/týden × 7700 / 7, se znaménkem. */
@@ -117,29 +149,70 @@ export function odhadTerminu(
   return new Date(dnes.getTime() + tydny * 7 * 86400e3);
 }
 
-/** g bílkovin na kg cílové váhy podle cíle – deficit šetří svaly nejvíc. */
+/** g bílkovin na kg hmotnosti podle cíle – deficit šetří svaly nejvíc. */
 export function bilkovinyNaKg(cil: CilTela): number {
   return cil === "zhubnout" ? 2.2 : cil === "zhodnotit" ? 1.8 : 2.0;
 }
 
 /**
- * Kompletní plán: BMR → TDEE → korekce tempem (+podlaha) → makra.
+ * Naměřený TDEE z reálných dat: průměrný denní příjem z deníku
+ * minus energetická bilance odpovídající změně váhy.
+ *   TDEE = příjem − (Δkg × 7700) / dny
+ * Vrátí null, když je málo dat (< minDniDeniku nebo < minRozpetiDni).
+ * Váha výsledku roste s daty, ale nikdy nepřesáhne 0,6 – rovnice
+ * si vždy ponechá slovo, deník bývá neúplný.
+ */
+export function spocitejKalibraci(v: {
+  /** dny, ve kterých deník obsahuje aspoň jeden záznam */
+  dnyDeniku: number;
+  /** průměrný denní příjem kcal za tyto dny */
+  prijemKcalDenne: number;
+  /** rozdíl váhy poslední − první záznam (záporný = hubnutí) */
+  zmenaVahyKg: number;
+  /** dní mezi prvním a posledním záznamem váhy */
+  rozsahDni: number;
+  minDniDeniku?: number;
+  minRozpetiDni?: number;
+}): { tdeeNamerene: number; vaha: number } | null {
+  const minD = v.minDniDeniku ?? 10;
+  const minR = v.minRozpetiDni ?? 10;
+  if (v.dnyDeniku < minD || v.rozsahDni < minR || v.prijemKcalDenne <= 0) return null;
+  const tdeeNamerene = v.prijemKcalDenne - (v.zmenaVahyKg * KCAL_NA_KG) / v.rozsahDni;
+  if (!Number.isFinite(tdeeNamerene) || tdeeNamerene < 800 || tdeeNamerene > 6000) return null;
+  const vaha = Math.min(0.6, 0.6 * Math.min(1, v.dnyDeniku / 21) * Math.min(1, v.rozsahDni / 28));
+  return { tdeeNamerene, vaha };
+}
+
+/**
+ * Kompletní plán: BMR → TDEE (případně kalibrovaný měřením)
+ * → korekce tempem (+podlaha) → makra.
  * Kalorie vždy přesně odpovídají 4B+4S+9T (doladMakra).
  */
 export function spocitejPlan(v: VstupyPlanu): Plan {
   const aktivita = aktivitaZTreninku(v.treninky);
   const bmr = spocitejBmr(v);
-  const tdee = bmr * FAKTORY[aktivita];
+  const rovnice = bezttukaHmotnost(v.vahaKg, v.teloTukProcento) !== null ? "katch" : "mifflin";
+
+  let tdee = bmr * FAKTORY[aktivita];
+  let kalibrovano = false;
+  if (v.kalibrace && v.kalibrace.vaha > 0 && v.kalibrace.tdeeNamerene > 0) {
+    // vážená kalibrace – naměřený výdej vs. odhad z rovnice
+    tdee = tdee * (1 - v.kalibrace.vaha) + v.kalibrace.tdeeNamerene * v.kalibrace.vaha;
+    kalibrovano = true;
+  }
+
   const tempo = v.cilTela === "udrzet" ? 0 : (v.tempoKgTydne ?? rozsahTempa(v.cilTela).vychozi);
   const korekce = korekceZTempa(tempo, v.cilTela);
 
-  let kcalCil = Math.round((tdee + korekce) / 10) * 10;
+  let kcalCil = Math.round(tdee + korekce);
   const podlaha = PODLAHA_KCAL[v.pohlavi];
   const pouzitaPodlaha = kcalCil < podlaha;
   if (pouzitaPodlaha) kcalCil = podlaha;
 
-  // bílkoviny z cílové (nebo aktuální) váhy – prioritní makro
-  const vahaProB = v.cilovaVahaKg ?? v.vahaKg;
+  // bílkoviny – při známém % tuku z beztuké hmotnosti (přesnější
+  // u obézních těl), jinak z cílové / aktuální váhy
+  const lbm = bezttukaHmotnost(v.vahaKg, v.teloTukProcento);
+  const vahaProB = lbm ?? v.cilovaVahaKg ?? v.vahaKg;
   const b = Math.round(vahaProB * bilkovinyNaKg(v.cilTela));
   // tuky 25 % kcal, min. 0,7 g/kg aktuální váhy
   const t = Math.max(Math.round((kcalCil * 0.25) / 9), Math.round(v.vahaKg * 0.7));
@@ -153,6 +226,8 @@ export function spocitejPlan(v: VstupyPlanu): Plan {
     korekceKcal: Math.round(korekce),
     pouzitaPodlaha,
     terminCile: odhadTerminu(v.vahaKg, v.cilovaVahaKg, tempo, v.cilTela),
+    rovnice,
+    kalibrovano,
   };
 }
 

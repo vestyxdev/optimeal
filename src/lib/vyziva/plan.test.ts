@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aktivitaZTreninku,
+  bezttukaHmotnost,
   bilkovinyNaKg,
   cileZKcal,
   cileZGramu,
@@ -8,6 +9,7 @@ import {
   odhadTerminu,
   rozsahTempa,
   spocitejBmr,
+  spocitejKalibraci,
   spocitejPlan,
   spocitejTdee,
   PODLAHA_KCAL,
@@ -22,6 +24,22 @@ describe("spocitejBmr – Mifflin-St Jeor", () => {
   it("žena 60 kg / 165 cm / 28 let", () => {
     // 600+1031,25−140−161 = 1330,25
     expect(spocitejBmr({ vahaKg: 60, vyskaCm: 165, vekRoku: 28, pohlavi: "z" })).toBeCloseTo(1330.25);
+  });
+  it("Katch–McArdle při známém % tuku – 370 + 21,6·lbm", () => {
+    // 80 kg, 20 % tuku → lbm 64 → 370+21,6·64 = 1752,4
+    expect(spocitejBmr({ vahaKg: 80, vyskaCm: 180, vekRoku: 30, pohlavi: "m", teloTukProcento: 20 }))
+      .toBeCloseTo(1752.4);
+  });
+  it("mimo mez 3–60 % nebo prázdné → Mifflin", () => {
+    const v = { vahaKg: 80, vyskaCm: 180, vekRoku: 30, pohlavi: "m" as const };
+    expect(spocitejBmr({ ...v, teloTukProcento: 61 })).toBe(1780);
+    expect(spocitejBmr({ ...v, teloTukProcento: null })).toBe(1780);
+  });
+  it("bezttukaHmotnost – 80 kg / 20 % = 64 kg", () => {
+    expect(bezttukaHmotnost(80, 20)).toBe(64);
+    expect(bezttukaHmotnost(80, null)).toBeNull();
+    expect(bezttukaHmotnost(80, undefined)).toBeNull();
+    expect(bezttukaHmotnost(80, 70)).toBeNull();
   });
 });
 
@@ -83,8 +101,8 @@ describe("spocitejPlan – kompletní plán", () => {
     // TDEE = 1780… ne: BMR pro 90 kg = 900+1125-150+5 = 1880; TDEE = 1880·1,55 = 2914
     expect(p.bmr).toBe(1880);
     expect(p.tdee).toBe(2914);
-    // kcal cíl ≈ 2914 − 550 = 2364 → 2360
-    expect(p.cile.kalorie).toBe(2360);
+    // kcal cíl přesně 2914 − 550 = 2364
+    expect(p.cile.kalorie).toBe(2364);
     // bílkoviny 2,2 g/kg cílové váhy = 85·2,2 = 187
     expect(p.cile.bilkoviny).toBe(187);
     // kalorie ≡ makra přesně
@@ -114,7 +132,7 @@ describe("spocitejPlan – kompletní plán", () => {
   it("nabírání svalů → surplus a 1,8 g/kg bílkovin", () => {
     const p = spocitejPlan({ ...zaklad, cilTela: "zhodnotit", cilovaVahaKg: 95, tempoKgTydne: 0.25 });
     expect(p.korekceKcal).toBe(275);
-    expect(p.cile.kalorie).toBe(3190); // 2914+275 = 3189 → 3190
+    expect(p.cile.kalorie).toBe(3189); // 2914+275 přesně
     expect(p.cile.bilkoviny).toBe(Math.round(95 * 1.8)); // 171
     expect(4 * p.cile.bilkoviny + 4 * p.cile.sacharidy + 9 * p.cile.tuky).toBe(p.cile.kalorie);
   });
@@ -122,7 +140,7 @@ describe("spocitejPlan – kompletní plán", () => {
   it("udržet → TDEE beze změny, bez termínu", () => {
     const p = spocitejPlan({ ...zaklad, cilTela: "udrzet" });
     expect(p.korekceKcal).toBe(0);
-    expect(p.cile.kalorie).toBe(2910); // 2914 → 2910
+    expect(p.cile.kalorie).toBe(2914); // přesné TDEE, bez zaokrouhlení
     expect(p.cile.bilkoviny).toBe(180); // 90 kg × 2,0
     expect(p.terminCile).toBeNull();
   });
@@ -140,6 +158,56 @@ describe("spocitejPlan – kompletní plán", () => {
     });
     expect(p.cile.tuky).toBeGreaterThanOrEqual(Math.round(120 * 0.7));
     expect(p.cile.kalorie).toBeGreaterThanOrEqual(PODLAHA_KCAL.m);
+  });
+});
+
+describe("spocitejKalibraci – naměřený TDEE z dat", () => {
+  it("hubnutí 1 kg / 20 dní při příjmu 2 000 → TDEE 2 385", () => {
+    // Δ = −1 kg → bilance −7700/20 = −385 → TDEE = 2000 − (−385) = 2385
+    const k = spocitejKalibraci({ dnyDeniku: 15, prijemKcalDenne: 2000, zmenaVahyKg: -1, rozsahDni: 20 })!;
+    expect(k.tdeeNamerene).toBeCloseTo(2385);
+    expect(k.vaha).toBeGreaterThan(0);
+    expect(k.vaha).toBeLessThanOrEqual(0.6);
+  });
+  it("málo dat → null", () => {
+    expect(spocitejKalibraci({ dnyDeniku: 5, prijemKcalDenne: 2000, zmenaVahyKg: -1, rozsahDni: 20 })).toBeNull();
+    expect(spocitejKalibraci({ dnyDeniku: 15, prijemKcalDenne: 2000, zmenaVahyKg: -1, rozsahDni: 5 })).toBeNull();
+    expect(spocitejKalibraci({ dnyDeniku: 15, prijemKcalDenne: 0, zmenaVahyKg: -1, rozsahDni: 20 })).toBeNull();
+  });
+  it("nesmyslný výsledek → null; váha max 0,6 i s dlouhou historií", () => {
+    expect(spocitejKalibraci({ dnyDeniku: 30, prijemKcalDenne: 2000, zmenaVahyKg: -20, rozsahDni: 14 })).toBeNull();
+    const k = spocitejKalibraci({ dnyDeniku: 60, prijemKcalDenne: 2200, zmenaVahyKg: 0.5, rozsahDni: 90 })!;
+    expect(k.vaha).toBe(0.6);
+  });
+});
+
+describe("spocitejPlan – přesnost", () => {
+  const zaklad = {
+    pohlavi: "m" as const,
+    treninky: "3-5" as const,
+    vekRoku: 30,
+    vyskaCm: 180,
+    vahaKg: 90,
+    cilTela: "udrzet" as const,
+  };
+
+  it("% tuku → Katch–McArdle a bílkoviny z beztuké hmotnosti", () => {
+    const p = spocitejPlan({ ...zaklad, teloTukProcento: 30 });
+    // lbm = 63 → BMR = 370+21,6·63 = 1730,8 → TDEE = 2682,7
+    expect(p.rovnice).toBe("katch");
+    expect(p.bmr).toBe(1731);
+    // bílkoviny 2,0 g/kg z lbm 63 = 126, ne 180 z celé váhy
+    expect(p.cile.bilkoviny).toBe(126);
+    expect(platnaMakra(p.cile)).toBe(true);
+  });
+
+  it("kalibrace zamíchá naměřený TDEE váhou měření", () => {
+    const bezKal = spocitejPlan(zaklad);
+    const sKal = spocitejPlan({ ...zaklad, kalibrace: { tdeeNamerene: 3500, vaha: 0.5 } });
+    // 2914·0,5 + 3500·0,5 = 3207
+    expect(sKal.tdee).toBe(3207);
+    expect(sKal.kalibrovano).toBe(true);
+    expect(bezKal.kalibrovano).toBe(false);
   });
 });
 
