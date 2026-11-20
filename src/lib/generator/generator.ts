@@ -111,8 +111,14 @@ export const ALERGEN_Z_NAZVU: Record<string, RegExp> = {
  */
 const ALERGEN_VYRAZ_VYNECH: Record<string, RegExp> = {
   lepek: /bez.?lepk|gluten.?free|bez.?glutenu|pro celiaky/i,
-  vejce: /bezvaje[čc]|bez.?vajec|egg.?free/i,
-  mleko: /bez.?ml[eé]k|milk.?free|dairy.?free/i,
+  // deklarované „vegan"/„rostlinný" ruší jen živočišné alergeny –
+  // rostlinný produkt pořád může obsahovat lepek, sóju či ořechy
+  vejce: /bezvaje[čc]|bez.?vajec|egg.?free|vegan|rostlinn|plant.?based/i,
+  mleko:
+    /bez.?ml[eé]k|bez.?ml[eé][čc]n|milk.?free|dairy.?free|not.?m[íi]lk|vegan|rostlinn|plant.?based/i,
+  ryby: /vegan|rostlinn|plant.?based/i,
+  korisi: /vegan|rostlinn|plant.?based/i,
+  vodnany: /vegan|rostlinn|plant.?based/i,
 };
 
 /**
@@ -140,23 +146,32 @@ export const ALERGEN_FRAZE_VYNECH: Record<string, RegExp> = {
 /** Rostlinnost deklarovaná v názvu – ruší jakékoliv dietní veto.
  *  Zahrnuje i známé rostlinné značky (Not milk, Beyond meat, LikeMeat). */
 const DIETA_ROSTL_DEKLARACE_RE =
-  /vegan|rostlinn|rostlinn[ýéě]|plant.?based|veggie|vegetari[áa]n|alternativ|aletrnativ|bez.?ml[eé]k|bez.?laktóz|dairy.?free|milk.?free|bez.?vajec|bezvaje[čc]|egg.?free|tofu|tempeh|seitan|not.?m[íi]lk|beyond\b|like.?meat/i;
+  /vegan|rostlinn|rostlinn[ýéě]|plant.?based|veggie|vegetari[áa]n|alternativ|aletrnativ|bez.?ml[eé]k|bez.?ml[eé][čc]n|bez.?laktóz|dairy.?free|milk.?free|bez.?vajec|bezvaje[čc]|egg.?free|tofu|tempeh|seitan|not.?m[íi]lk|beyond\b|like.?meat|yes.?plants?/i;
 
 /** Rostlinná báze před živočišně-znějícím slovem – „kokosový jogurt",
- *  „mandlová smetana", „arašídové máslo", „soya sausages", „potato milk". */
+ *  „mandlová smetana", „arašídové máslo", „soya sausages", „potato milk",
+ *  „bramborové barista mléko" (max. 1 slovo mezi bází a mléčným slovem –
+ *  víc by už byla ingredience navíc, ne báze produktu). */
 const DIETA_ROSTL_BAZE_RE =
-  /(?:ovesn|ovsen|sójov|sojov|rýžov|ryzov|mandlov|kokosov|kešu|kesu|konopn|hrachov|špaldov|spaldov|lískooříškov|liskov|bramborov|lupinov|pistáciov|vlašsk|arašíd|araš[íi]d|peanut|ořechov|oříšk|mandel|mandl|cizrnov|makov|slunečnic|dýň|kakaov|bambuck|karit|oat|soya|soy\b|rice|coconut|almond|cashew|hazelnut|walnut|macadamia|hemp|pea\b|potato|quinoa|amaranth|chickpea|lentil|fava|buckwheat)[a-zá-žěščřžýíéůúó]*\s+(?:ml[eé]k|jogurt|smetan|kef[íi]r|s[ýy]r|m[áa]sl|tvaroh|paštik|pastik|pudink|zmrzlin|nanuk|dezert|klob[áa]s|sal[áa]m|šunk|p[aá]rk|cheese|milk|butter|cream|yogurt|yoghurt|sausages?|burgers?|nuggets?|meat\b|ice.?cream)\w*/i;
+  /(?:ovesn|ovsen|sójov|sojov|rýžov|ryzov|mandlov|kokosov|kešu|kesu|konopn|hrachov|špaldov|spaldov|lískooříškov|liskov|bramborov|lupinov|pistáciov|vlašsk|arašíd|araš[íi]d|peanut|ořechov|oříšk|mandel|mandl|cizrnov|makov|slunečnic|dýň|kakaov|bambuck|karit|oat|soya|soy\b|rice|coconut|almond|cashew|hazelnut|walnut|macadamia|hemp|pea\b|potato|quinoa|amaranth|chickpea|lentil|fava|buckwheat)[a-zá-žěščřžýíéůúó]*\s+(?:\S+\s+)?(?:ml[eé]k|ml[eé][čc]n|jogurt|smetan|kef[íi]r|s[ýy]r|m[áa]sl|tvaroh|paštik|pastik|pudink|pudding|zmrzlin|nanuk|dezert|klob[áa]s|sal[áa]m|šunk|p[aá]rk|cheese|milk|butter|cream|yogurt|yoghurt|sausages?|burgers?|nuggets?|meat\b|ice.?cream)\w*/i;
 
-/** Mléko/vejce v názvu – veganské veto (vegetarián mléko smí). */
+/** Mléko/vejce v názvu – veganské veto (vegetarián mléko smí).
+ *  „mléčný" (příd. jm.) zachytit musíme zvlášť – „mléčná čokoláda". */
 const DIETA_MLEKO_VEJCE_RE =
-  /ml[eé]k|s[ýy]r(?!up)|cottage|cheese|quark|curd|tvaroh|jogurt|skyr|smetan|kef[íi]r|m[áa]sl|eidam|gouda|mozzarell|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|feta\b|bryndz|parenic|camembert|cheddar|brie\b|halloumi|paneer|taven[ýy]|srv[áa]tk|whey|kazein|kasein|casein|bechamel|pannacott|vejce|vaje[čc]|[žz]loutk|majon[ée]z|mayo\b|egg\b|tiramisu|omelet|milk\b|\bbutter\b|cream\b|yogurt|yoghurt|ice.?cream|pudding/i;
+  /ml[eé]k|ml[eé][čc]n|s[ýy]r(?!up)|cottage|cheese|quark|curd|tvaroh|jogurt|skyr|smetan|kef[íi]r|m[áa]sl|eidam|gouda|mozzarell|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|feta\b|bryndz|parenic|camembert|cheddar|brie\b|halloumi|paneer|taven[ýy]|srv[áa]tk|whey|kazein|kasein|casein|bechamel|pannacott|vejce|vaje[čc]|[žz]loutk|majon[ée]z|mayo\b|egg\b|tiramisu|omelet|milk\b|\bbutter\b|cream\b|yogurt|yoghurt|ice.?cream|pudding/i;
 
 /** Maso/ryby/želatina v názvu – veto pro veganskou i vegetariánskou. */
 const DIETA_MASO_RYBY_RE =
-  /\bmaso|masit|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|telec|jehn[ěeč]|drůbež|šunk|sal[áa]m|klob[áa]s|chorizo|paštik|pastik|slanin|bacon|p[áa]rk|frankfurt|kabanos|jerky|prosciutt|kan[čc]|zaj[íi]c|bažant|kachn|hus[ay]|zverin|utopen|tla[čc]enk|jatern|j[íi]trnic|prešt|gyros|kebab\b|pork|ham\b|\bmeat\b|beef|chicken|turkey|poultry|salami|sausage|pepperoni|bologna|mortadella|lard\b|duck\b|lamb\b|goose\b|venison|mince\b|meatball|hotdog|wiener|schnitzel|wurst|bratwurst|leber|schinken|fleisch|carne\b|pollo|jam[oó]n|ryb(?!í[zž])|losos|tu[ňn][áa]k|tuna\b|sardink|sardel|makrel|kapr\b|pstruh|cand[áa]t|šti[ck]|úho[řr]|tresk|halibut|pangas|anchov|ančovičk|krevet|garn[áa]t|krab(?!i)|humr|\brak[au]?\b|raci\b|kor[ýy]š|kalam[áa]r|mušle|úst[řr]ic|slávk|chobotnic|sepie|oliheň|fish\b|salmon|herring|shrimp|prawn|lobster|squid|octopus|clam\b|mussel|oyster|eel\b|cod\b|trout|želatin|zselatin/i;
+  /\bmaso|masit|ku[řr]e|kr[ůu]t(?!on)|vep[řr]|hov[ěe]z|telec|jehn[ěeč]|drůbež|šunk|sal[áa]m|klob[áa]s|chorizo|paštik|pastik|slanin|bacon|p[áa]rk|frankfurt|kabanos|jerky|prosciutt|kan[čc]|zaj[íi]c|bažant|kachn|hus[ay]|zverin|utopen|tla[čc]enk|jatern|j[íi]trnic|prešt|gyros|kebab\b|pork|\bham\b(?!é)|\bmeat\b|beef|chicken|turkey|poultry|salami|sausage|pepperoni|bologna|mortadella|lard\b|duck\b|lamb\b|(?<!flying )goose\b|venison|mince\b|meatball|hotdog|wiener|schnitzel|wurst|bratwurst|\bleber|schinken|fleisch|carne\b|pollo|jam[oó]n|ryb(?!í[zž])|losos|tu[ňn][áa]k|tuna\b|sardink|sardel|makrel|kapr\b|pstruh|cand[áa]t|šti[ck]|úho[řr]|tresk|halibut|pangas|anchov|ančovičk|krevet|garn[áa]t|krab(?!i)|humr|\brak[au]?\b|raci\b|kor[ýy]š|kalam[áa]r|mušle|úst[řr]ic|slávk|chobotnic|sepie|oliheň|\bfish\b|salmon|herring|shrimp|prawn|lobster|squid|octopus|clam\b|mussel|oyster|eel\b|cod\b|trout|želatin|zselatin/i;
 
 /** Med/želatina apod. – navíc jen pro veganskou dietu. */
 const DIETA_VEGAN_EXTRA_RE = /\bmed\b|medov|včel[íi]|propolis|honey/i;
+
+/** „Příchuť X" deklaruje ochucovadlo, ne surovinu – „keksy s máslovou
+ *  příchutí" může být veganské. Jen přímé sousloví („sýrová příchuť",
+ *  „příchuť sýra"), ne libovolný výskyt slova příchuť v názvu. */
+const DIETA_PRICHUT_RE =
+  /(?:(?:s[ýy]rov|m[áa]slov|smetanov|ml[eé][čc]n|jogurtov|kef[íi]rov|tvarohov|cheese|butter|cream|milk|yogh?urt|šunkov|slaninov|masov|ku[řr]ec[íi]|kr[ůu]t[íi]|vep[řr]ov|hov[ěe]z[íi]|bacon|chicken|beef|pork|meat|ham\b|salami|ryb[íi]|tu[ňn][áa]kov)[a-zá-ž]*\s+(?:p[řr][íi]chu[ťt]|flavo?u?r|aroma)[a-zá-žěščřžýíéůúó]*|(?:p[řr][íi]chu[ťt]|flavo?u?r|aroma)[a-zá-žěščřžýíéůúó]*\s+(?:s[ýy]ra|s[ýy]r[uv]|m[áa]sla|ml[eé]ka|smetany|ku[řr]ete|masa|[šs]unky|slaniny|vep[řr]ov[eé]ho|hov[ěe]z[íi]ho|baconu|cheese|butter|cream|milk|meat|ham|chicken|beef|pork))/i;
 
 /**
  * Název vylučuje dietní tag? Vrací true, když se potravina tváří
@@ -165,6 +180,7 @@ const DIETA_VEGAN_EXTRA_RE = /\bmed\b|medov|včel[íi]|propolis|honey/i;
  */
 export function nazevVylucujeDietu(nazev: string, dieta: string): boolean {
   if (dieta !== "vegansky" && dieta !== "vegetariansky") return false;
+  if (DIETA_PRICHUT_RE.test(nazev)) return false;
   if (DIETA_ROSTL_DEKLARACE_RE.test(nazev) || DIETA_ROSTL_BAZE_RE.test(nazev)) return false;
   if (DIETA_MASO_RYBY_RE.test(nazev)) return true;
   return dieta === "vegansky" && (DIETA_MLEKO_VEJCE_RE.test(nazev) || DIETA_VEGAN_EXTRA_RE.test(nazev));

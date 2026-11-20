@@ -1504,6 +1504,33 @@ describe("živý katalog – audit 7denního plánu", () => {
     expect(nazevVylucujeDietu("Cottage Cheese", "bezlepkovy")).toBe(false);
   });
 
+  it("dietní veto – falešné shody: značky, krutony, příchuť, podstatná jména", () => {
+    // regrese z reportu kvalita_dat: tyto názvy veto nesmí vyloučit
+    for (const n of [
+      "Krutony",                    // kr[ůu]t ≠ kruton (pečivo)
+      "Graham tyčinky",             // gra**ham** ≠ ham
+      "Goldfish BIGsters Oriental seasoned krekry", // značka ≠ fish
+      "Hamé Zeleninové lečo",       // značka ≠ ham
+      "Bramborové barista mléko",   // rostlinná báze + slovo mezi
+      "Coconut rice pudding",       // coconut/rice báze
+      "Bio keksy s máslovou příchutí", // příchuť ≠ surovina
+      "Krekry s příchutí sýra",     // genitiv příchutě
+      "Krekry chicken flavour",
+    ]) {
+      expect(nazevVylucujeDietu(n, "vegansky"), n).toBe(false);
+      expect(nazevVylucujeDietu(n, "vegetariansky"), n).toBe(false);
+    }
+    // podstatné jméno „kuře" (ne jen příd. jm. „kuřecí")
+    expect(nazevVylucujeDietu("Kuře na paprice", "vegansky")).toBe(true);
+    // „mléčný" příd. jm. – dřív chytlo jen „mlék-"
+    expect(nazevVylucujeDietu("Mléčná čokoláda", "vegansky")).toBe(true);
+    // mayo = vejce: vegan veta, vegetariána nechává
+    expect(nazevVylucujeDietu("Flying Goose Sriracha mayo", "vegansky")).toBe(true);
+    expect(nazevVylucujeDietu("Flying Goose Sriracha mayo", "vegetariansky")).toBe(false);
+    // krůtí skutečně veto, kruton ne
+    expect(nazevVylucujeDietu("Grilovaný krůtí steak", "vegetariansky")).toBe(true);
+  });
+
   it("veganský filtr propustí rostlinné mléko, ale ne chybně tagovaný cottage", () => {
     const katalog = [
       p("c1", "Cottage Cheese Pažitka", 11, 3, 4, 95, 40),

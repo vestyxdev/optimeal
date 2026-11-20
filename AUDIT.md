@@ -201,3 +201,23 @@ All P0-P3 items above are now implemented and verified live against the producti
   - **Import TS pro nativní Node**: `generator.ts` nově importuje `lisiSeKalorie` z `../vyziva/hodnota.ts` – audit skript běží pod nativním TS (Node 24), musí mít explicitní příponu (allowImportingTsExtensions už v tsconfig).
   - Audity čisté: vegansky (3682 pool), vegetariansky (5743), bezlepkovy (8014), standard – všech 7 dnů v toleranci, rodiny ≤3×.
 - Testy: 362 (regrese: týdenní cap rodin, fantom-kotva, dietní veto, syrup-vs-sýr, filtr rostlinné mléko vs cottage).
+
+## 2026-11-20 – kvalita dat + doladění dietního veta
+
+- Nový skript scripts/kvalita_dat.mjs: report fantomových kalorií u jídel
+  (173 řádek, generátor je z plánů vylučuje do opravy zdrojových dat),
+  dietních tagů v rozporu s názvem a chybějících tagů mleko. --csv pro export.
+- Dietní veto opraveno proti falešným shodám: kruton≠krůt, graham≠ham,
+  Goldfish/Flying Goose/Hamé/Chleberia jsou značky, doplněno „kuře"
+  (podst. jm., ne jen „kuřecí") a „mléčný" (příd. jm., ne jen „mlék-"),
+  rostlinná báze snese 1 slovo mezery (bramborové barista mléko),
+  „X příchuť"/„flavour" deklaruje ochucovadlo, ne surovinu.
+- Alergenní jmenná síť: deklarované vegan/rostlinný ruší živočišné
+  alergeny (mléko/vejce/ryby/korýši/vodnáče) – „Vegan cheese dip"
+  už nevaruje mléko-alergiky; „bezmléčný" doplněn vedle „bez mléka".
+- DB: 16× odebrán vegansky, 7× vegetariansky (chorizo/prosciutto/kuře/
+  mléčné dezerty/fish-sůl), 17× doplněn alergen mleko (sýry, cheesecake,
+  quark, curd) – ambiguální příchutě (Onion&Cheese, VegeCheese) ponechány.
+- Verifikace: tsc čistý, 364/364 testů (+regresní blok vet falešných shod),
+  audit matrix vegansky/vegetariansky/bezlepkovy/standard/mleko+lepek –
+  všude „Bez problémů ✔", rodiny ≤3×, den 5 vegan 2201 kcal.
