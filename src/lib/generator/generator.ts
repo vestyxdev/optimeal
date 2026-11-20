@@ -89,6 +89,14 @@ export function filtrujPotraviny(
   );
 }
 
+/** Role položky v jídle – denní solver podle ní škáluje a přidává. */
+export type RoleJidla =
+  | "kotva"     // hlavní bílkovinová kotva (maso, tvaroh, vejce…)
+  | "sacharid"  // sacharidová příloha / základ (rýže, chléb, ovoce…)
+  | "tuk"       // tukový doplněk (olej, ořechy, máslo…)
+  | "zelenina"  // zeleninová strana u oběda/večeře
+  | "suplement"; // volitelný doplněk – jediný povolený: whey do snídaně
+
 export interface Jidlo {
   id: string;
   nazev: string;
@@ -107,6 +115,10 @@ export interface Jidlo {
   obrazek?: string | null;
   /** gramáž prodávaného balení – pro „co se reálně koupí" */
   baleniG?: number | null;
+  /** role v jídle (kotva / sacharid / tuk / zelenina / suplement) */
+  role?: RoleJidla;
+  /** kusový popisek množství: „2 ks · 120 g" (vejce, rohlík, banán…) */
+  popisekMnozstvi?: string;
 }
 
 export interface SouhrnJidla {
@@ -231,7 +243,9 @@ export function kategoriePotraviny(p: Potravina): Kategorie {
  *  Neceněné navíc dostávají pokutu – plán má preferovat potraviny,
  *  které si uživatel opravdu koupí za zobrazenou cenu. */
 export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?: number): number {
-  const nacenena = p.aktualniCena > 0;
+  // nespoledlivá cena (pack-mismatch artefakt, Kč/kg→100 g misfire)
+  // se chová jako „bez ceny" – jinak by 5 Kč/100 g vyhrálo všechno
+  const nacenena = jeCenaSpolehliva(p);
   const cena = nacenena ? p.aktualniCena : Math.max(vychoziCena ?? 15, 0.01);
   const hodnota =
     kategorie === "bilkovinova" ? p.bilkoviny : kategorie === "sacharidova" ? p.sacharidy : p.tuky;
@@ -324,12 +338,185 @@ const DEZERT_ANTI_RE =
 export const SNIDANE_KOTVA_ANTI_RE =
   /(?:tu[ňn][aá]k|losos|makrel|sle[ďd]|sardink|tresk|pstruh|kapr|tilapi|krevet|kalam[aá]r|krab|játr|dršť|ledvin|srdc)(?!.*pomaz)/i;
 
-type TypJidla = "snidane" | "obedVecere" | "svacina";
+export type TypJidla = "snidane" | "obedVecere" | "svacina";
 
 function typJidlaZ_nazvu(nazevJidla: string): TypJidla {
   if (/snídan/i.test(nazevJidla)) return "snidane";
   if (/svačin/i.test(nazevJidla)) return "svacina";
   return "obedVecere"; // Oběd, Večeře i případné vlastní názvy
+}
+
+/* ============================================================
+ * CELOPOTRAVINOVÁ PRAVIDLA – skutečné jídlo, ne suplementy
+ * ============================================================ */
+
+/**
+ * „Tvrdé" suplementy – práškové/instantní produkty a výkonnostní
+ * doplňky. V jídelníčku nemají co dělat NIKDY: 94 g instantní
+ * proteinové polévky nebo 30 g práškového pudinku není jídlo.
+ * Regex je kontextový, aby se netrefil do normálních potravin –
+ * „proteinový jogurt" a „rajčatový koncentrát" zůstávají potravinami:
+ * protein/srvátk/whey se váže na prášek|izolát|koncentrát|polévku,
+ * instant na protein|polévku|pudink.
+ */
+const SUPLEMENT_TVRDY_RE =
+  /whey|srv[áa]tkov|gejner|gainer|bcaa|kreatin|creatin|karnitin|carnitin|pre.?workout|kasein|casein|maltodextrin|spalovač|instantn[íia].{0,15}(?:protein|pol[ée]vk|pudink)|(?:protein|pol[ée]vk).{0,10}instantn|pol[ée]vk[ay][^.]{0,15}protein|protein[ov]*[áaýeéy]?\s*pol[ée]vk|pudink.{0,15}(?:pr[áa][šs]ek|prasek|instant|do vody)|(?:pr[áa][šs]ek|prasek)[^,]{0,15}pudink|(?:protein|srv[áa]tk).{0,20}(?:pr[áa][šs]ek|prasek|koncentr[áa]t|izol[áa]t)|pr[áa][šs]ek[^,]{0,15}protein/i;
+
+/**
+ * „Svačinové" suplementy – tyčinky a proteinové nápoje. Legitimní
+ * svačina, ale NIKDY hlavní jídlo (proteinová tyčinka k snídani
+ * ani obědu není jídlo).
+ */
+const SUPLEMENT_SNACK_RE =
+  /ty[čc]ink|protein.{0,15}(?:shake|n[áa]poj|drink|bar\b)|m[üu]sli.?bar|granola.?bar|energy.?bar/i;
+
+/**
+ * Práškové/instantní suplementy – vyloučené z jídelníčku úplně
+ * (jediná výjimka: whey prášek jako malý doplněk snídaně).
+ */
+export function jeSuplementTvrdy(p: { nazev: string }): boolean {
+  return SUPLEMENT_TVRDY_RE.test(p.nazev);
+}
+
+/** Tyčinky a proteinové nápoje – povolené jen jako svačina. */
+export function jeSuplementSnack(p: { nazev: string }): boolean {
+  return SUPLEMENT_SNACK_RE.test(p.nazev);
+}
+
+/** Libovolný suplement (tvrdý i svačinový). */
+export function jeSuplement(p: { nazev: string }): boolean {
+  return jeSuplementTvrdy(p) || jeSuplementSnack(p);
+}
+
+/**
+ * Jediný povolený „suplement": obyčejný whey proteinový prášek –
+ * smí jen jako ~odměrka navíc do vloček/jogurtu/tvarohu k snídani,
+ * nikdy jako samostatné jídlo.
+ */
+export function jeWheyPrasek(p: { nazev: string }): boolean {
+  return /whey|srv[áa]tkov|protein[ov]*[áaýeéy]?\s*pr[áa][šs]ek|(?:pr[áa][šs]ek|prasek)[^,]{0,15}protein/i.test(p.nazev);
+}
+
+/** Zakázáno pro daný typ jídla (hlavní jídla = všechny suplementy,
+ * svačina = jen tvrdé suplementy – tyčinka je legitimní svačina). */
+function zakazaneProTyp(p: { nazev: string }, typJ: TypJidla): boolean {
+  return jeSuplementTvrdy(p) || (typJ !== "svacina" && jeSuplementSnack(p));
+}
+
+/** Zelenina / strana k hlavnímu jídlu (okurka, rajče, brokolice…).
+ * Brambory/batáty záměrně NEJSOU v seznamu – to je sacharidová
+ * příloha, ne zeleninová strana. */
+const ZELENINA_RE =
+  /ra[jčc][aá]t|okurk|brokolic|kv[ěe]t[áa]k|paprik|cuket|mrk[ev]|hl[áa]vkov[ýy]|ledov[ýy].?sal[áa]t|[šs]al[áa]t(?!.*(pomaz|maslov|s[ýy]rov))|zelenin|[čc]erven[áa].?řep|kuku[řr]ic|[šs]pen[áa]t|r[ůu]ži[čc]kov|celer(?!.*(nať|nat))|fazolov|hr[áa][šs]ek|kapusta|kapust|ch[řr]est|houb|[žž]ampion|avok[áa]d|olivy|fazol/i;
+
+/* ------------------------------------------------------------
+ * Realistické porce – žádné „94 g instantní polévky" nebo
+ * „30 g rýže". Každá role má krok a rozmezí lidské porce.
+ * ------------------------------------------------------------ */
+
+/** Váhy kusů běžných potravin (g) – porce se počítá v celých kusech. */
+const KUSOVA_PORCE: [RegExp, number][] = [
+  [/vejce|vejec/i, 60],
+  [/rohl[íi]k/i, 43],
+  [/housk/i, 55],
+  [/kaiserk/i, 50],
+  [/dalam[aá]nek|rožek|rozek/i, 45],
+  [/veka/i, 70],
+  [/toast/i, 35],
+  [/tortill|wrap/i, 65],
+  [/ban[áa]n/i, 120],
+  [/jablk/i, 170],
+  [/hru[šs]k/i, 160],
+  [/pomeran[čc]/i, 150],
+  [/mandarink/i, 80],
+  [/kiwi/i, 75],
+  [/avok[áa]d/i, 150],
+  [/ty[čc]ink|\bbar\b|k[řr]upav[aá].?ty[čc]/i, 45],
+];
+
+/** Váha jednoho kusu kusové potraviny (null u vážených). */
+export function kusovaGramaz(nazev: string): number | null {
+  for (const [re, vaha] of KUSOVA_PORCE) {
+    if (re.test(nazev)) return vaha;
+  }
+  return null;
+}
+
+const MASO_RYBA_RE =
+  /maso|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|telec|jehn[ěe]|kr[áa]l[íi]k|kan[čc]|prso|prsa|steak|file|mlet[éeý]|losos|tu[ňn][aá]k|tresk|pstruh|kapr|sle[ďd]|makrel|tilapi|sardink|krevet|kalam[aá]r|krab|tofu|tempeh|seitan|[šs]unk(?!.*pomaz)|klob[aá]s/i;
+
+const MLECNE_RE =
+  /jogurt|skyr|tvaroh|cottage|kef[íi]r|ml[ée]k|zakysan|acidofiln|lip[áa]nek|smetanov[ýy] n[áa]poj/i;
+
+const SUCHE_SACH_RE =
+  /r[ýy]ž|t[ěe]stovin|spaget|penne|fusilli|nudl|kuskus|bulgur|quino|tarho[ňn]|pohank|jahel|vlo[čc]k|ovsen|müsli|musli|granola|krupič|cereal|kornflejk|cornflakes|kn[aä]cke|k[řr]upav|křupk/i;
+
+const OLEJ_TUK_RE = /\b(olej|olio|oil)\b|olivov.*olej|m[áa]slo|gh[íi]|ghee|s[áa]dl|tuk[^ ]* rozt/i;
+
+/**
+ * Zaokrouhlí gramáž na praktickou porci podle role a typu potraviny:
+ *   – kusové: celé kusy (2 vejce = 120 g, 1 banán = 120 g)
+ *   – maso/ryby/tofu: krok 10 g, porce 80–250 g
+ *   – mléčné kelímky: krok 50 g (150 g jogurt, 250 g tvaroh)
+ *   – suché sacharidy: krok 10 g; hlavní jídlo 50–160 g, snídaně 30–120 g
+ *   – tukové doplňky: krok 5 g, olej max 20 g, ořechy/sýr max 45 g
+ *   – zelenina: 50–150 g; whey doplněk: 15–30 g
+ * Vrací „hezká" čísla – denní solver pak doladí zbytek maker.
+ */
+export function zaokrouhliGramaz(
+  p: { nazev: string },
+  gramy: number,
+  role: RoleJidla = "kotva",
+  typJ: TypJidla = "obedVecere",
+): number {
+  const kusG = kusovaGramaz(p.nazev);
+  if (kusG !== null) {
+    const maxKs = role === "kotva" ? 4 : role === "zelenina" ? 2 : 3;
+    return Math.min(Math.max(1, Math.round(gramy / kusG)), maxKs) * kusG;
+  }
+
+  let krok = 10;
+  let min = 20;
+  let max = 300;
+  if (role === "zelenina") {
+    krok = 10; min = 50; max = 150;
+  } else if (role === "suplement") {
+    krok = 5; min = 15; max = 30;
+  } else if (role === "tuk") {
+    if (OLEJ_TUK_RE.test(p.nazev) && jePrisada(p)) {
+      krok = 5; min = 5; max = 20;   // 10 g olivového oleje, ne 47 g
+    } else if (MASO_RYBA_RE.test(p.nazev)) {
+      krok = 10; min = 30; max = 100; // 30 g uzeného lososa, ne 10 g nitě
+    } else {
+      krok = 5; min = 10; max = 45;  // 20 g mandlí, 30 g nivy
+    }
+  } else if (role === "sacharid") {
+    if (SUCHE_SACH_RE.test(p.nazev)) {
+      krok = 10;
+      min = typJ === "obedVecere" ? 50 : typJ === "snidane" ? 30 : 20;
+      max = typJ === "obedVecere" ? 160 : 120;
+    } else {
+      krok = 10; min = 20; max = 250; // brambory, pečivo, ovoce
+    }
+  } else {
+    // kotva
+    if (MASO_RYBA_RE.test(p.nazev)) {
+      krok = 10; min = 80; max = 250;
+    } else if (MLECNE_RE.test(p.nazev)) {
+      krok = 50; min = 100; max = 300;
+    } else {
+      krok = 10; min = 40; max = 300;
+    }
+  }
+  return Math.max(min, Math.min(Math.round(gramy / krok) * krok, max));
+}
+
+/** Popisek porce pro kusové potraviny: „2 ks · 120 g" (jinak undefined). */
+function popisekKusu(nazev: string, gramy: number): string | undefined {
+  const kusG = kusovaGramaz(nazev);
+  if (kusG === null) return undefined;
+  const ks = Math.max(1, Math.round(gramy / kusG));
+  return `${ks} ks · ${ks * kusG} g`;
 }
 
 /* ============================================================
@@ -422,9 +609,35 @@ export function vyberKandidata(
  * TVORBA JÍDLA A PLÁNOVÁNÍ
  * ============================================================ */
 
+/**
+ * Je jednotková cena (Kč/100 g) vůbec uvěřitelná? Scraper normalizuje
+ * balením, ale občas vznikne artefakt:
+ *   – celé balení pod ~4 Kč (tyčinka „4,75 Kč za 95 g" – pack-mismatch
+ *     při normalizaci; nic se v ČR za 3 Kč nekoupí)
+ *   – pod 1,5 Kč/100 g (omylem Kč/kg→100 g; i brambory stojí ~2 Kč/100 g)
+ *   – nad 400 Kč/100 g (40 000 Kč/kg – jen artefakt, ani šafrán tolik
+ *     v potravinovém katalogu nemá)
+ * Takovou cenu jídlu NEpřičítáme – položka se tváří jako neceněná
+ * (UI ukáže „—") místo toho, aby plán ukazoval nereálnou cifru.
+ */
+export function jeCenaSpolehliva(p: Potravina): boolean {
+  const c = p.aktualniCena;
+  if (!Number.isFinite(c) || c < 1.5 || c > 400) return false;
+  const b = p.baleniG;
+  if (b != null && b >= 20 && (c * b) / 100 < 4) return false;
+  return true;
+}
+
 /** Vytvoří položku jídelníčku z potraviny a počtu gramů. */
 export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
   const k = gramy / 100;
+  // nespoledlivá cena → položka neceněná (cena 0 → UI ukáže „—")
+  const cenaOk = jeCenaSpolehliva(p);
+  const puvodni =
+    cenaOk && p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
+      ? p.puvodniCena
+      : null;
+  const slevaOk = puvodni !== null;
   return {
     id: p.id,
     nazev: p.nazev,
@@ -433,25 +646,30 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     bilkoviny: Math.round(p.bilkoviny * k * 10) / 10,
     sacharidy: Math.round(p.sacharidy * k * 10) / 10,
     tuky: Math.round(p.tuky * k * 10) / 10,
-    cena: Math.round(p.aktualniCena * k * 100) / 100,
+    cena: cenaOk ? Math.round(p.aktualniCena * k * 100) / 100 : 0,
     // úspora se počítá jen ze zdrojem ověřené původní ceny – bez ní
     // cenaBezna = aktuální cena (ušetřeno 0, žádný odhad z mediánu)
-    cenaBezna: Math.round(
-      (p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena
-        ? p.puvodniCena
-        : p.aktualniCena) * k * 100) / 100,
-    obchod: p.sleva ? p.obchod : null,
-    sleva: p.sleva,
+    cenaBezna: cenaOk
+      ? Math.round((puvodni ?? p.aktualniCena) * k * 100) / 100
+      : 0,
+    obchod: slevaOk ? p.obchod : null,
+    sleva: slevaOk,
     obrazek: p.obrazek ?? null,
     baleniG: p.baleniG ?? null,
   };
 }
 
 /**
- * Naplánuje jednotlivé jídlo ze 3 kroků:
+ * Naplánuje jednotlivé jídlo ze 4 kroků:
  *   1. „kotva" = bílkovinová potravina (kvantita podle bílkovin)
- *   2. doplněk sacharidů (preferujeme nízko-bílkovinné zdroje)
+ *   2. doplněk sacharidů (hlavní jídla vždy čistá příloha – rýže,
+ *      brambory, těstoviny, pečivo; snídaně kaše/pečivo/ovoce)
  *   3. doplněk tuků (jen když zbývá potřeba i kalorický prostor)
+ *   4. oběd/večeře: zeleninová strana; snídaně: volitelný whey doplněk
+ * Suplementy jsou z hlavních jídel vyloučené tvrdě (tyčinka k obědu
+ * není jídlo); svačině se tvrdé suplementy zakazují, tyčinka projde.
+ * Gramáž se zaokrouhluje na praktické porce (kusy, 10/50 g kroky) –
+ * zbytek maker pořeší denní solver ve vygenerujJidelnicek.
  * Vybraná ID přibudou do pouziteId → další jídla preferují jiné
  * potraviny (různorodost v rámci dne).
  */
@@ -475,6 +693,7 @@ export function naplanujJidlo(
   // doplněk mají vlastní preference + protivzory (tyčinka není oběd,
   // špagety nejsou svačina). Vše měkké – bez kandidátů plný pool.
   const typJ = typJidlaZ_nazvu(nazevJidla);
+  const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, typJ);
   const reKotva = typJ === "snidane" ? SNIDANE_RE : typJ === "svacina" ? SVACINA_RE : OBED_VECERE_RE;
   const antiKotva =
     typJ === "obedVecere"
@@ -511,10 +730,17 @@ export function naplanujJidlo(
   const jenNepouzite = <T extends Kandidat | null>(k: T): Kandidat | null =>
     vynutitNepouzite && k !== null && pouziteId.includes(k.id) ? null : k;
 
-  const pridej = (p: Potravina, gramy: number) => {
+  const oznac = (p: Potravina) => {
     pouziteId.push(p.id);
     pouziteKlice.add(klicPodobnosti(p.nazev));
+  };
+
+  const pridej = (p: Potravina, gramy: number, role: RoleJidla) => {
+    oznac(p);
     const jidlo = vytvorJidlo(p, gramy);
+    jidlo.role = role;
+    const popisek = popisekKusu(p.nazev, gramy);
+    if (popisek) jidlo.popisekMnozstvi = popisek;
     jidla.push(jidlo);
     zbyva.b -= jidlo.bilkoviny;
     zbyva.s -= jidlo.sacharidy;
@@ -522,37 +748,77 @@ export function naplanujJidlo(
     zbyva.k -= jidlo.kalorie;
   };
 
+  /** odpočet rozpočtu + označení – zelenina se do výpisu přidá až za tukem */
+  const odecti = (p: Kandidat, gramy: number) => {
+    oznac(p);
+    zbyva.b -= (p.bilkoviny * gramy) / 100;
+    zbyva.s -= (p.sacharidy * gramy) / 100;
+    zbyva.t -= (p.tuky * gramy) / 100;
+    zbyva.k -= (p.kalorie * gramy) / 100;
+  };
+
   // --- 1. kotva (bílkovinová potravina) ---
   // Když jsou všechny bílkovinové potraviny dnes použité (malý katalog,
   // třeba filtr bezlepkovy), ukotvíme jídlo nevyužitou potravinou s nejvyšším
-  // obsahem bílkovin z jiných kategorií (sýry, čočka…) – jinak by se kotva
-  // opakovala v každém jídle. Suroviny (droždí…) kotvou být nesmí.
+  // obsahem bílkovin z jiných kategoriích (sýry, čočka…) – jinak by se kotva
+  // opakovala v každém jídle. Suroviny ani suplementy kotvou být nesmí.
   let kotva: Kandidat | null;
+  const bilkovinyJidle = kategorie.bilkovinova.filter((p) => !jePrisada(p) && !zakazane(p));
   const bilkovinyBezPrisad = kategorie.bilkovinova.filter((p) => !jePrisada(p));
-  const bilkovinyPool = bilkovinyBezPrisad.length > 0 ? bilkovinyBezPrisad : kategorie.bilkovinova;
+  const bilkovinyPool =
+    bilkovinyJidle.length > 0
+      ? bilkovinyJidle
+      : typJ === "svacina"
+        ? bilkovinyBezPrisad // svačina: i tyčinka může být kotva
+        : bilkovinyJidle;    // hlavní jídla: raději žádná kotva než tyčinka
   if (bilkovinyPool.some((p) => !pouziteId.includes(p.id))) {
     kotva = vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, pouziteKlice, minuleDny);
   } else {
     const nahradni = [...kategorie.tukova, ...kategorie.sacharidova]
-      .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p))
+      .filter((p) => !pouziteId.includes(p.id) && !jePrisada(p) && !zakazane(p))
       .sort((a, b) => b.bilkoviny - a.bilkoviny);
     kotva =
       vyberKandidata(nahradni.slice(0, 3), poradi, pouziteId, denniPosun, 0.5, reKotva, antiKotva, pouziteKlice, minuleDny) ??
       vyberKandidata(bilkovinyPool, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny) ??
-      vyberKandidata(kategorie.sacharidova, poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny);
+      vyberKandidata(kategorie.sacharidova.filter((p) => !zakazane(p)), poradi, pouziteId, denniPosun, poolMin, reKotva, antiKotva, new Set(), minuleDny);
   }
   kotva = jenNepouzite(kotva);
   if (kotva !== null && zbyva.b >= 5) {
-    pridej(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400));
+    pridej(kotva, zaokrouhliGramaz(kotva, gramace(kotva, "bilkoviny", zbyva.b, 30, 400), "kotva", typJ), "kotva");
+  }
+
+  // --- 2a. zelenina – oběd/večeře se vždy skládá jako talíř:
+  // bílkovina + komplexní sacharid + tuk + zeleninová strana.
+  // Vybírá se HNED po kotvě, než příloha spotřebuje kalorický
+  // rozpočet. Rozpočet se odečte TEĎ, do výpisu jde položka až
+  // za tuk – pořadí talíře.
+  let zelenina: [Kandidat, number] | null = null;
+  if (typJ === "obedVecere" && zbyva.k >= 50) {
+    const zelPool = kategorie.sacharidova.filter(
+      (p) => ZELENINA_RE.test(p.nazev) && !jePrisada(p) && !zakazane(p),
+    );
+    const zel = jenNepouzite(
+      vyberKandidata(zelPool, poradi, pouziteId, denniPosun, poolMin, null, null, pouziteKlice, minuleDny),
+    );
+    if (zel !== null) {
+      const cilovaG = Math.min(130, zbyva.k / (Math.max(zel.kalorie, 1) / 100));
+      if (cilovaG >= 30) {
+        const gramy = zaokrouhliGramaz(zel, cilovaG, "zelenina", typJ);
+        zelenina = [zel, gramy];
+        odecti(zel, gramy);
+      }
+    }
   }
 
   // --- 2. doplněk sacharidů ---
   // Sacharidový doplněk nechceme „přeflakovat" dalšími bílkovinami,
   // proto preferujeme potraviny s nízkým obsahem bílkovin
   // (rýže a vločky, ne čočka), existují-li mezi kandidáty.
-  // Suroviny (cukr, mouka) z výběru vylučujeme – jídlo z nich nesestavíme.
+  // Suroviny (cukr, mouka) ani suplementy z výběru vylučujeme.
+  // Oběd/večeře: tvrdě čistá příloha (rýže, brambory, těstoviny, pečivo);
+  // snídaně: snídaňové sacharidy (vločky, pečivo, ovoce).
   let kandidatiS = kategorie.sacharidova;
-  const realneSacharidy = kandidatiS.filter((p) => !jePrisada(p));
+  const realneSacharidy = kandidatiS.filter((p) => !jePrisada(p) && !zakazane(p));
   if (realneSacharidy.length > 0) {
     kandidatiS = realneSacharidy;
   }
@@ -560,21 +826,32 @@ export function naplanujJidlo(
   if (nizkoproteinovi.length > 0) {
     kandidatiS = nizkoproteinovi;
   }
+  if (typJ === "obedVecere") {
+    const prilohove = kandidatiS.filter((p) => PRILOHA_RE.test(p.nazev));
+    if (prilohove.length > 0) kandidatiS = prilohove;
+  } else if (typJ === "snidane") {
+    const snidanove = kandidatiS.filter((p) => SNIDANE_RE.test(p.nazev) && !SNIDANOVA_PRILOHA_ANTI_RE.test(p.nazev));
+    if (snidanove.length > 0) kandidatiS = snidanove;
+  }
   const dopln = jenNepouzite(
     vyberKandidata(kandidatiS, poradi, pouziteId, denniPosun, poolMin, rePriloha, antiPriloha, pouziteKlice, minuleDny),
   );
   if (dopln !== null && zbyva.s >= 10 && zbyva.k >= 60) {
-    pridej(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350));
+    pridej(dopln, zaokrouhliGramaz(dopln, gramace(dopln, "sacharidy", zbyva.s, 30, 350), "sacharid", typJ), "sacharid");
   }
 
   // --- 3. doplněk tuků ---
   // Preferujeme skutečné potraviny (ořechy, avokádo, sýry); suroviny
-  // (olej, máslo, sádlo) bereme jen jako rezervu a s užším stropem –
-  // 25 g oleje k pokrmu smysl dává, 90 g už ne.
-  const tukBezPrisad = kategorie.tukova.filter((p) => !jePrisada(p));
+  // (olej, máslo, sádlo) bereme jen jako rezervu – 10–20 g oleje
+  // k pokrmu smysl dává, 90 g už ne.
+  const tukBezPrisad = kategorie.tukova.filter((p) => !jePrisada(p) && !zakazane(p));
+  const tukPool =
+    tukBezPrisad.length > 0
+      ? tukBezPrisad
+      : kategorie.tukova.filter((p) => !zakazane(p));
   const tukovina = jenNepouzite(
     vyberKandidata(
-      tukBezPrisad.length > 0 ? tukBezPrisad : kategorie.tukova,
+      tukPool,
       poradi,
       pouziteId,
       denniPosun,
@@ -586,15 +863,38 @@ export function naplanujJidlo(
     ),
   );
   if (tukovina !== null && zbyva.t >= 8 && zbyva.k >= 80) {
-    pridej(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100));
+    pridej(tukovina, zaokrouhliGramaz(tukovina, gramace(tukovina, "tuky", zbyva.t, 20, jePrisada(tukovina) ? 30 : 100), "tuk", typJ), "tuk");
+  }
+
+  if (zelenina !== null) {
+    pridej(zelenina[0], zelenina[1], "zelenina");
+  }
+
+  // --- 4. whey doplněk – jediný povolený suplement: malá odměrka
+  // do snídaňových vloček/jogurtu/tvarohu, když bílkoviny chybí.
+  // Nikdy samostatné jídlo, nikdy v jiném slotu.
+  if (typJ === "snidane" && zbyva.b >= 8 && zbyva.k >= 60) {
+    const wheyPool = kategorie.bilkovinova.filter(
+      (p) => jeWheyPrasek(p) && !pouziteId.includes(p.id),
+    );
+    const whey = jenNepouzite(
+      vyberKandidata(wheyPool, poradi, pouziteId, denniPosun, poolMin, null, null, pouziteKlice, minuleDny),
+    );
+    if (whey !== null) {
+      pridej(
+        whey,
+        zaokrouhliGramaz(whey, zbyva.b / (Math.max(whey.bilkoviny, 1) / 100), "suplement", typJ),
+        "suplement",
+      );
+    }
   }
 
   return jidla;
 }
 
-/** Medián kladných cen jako „typická cena" pro neceněné položky. */
+/** Medián spolehlivých cen jako „typická cena" pro neceněné položky. */
 function medianCeny(potraviny: Potravina[]): number {
-  const ceny = potraviny.map((p) => p.aktualniCena).filter((c) => c > 0).sort((a, b) => a - b);
+  const ceny = potraviny.filter(jeCenaSpolehliva).map((p) => p.aktualniCena).sort((a, b) => a - b);
   if (ceny.length === 0) return 15; // celý katalog bez cen – rozumná výchozí Kč/100g
   return ceny[Math.floor(ceny.length / 2)]!;
 }
@@ -690,16 +990,13 @@ export function vygenerujJidelnicek(
   };
 
   const kategorie = pripravKategorie(filtrujPotraviny(potraviny, filtr));
+  // mapa id → kandidát pro denní solver (přepočet gramáží z /100 g)
+  const podleId = new Map<string, Kandidat>();
+  for (const pool of Object.values(kategorie)) {
+    for (const k of pool) podleId.set(k.id, k);
+  }
 
   const jidelnicek: Record<string, SouhrnJidla> = {};
-  const celkem: SouhrnJidlaBezJidel = {
-    kalorie: 0,
-    bilkoviny: 0,
-    sacharidy: 0,
-    tuky: 0,
-    cena: 0,
-    cenaBezna: 0,
-  };
   const pouziteId: string[] = [];
   const pouziteKlice = new Set<string>();
   let poradi = 0;
@@ -721,19 +1018,32 @@ export function vygenerujJidelnicek(
       minuleDny,
     );
 
-    const souhrn = souhrnJidla(jidla);
-    jidelnicek[nazevJidla] = souhrn;
+    jidelnicek[nazevJidla] = souhrnJidla(jidla);
+    poradi++;
+  }
 
+  // denní solver – jídelní porce se skládají lokálně, díry do cílů
+  // (±3 % kcal, ±5 % B/S/T) doladí celodenní pohled
+  doladujDen(jidelnicek, podily, cileCiste, podleId, kategorie, pouziteId, pouziteKlice, denniPosun, poolMin, minuleDny);
+
+  const celkem: SouhrnJidlaBezJidel = {
+    kalorie: 0,
+    bilkoviny: 0,
+    sacharidy: 0,
+    tuky: 0,
+    cena: 0,
+    cenaBezna: 0,
+  };
+  for (const souhrn of Object.values(jidelnicek)) {
     celkem.kalorie += souhrn.kalorie;
     celkem.bilkoviny += souhrn.bilkoviny;
     celkem.sacharidy += souhrn.sacharidy;
     celkem.tuky += souhrn.tuky;
     celkem.cena += souhrn.cena;
     celkem.cenaBezna += souhrn.cenaBezna;
-
-    poradi++;
   }
 
+  celkem.kalorie = Math.round(celkem.kalorie);
   celkem.bilkoviny = Math.round(celkem.bilkoviny * 10) / 10;
   celkem.sacharidy = Math.round(celkem.sacharidy * 10) / 10;
   celkem.tuky = Math.round(celkem.tuky * 10) / 10;
@@ -741,6 +1051,285 @@ export function vygenerujJidelnicek(
   celkem.cenaBezna = Math.round(celkem.cenaBezna * 100) / 100;
 
   return { jidelnicek, celkem };
+}
+
+/* ============================================================
+ * DENNÍ SOLVER – dolaďování maker přes celý den
+ * ============================================================ */
+
+/**
+ * Skládání jídla z lokálních podílů nechává díry do denních cílů
+ * (velikosti porcí, stropy maker). Solver postupuje jako dietolog:
+ *   1) přeškáluje bílkovinové kotvy → 2) sacharidové přílohy
+ *   3) tukové doplňky; 4) když porce narazí na reálné stropy,
+ *      přidá do jídla s největším kalorickým prostorem celou
+ *      potravinu (vejce, ořechy, olej, pečivo).
+ * Cíl: ±3 % kcal, ±5 % na B/S/T. Max 4 průchody – pak vrátí
+ * nejbližší dosažitelný stav (malý katalog = menší přesnost).
+ */
+function doladujDen(
+  jidelnicek: Record<string, SouhrnJidla>,
+  podily: Record<string, number>,
+  cile: Cile,
+  podleId: Map<string, Kandidat>,
+  kategorie: KategorieMap,
+  pouziteId: string[],
+  pouziteKlice: Set<string>,
+  denniPosun: number | null,
+  poolMin: number,
+  minuleDny: Set<string>,
+): void {
+  if (cile.kalorie <= 0) return;
+
+  const vTol = (chyba: number, cil: number, tol: number) =>
+    Math.abs(chyba) <= Math.max(1.5, cil * tol);
+  const TOL_MAKRO = 0.05;
+  const TOL_KCAL = 0.03;
+
+  const soucty = () => {
+    let b = 0, s = 0, t = 0, k = 0;
+    for (const souhrn of Object.values(jidelnicek)) {
+      b += souhrn.bilkoviny;
+      s += souhrn.sacharidy;
+      t += souhrn.tuky;
+      k += souhrn.kalorie;
+    }
+    return { b, s, t, k };
+  };
+
+  const prepocitej = (souhrn: SouhrnJidla) => {
+    const n = souhrnJidla(souhrn.jidla);
+    souhrn.kalorie = n.kalorie;
+    souhrn.bilkoviny = n.bilkoviny;
+    souhrn.sacharidy = n.sacharidy;
+    souhrn.tuky = n.tuky;
+    souhrn.cena = n.cena;
+    souhrn.cenaBezna = n.cenaBezna;
+  };
+
+  /** přeškáluje položky dané role; chyba >0 navyšuje, <0 krátí. */
+  const doskaluj = (role: RoleJidla[], makro: "bilkoviny" | "sacharidy" | "tuky", chyba: number): boolean => {
+    let zmena = false;
+    for (const [nazev, souhrn] of Object.entries(jidelnicek)) {
+      if (Math.abs(chyba) < 0.5) break;
+      const typJ = typJidlaZ_nazvu(nazev);
+      for (const j of souhrn.jidla) {
+        if (Math.abs(chyba) < 0.5) break;
+        if (!role.includes(j.role ?? "kotva")) continue;
+        const p = podleId.get(j.id);
+        if (!p) continue;
+        const naGram = Math.max(p[makro], 0.1) / 100;
+        const stara = j[makro];
+        const nova = zaokrouhliGramaz(p, j.gramy + chyba / naGram, j.role ?? "kotva", typJ);
+        if (nova === j.gramy) continue;
+        const nove = vytvorJidlo(p, nova);
+        if (j.role !== undefined) nove.role = j.role;
+        const popisek = popisekKusu(p.nazev, nova);
+        if (popisek !== undefined) nove.popisekMnozstvi = popisek;
+        Object.assign(j, nove);
+        chyba -= j[makro] - stara;
+        zmena = true;
+      }
+      if (zmena) prepocitej(souhrn);
+    }
+    return zmena;
+  };
+
+  /** Jídla seřazená od „nejlehčího" vůči svému kalorickému podílu. */
+  const serazenaJidla = () =>
+    Object.entries(jidelnicek)
+      .map(([nazev, s]) => ({
+        nazev,
+        s,
+        typJ: typJidlaZ_nazvu(nazev),
+        podil: podily[nazev] ?? 0.25,
+      }))
+      .sort(
+        (a, b) =>
+          a.s.kalorie / Math.max(cile.kalorie * a.podil, 1) -
+          b.s.kalorie / Math.max(cile.kalorie * b.podil, 1),
+      );
+
+  /** přidá jednu celou potravinu do jídla s největším kalorickým prostorem. */
+  const pridejDoplnek = (makro: "bilkoviny" | "sacharidy" | "tuky", chyba: number): boolean => {
+    if (chyba <= 1) return false;
+    for (const cil of serazenaJidla()) {
+      let pool: Kandidat[];
+      const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, cil.typJ);
+      if (makro === "tuky") {
+        // olej patří do hlavního jídla (10 g k pokrmu), k snídani/svačině
+        // preferujeme ořechy a sýry – čistý tuk v jídelní formě
+        const vsechny = kategorie.tukova.filter((p) => !zakazane(p) && !TUK_ANTI_RE.test(p.nazev));
+        const oleje = vsechny.filter((p) => OLEJ_TUK_RE.test(p.nazev) && jePrisada(p));
+        const jidlova = vsechny.filter((p) => !(OLEJ_TUK_RE.test(p.nazev) && jePrisada(p)));
+        pool =
+          cil.typJ === "obedVecere" && oleje.length > 0
+            ? oleje
+            : jidlova.length > 0
+              ? jidlova
+              : oleje;
+      } else if (makro === "bilkoviny") {
+        pool = kategorie.bilkovinova.filter((p) => !jePrisada(p) && !zakazane(p));
+      } else {
+        // sacharidový doplněk musí pasovat k jídlu – rýže k obědu,
+        // vločky/pečivo k snídani, ovoce/pečivo ke svačině
+        const vse = kategorie.sacharidova.filter((p) => !jePrisada(p) && !zakazane(p));
+        const re = cil.typJ === "obedVecere" ? PRILOHA_RE : cil.typJ === "snidane" ? SNIDANE_RE : SVACINA_RE;
+        const vhodne = vse.filter((p) => re.test(p.nazev));
+        pool = vhodne.length > 0 ? vhodne : vse;
+      }
+      // preferujeme nepoužité; tuk smí zopakovat (olej dvakrát je normální)
+      const nove = pool.filter((p) => !pouziteId.includes(p.id));
+      const fond = nove.length > 0 ? nove : makro === "tuky" ? pool : [];
+      if (fond.length === 0) continue;
+      const role: RoleJidla = makro === "bilkoviny" ? "kotva" : makro === "sacharidy" ? "sacharid" : "tuk";
+      // kandidáti od nejlepšího skóre; minimální reálná porce se musí
+      // vejít do makro-headroomu (+5 %), jinak trvale přestřelí cíl
+      const prvni = vyberKandidata(
+        fond, 0, pouziteId, denniPosun, poolMin, null, null, pouziteKlice, minuleDny,
+      );
+      const zbytek = fond
+        .filter((x) => x.id !== prvni?.id)
+        .sort((a, b) => b.skore - a.skore);
+      const poradi = prvni !== null ? [prvni, ...zbytek] : zbytek;
+      const akt = soucty();
+      const cilMakro = makro === "bilkoviny" ? cile.bilkoviny : makro === "sacharidy" ? cile.sacharidy : cile.tuky;
+      const aktMakro = makro === "bilkoviny" ? akt.b : makro === "sacharidy" ? akt.s : akt.t;
+      const hlava = cilMakro * 1.05 - aktMakro;
+      for (const kandidat of poradi) {
+        const gramy = zaokrouhliGramaz(
+          kandidat, chyba / (Math.max(kandidat[makro], 0.5) / 100), role, cil.typJ,
+        );
+        if (gramy <= 0) continue;
+        const addMakro = (kandidat[makro] * gramy) / 100;
+        if (addMakro > hlava + 0.5) continue;
+        const jidlo = vytvorJidlo(kandidat, gramy);
+        jidlo.role = role;
+        const popisek = popisekKusu(kandidat.nazev, gramy);
+        if (popisek !== undefined) jidlo.popisekMnozstvi = popisek;
+        cil.s.jidla.push(jidlo);
+        pouziteId.push(kandidat.id);
+        pouziteKlice.add(klicPodobnosti(kandidat.nazev));
+        prepocitej(cil.s);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Reziduální kcal: makra jsou v toleranci, chybí energie. Přidává
+   * NEJMENŠÍ porce, které se celé vejdou do makro-headroomu (±5 %)
+   * – žádné makro se nesmí přestřelit jen kvůli kaloriím.
+   */
+  const pridejMalyDoplnek = (chybaK: number): boolean => {
+    const s = soucty();
+    const hlavy = {
+      bilkoviny: cile.bilkoviny * 1.05 - s.b,
+      sacharidy: cile.sacharidy * 1.05 - s.s,
+      tuky: cile.tuky * 1.05 - s.t,
+    };
+    for (const cil of serazenaJidla()) {
+      const zakazane = (p: { nazev: string }) => zakazaneProTyp(p, cil.typJ);
+      const vsechny = [...kategorie.bilkovinova, ...kategorie.sacharidova, ...kategorie.tukova].filter(
+        (p) =>
+          !pouziteId.includes(p.id) &&
+          !zakazane(p) &&
+          // zelenina se přidává slotem oběd/večeře – jako kalorický
+          // doplněk by zde vznikaly směšné 20 g okurky za 3 kcal
+          !ZELENINA_RE.test(p.nazev) &&
+          // suroviny jen tukové (5 g oleje dává smysl, 5 g cukru ne)
+          (!jePrisada(p) || (OLEJ_TUK_RE.test(p.nazev) && kategoriePotraviny(p) === "tukova")),
+      );
+      // porce míří na ~75 % chybějících kcal; vybírá se nejblíže
+      // k deficitu, přičemž nesmí přestřelit makro-headroom ani cíl
+      const kandidati = vsechny
+        .map((p) => {
+          const kat = kategoriePotraviny(p);
+          const role: RoleJidla = kat === "bilkovinova" ? "kotva" : kat === "sacharidova" ? "sacharid" : "tuk";
+          const cilK = chybaK * 0.75;
+          const gramy = zaokrouhliGramaz(p, cilK / (Math.max(p.kalorie, 1) / 100), role, cil.typJ);
+          return { p, role, gramy, addK: (p.kalorie * gramy) / 100 };
+        })
+        .filter((x) => x.gramy > 0 && x.addK > 15 && x.addK <= chybaK * 1.3 + 20)
+        .sort((a, b) => Math.abs(a.addK - chybaK) - Math.abs(b.addK - chybaK));
+      for (const k of kandidati) {
+        const addB = (k.p.bilkoviny * k.gramy) / 100;
+        const addS = (k.p.sacharidy * k.gramy) / 100;
+        const addT = (k.p.tuky * k.gramy) / 100;
+        if (
+          addB <= hlavy.bilkoviny + 0.5 &&
+          addS <= hlavy.sacharidy + 0.5 &&
+          addT <= hlavy.tuky + 0.5
+        ) {
+          const jidlo = vytvorJidlo(k.p, k.gramy);
+          jidlo.role = k.role;
+          const popisek = popisekKusu(k.p.nazev, k.gramy);
+          if (popisek !== undefined) jidlo.popisekMnozstvi = popisek;
+          cil.s.jidla.push(jidlo);
+          pouziteId.push(k.p.id);
+          pouziteKlice.add(klicPodobnosti(k.p.nazev));
+          prepocitej(cil.s);
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  for (let kolo = 0; kolo < 4; kolo++) {
+    const s = soucty();
+    const chybi = {
+      b: cile.bilkoviny - s.b,
+      s: cile.sacharidy - s.s,
+      t: cile.tuky - s.t,
+      k: cile.kalorie - s.k,
+    };
+    if (
+      vTol(chybi.b, cile.bilkoviny, TOL_MAKRO) &&
+      vTol(chybi.s, cile.sacharidy, TOL_MAKRO) &&
+      vTol(chybi.t, cile.tuky, TOL_MAKRO) &&
+      vTol(chybi.k, cile.kalorie, TOL_KCAL)
+    ) {
+      return;
+    }
+
+    let pokrok = false;
+    // 1) kotvy → 2) sacharidy → 3) tuky (pořadí vyvažování)
+    pokrok = doskaluj(["kotva", "suplement"], "bilkoviny", chybi.b) || pokrok;
+    pokrok = doskaluj(["sacharid"], "sacharidy", chybi.s) || pokrok;
+    pokrok = doskaluj(["tuk"], "tuky", chybi.t) || pokrok;
+    // stropy porcí → přidej celou potravinu do nejlehčího jídla
+    if (!vTol(chybi.b, cile.bilkoviny, TOL_MAKRO) && chybi.b > 0) {
+      pokrok = pridejDoplnek("bilkoviny", chybi.b) || pokrok;
+    }
+    if (!vTol(chybi.s, cile.sacharidy, TOL_MAKRO) && chybi.s > 0) {
+      pokrok = pridejDoplnek("sacharidy", chybi.s) || pokrok;
+    }
+    if (!vTol(chybi.t, cile.tuky, TOL_MAKRO) && chybi.t > 0) {
+      pokrok = pridejDoplnek("tuky", chybi.t) || pokrok;
+    }
+    // reziduální kcal: makra v toleranci → malé položky v headroomu
+    // (opakovaně, dokud něco vejde); přebytek → ubrání sacharidů
+    if (
+      !vTol(chybi.k, cile.kalorie, TOL_KCAL) &&
+      vTol(chybi.b, cile.bilkoviny, TOL_MAKRO) &&
+      vTol(chybi.s, cile.sacharidy, TOL_MAKRO) &&
+      vTol(chybi.t, cile.tuky, TOL_MAKRO)
+    ) {
+      if (chybi.k > 0) {
+        let zbytek = chybi.k;
+        for (let i = 0; i < 6 && !vTol(zbytek, cile.kalorie, TOL_KCAL); i++) {
+          if (!pridejMalyDoplnek(zbytek)) break;
+          zbytek = cile.kalorie - soucty().k;
+          pokrok = true;
+        }
+      } else {
+        pokrok = doskaluj(["sacharid"], "sacharidy", chybi.k / 4.1) || pokrok;
+      }
+    }
+    if (!pokrok) return;
+  }
 }
 
 /* ============================================================

@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   BONUS_SLEVY,
   filtrujPotraviny,
+  jeCenaSpolehliva,
   jePrisada,
+  jeSuplement,
+  jeSuplementSnack,
+  jeSuplementTvrdy,
+  jeWheyPrasek,
   kategoriePotraviny,
+  kusovaGramaz,
   naplanujJidlo,
   panelTik,
   podilyProPocetJidel,
@@ -16,6 +22,7 @@ import {
   vyberKandidata,
   vygenerujJidelnicek,
   vygenerujTydenniPlan,
+  zaokrouhliGramaz,
   type Jidlo,
   type Potravina,
   type SouhrnJidla,
@@ -835,5 +842,238 @@ describe("tydenni rotace rodin", () => {
       }
     }
     expect(rodiny.size).toBeGreaterThanOrEqual(2);
+  });
+});
+
+/* ============================================================
+ * OVERHAUL: celopotravinová jídla, reálné porce, makro-solver
+ * ============================================================ */
+
+// Reálnější katalog – bílkoviny, sacharidy, tuky, zelenina + suplementy
+// s „lákavým" skórem, které by starý generátor vybral do hlavních jídel.
+const KATALOG_REALNY: Potravina[] = [
+  p("r1", "Kuřecí prsa", 23, 0, 2.6, 114, 19.9),
+  p("r2", "Krůtí prsa", 24, 0, 1.5, 110, 22),
+  p("r3", "Losos filet", 20, 0, 13, 208, 45),
+  p("r4", "Tuňák v konzervě", 24, 0, 1, 109, 25),
+  p("r5", "Vejce slepičí", 12.5, 0.7, 10, 140, 5),
+  p("r6", "Tvaroh polotučný", 12, 3.5, 2, 84, 5.6),
+  p("r7", "Tvaroh nízkotučný", 13, 4, 0.5, 74, 5.2),
+  p("r8", "Řecký jogurt 0%", 10, 3.6, 0.4, 57, 7),
+  p("r9", "Sýr Eidam 30%", 25, 2, 28, 365, 11),
+  p("r10", "Mozzarella", 18, 2.5, 21, 275, 14),
+  p("r11", "Ovesné vločky", 13, 60, 7, 375, 3.5),
+  p("r12", "Rýže dlouhozrnná", 7.5, 78, 0.6, 350, 4),
+  p("r13", "Těstoviny celozrnné", 13, 70, 2.5, 352, 4.5),
+  p("r14", "Brambory", 2, 17, 0.1, 77, 2),
+  p("r15", "Chléb žitný", 8.5, 48, 1.7, 240, 4.5),
+  p("r16", "Rohlík celozrnný", 9, 52, 3, 280, 5),
+  p("r17", "Banán", 1.1, 23, 0.3, 95, 4),
+  p("r18", "Jablko", 0.3, 14, 0.2, 58, 3),
+  p("r19", "Mandle", 21, 10, 54, 600, 25),
+  p("r20", "Vlašské ořechy", 15, 7, 65, 654, 22),
+  p("r21", "Olivový olej", 0, 0, 100, 884, 9),
+  p("r22", "Rajče", 0.9, 3.9, 0.2, 20, 6),
+  p("r23", "Okurka hadovka", 0.7, 3.6, 0.1, 15, 4),
+  p("r24", "Brokolice", 2.8, 6.6, 0.4, 34, 7),
+  p("r25", "Paprika", 1, 6, 0.3, 31, 6),
+  // suplementy s „lákavým" poměrem makro:cena – musí zůstat mimo hlavní jídla
+  p("s1", "Proteinová tyčinka 45 g", 33, 35, 9, 350, 40),
+  p("s2", "Instantní proteinová polévka", 60, 20, 4, 360, 50),
+  p("s3", "Proteinový pudink prášek", 75, 8, 2, 350, 45),
+  p("s4", "Srvátkový protein whey", 80, 5, 6, 390, 55),
+  p("s5", "Gainer Mega Mass", 25, 60, 5, 365, 35),
+];
+const REALNY_BY_ID = new Map(KATALOG_REALNY.map((x) => [x.id, x]));
+
+describe("suplementy – klasifikace", () => {
+  it("tvrdé suplementy: instantní polévky, práškové pudinky, gainery, whey", () => {
+    for (const nazev of [
+      "Instantní proteinová polévka",
+      "Proteinová polévka instantní",
+      "Proteinový pudink prášek",
+      "Gainer Mega Mass",
+      "BCAA instant",
+      "Whey protein isolate",
+      "Srvátkový protein koncentrát",
+    ]) {
+      expect(jeSuplementTvrdy({ nazev })).toBe(true);
+    }
+  });
+
+  it("svačinové suplementy: tyčinky a proteinové nápoje", () => {
+    for (const nazev of ["Proteinová tyčinka 45 g", "Müsli bar", "Protein shake"]) {
+      expect(jeSuplementSnack({ nazev })).toBe(true);
+    }
+  });
+
+  it("whey je rozpoznaný jako jediný povolený doplněk snídaně", () => {
+    expect(jeWheyPrasek({ nazev: "Srvátkový protein whey" })).toBe(true);
+    expect(jeWheyPrasek({ nazev: "Proteinový prášek" })).toBe(true);
+    expect(jeWheyPrasek({ nazev: "Tvaroh" })).toBe(false);
+  });
+
+  it("normální potraviny nejsou suplementy (proteinový jogurt, koncentrát, instant kaše)", () => {
+    for (const nazev of [
+      "Kuřecí prsa",
+      "Proteinový jogurt natural",
+      "Rajčatový koncentrát",
+      "Instantní ovocná kaše",
+      "Tvaroh polotučný",
+      "Polévka zeleninová",
+      "Granko",
+    ]) {
+      expect(jeSuplement({ nazev })).toBe(false);
+    }
+  });
+});
+
+describe("suplementy – zákaz v hlavních jídlech", () => {
+  it("Snídaně/Oběd/Večeře nepoužívají suplementy; svačina jen netvrdé položky", () => {
+    // všech 7 denních rotací – deterministická kontrola celého jídelníčku
+    for (let den = 1; den <= 7; den++) {
+      const v = vygenerujJidelnicek(KATALOG_REALNY, CILE, den);
+      for (const [nazev, souhrn] of Object.entries(v.jidelnicek)) {
+        for (const j of souhrn.jidla) {
+          const potravina = REALNY_BY_ID.get(j.id)!;
+          if (/svačin/i.test(nazev)) {
+            // svačina: tvrdé suplementy zakázány (tyčinka může projít)
+            expect(jeSuplementTvrdy(potravina), `${nazev}: ${j.nazev}`).toBe(false);
+          } else {
+            // hlavní jídla: žádná tyčinka/shake
+            expect(jeSuplementSnack(potravina), `${nazev}: ${j.nazev}`).toBe(false);
+            // tvrdý suplement smí jen whey jako „suplement" doplněk snídaně
+            if (j.role === "suplement") {
+              expect(/snídan/i.test(nazev)).toBe(true);
+              expect(jeWheyPrasek(potravina)).toBe(true);
+              // whey nikdy samostatné jídlo – vždy s jídlem navíc
+              expect(souhrn.jidla.length).toBeGreaterThan(1);
+            } else {
+              expect(jeSuplementTvrdy(potravina), `${nazev}: ${j.nazev}`).toBe(false);
+            }
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("reálné porce – zaokrouhliGramaz", () => {
+  it("maso/ryby: krok 10 g, porce 80–250 g", () => {
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 137, "kotva", "obedVecere")).toBe(140);
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 40, "kotva", "obedVecere")).toBe(80);
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 800, "kotva", "obedVecere")).toBe(250);
+  });
+
+  it("suché sacharidy: krok 10 g, hlavní jídlo min 50 g – žádná 30 g rýže", () => {
+    expect(zaokrouhliGramaz({ nazev: "Rýže basmati" }, 34, "sacharid", "obedVecere")).toBe(50);
+    expect(zaokrouhliGramaz({ nazev: "Těstoviny" }, 66, "sacharid", "obedVecere")).toBe(70);
+  });
+
+  it("mléčné: kelímkové kroky po 50 g", () => {
+    expect(zaokrouhliGramaz({ nazev: "Řecký jogurt" }, 137, "kotva", "snidane")).toBe(150);
+    expect(zaokrouhliGramaz({ nazev: "Tvaroh" }, 280, "kotva", "snidane")).toBe(300);
+  });
+
+  it("kusové: celé kusy s gramovým ekvivalentem", () => {
+    expect(zaokrouhliGramaz({ nazev: "Vejce" }, 95, "kotva", "snidane")).toBe(120); // 2 ks
+    expect(zaokrouhliGramaz({ nazev: "Banán" }, 100, "sacharid", "svacina")).toBe(120); // 1 ks
+    expect(zaokrouhliGramaz({ nazev: "Rohlík" }, 80, "sacharid", "snidane")).toBe(86); // 2 ks
+  });
+
+  it("tuky: olej max 20 g / krok 5 g, ořechy max 45 g", () => {
+    const olej = { nazev: "Slunečnicový olej" };
+    expect(zaokrouhliGramaz(olej, 47, "tuk", "obedVecere")).toBe(20);
+    expect(zaokrouhliGramaz(olej, 12, "tuk", "obedVecere")).toBe(10);
+    expect(zaokrouhliGramaz({ nazev: "Mandle" }, 23, "tuk", "snidane")).toBe(25);
+  });
+
+  it("kusovaGramaz rozpozná kusové potraviny", () => {
+    expect(kusovaGramaz("Vejce slepičí M")).toBe(60);
+    expect(kusovaGramaz("Banán")).toBe(120);
+    expect(kusovaGramaz("Rýže")).toBeNull();
+  });
+});
+
+describe("reálné porce – v generovaném plánu", () => {
+  it("všechny gramáže jsou čisté (krok 5 g nebo celé kusy) a maso ≥ 80 g", () => {
+    const den = vygenerujJidelnicek(KATALOG_REALNY, CILE, 3);
+    for (const souhrn of Object.values(den.jidelnicek)) {
+      for (const j of souhrn.jidla) {
+        if (j.popisekMnozstvi) {
+          // kusová položka: „N ks · M g" a gramy = N × váha kusu
+          const kus = kusovaGramaz(j.nazev);
+          expect(kus).not.toBeNull();
+          expect(j.gramy % kus!).toBe(0);
+        } else {
+          expect(j.gramy % 5, `${j.nazev} ${j.gramy}`).toBe(0);
+        }
+        if (j.role === "kotva" && /maso|kuřec|krůt|losos|tuňák|prsa|prso/i.test(j.nazev)) {
+          expect(j.gramy).toBeGreaterThanOrEqual(80);
+          expect(j.gramy).toBeLessThanOrEqual(250);
+        }
+      }
+    }
+  });
+
+  it("Oběd a Večeře mají zeleninovou stranu", () => {
+    for (let d = 1; d <= 3; d++) {
+      const den = vygenerujJidelnicek(KATALOG_REALNY, CILE, d);
+      for (const nazev of ["Oběd", "Večeře"]) {
+        expect(
+          den.jidelnicek[nazev]!.jidla.some((j) => j.role === "zelenina"),
+          nazev,
+        ).toBe(true);
+      }
+    }
+  });
+});
+
+describe("denní makro-solver – přesnost cílů", () => {
+  const PROFILY = [
+    { kalorie: 1600, bilkoviny: 130, sacharidy: 130, tuky: 58 }, // redukce
+    { kalorie: 2200, bilkoviny: 150, sacharidy: 220, tuky: 75 }, // udržování
+    { kalorie: 3000, bilkoviny: 190, sacharidy: 340, tuky: 95 }, // nabírání
+  ];
+
+  for (const cile of PROFILY) {
+    it(`profil ${cile.kalorie} kcal: kcal ±3 %, B/S/T ±5 %`, () => {
+      for (let den = 1; den <= 3; den++) {
+        const v = vygenerujJidelnicek(KATALOG_REALNY, cile, den);
+        expect(v.celkem.kalorie, `kcal den ${den}`).toBeGreaterThanOrEqual(cile.kalorie * 0.97);
+        expect(v.celkem.kalorie, `kcal den ${den}`).toBeLessThanOrEqual(cile.kalorie * 1.03);
+        expect(v.celkem.bilkoviny, `B den ${den}`).toBeGreaterThanOrEqual(cile.bilkoviny * 0.95);
+        expect(v.celkem.bilkoviny, `B den ${den}`).toBeLessThanOrEqual(cile.bilkoviny * 1.05);
+        expect(v.celkem.sacharidy, `S den ${den}`).toBeGreaterThanOrEqual(cile.sacharidy * 0.95);
+        expect(v.celkem.sacharidy, `S den ${den}`).toBeLessThanOrEqual(cile.sacharidy * 1.05);
+        expect(v.celkem.tuky, `T den ${den}`).toBeGreaterThanOrEqual(cile.tuky * 0.95);
+        expect(v.celkem.tuky, `T den ${den}`).toBeLessThanOrEqual(cile.tuky * 1.05);
+      }
+    });
+  }
+});
+
+describe("ceny jídel – realistický výpočet", () => {
+  it("150 g kuřete z ceny 199 Kč/kg = ~29,85 Kč (nikdy 2,99)", () => {
+    const kure = { ...p("k", "Kuřecí prsa", 23, 0, 2.6, 114, 19.9) }; // Kč/100 g
+    const j = vytvorJidlo(kure, 150);
+    expect(j.cena).toBeCloseTo(29.85, 2);
+    expect(j.cena).toBeGreaterThan(10);
+  });
+
+  it("nespoledlivá cena (pack-mismatch) se NEZOBRAZÍ – položka je neceněná", () => {
+    // „4,75 Kč za 95 g tyčinky" = aktualniCena 5 Kč/100 g při balení 45 g
+    const rozbita = { ...p("x", "Proteinová tyčinka", 30, 30, 5, 320, 5), baleniG: 45 };
+    expect(jeCenaSpolehliva(rozbita)).toBe(false);
+    const j = vytvorJidlo(rozbita, 95);
+    expect(j.cena).toBe(0);
+    expect(j.sleva).toBe(false);
+  });
+
+  it("spolehlivé ceny procházejí", () => {
+    expect(jeCenaSpolehliva(p("a", "Brambory", 2, 17, 0.1, 77, 2))).toBe(true);
+    expect(jeCenaSpolehliva(p("b", "Kuře", 23, 0, 3, 110, 19.9))).toBe(true);
+    expect(jeCenaSpolehliva(p("c", "Levnej", 10, 0, 0, 50, 0.5))).toBe(false); // < 1,5 Kč/100 g
+    expect(jeCenaSpolehliva(p("d", "Drahej", 10, 0, 0, 50, 500))).toBe(false); // > 400
   });
 });

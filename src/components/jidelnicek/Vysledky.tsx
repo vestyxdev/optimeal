@@ -200,7 +200,9 @@ function MrizkaJidel({
                         <MiniaturaPotraviny obrazek={j.obrazek} velikost="size-8" />
                         <span className="min-w-0">{j.nazev}</span>
                       </span>
-                      <span className="tabular-nums">{Math.round(j.gramy)} g</span>
+                      <span className="shrink-0 whitespace-nowrap tabular-nums">
+                        {j.popisekMnozstvi ?? `${Math.round(j.gramy)} g`}
+                      </span>
                     </div>
                     <div className="mt-1 flex justify-between gap-2 text-xs text-muted">
                       <span>
