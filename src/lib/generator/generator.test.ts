@@ -452,6 +452,19 @@ describe("filtrujPotraviny", () => {
     expect(nazevNasvedcujeAlergenu("Bezlaktózové mléko", "mleko")).toBe(true);
   });
 
+  it("bezlepková dieta = vyloučení lepku, ne jen GF-tagované položky", () => {
+    const kat = [
+      { ...p("g1", "Rýže basmati", 7, 78, 0.6, 350, 22), diety: [] as string[] },
+      { ...p("g2", "Pšeničný chléb", 9, 48, 2, 250, 28), diety: [] as string[], alergeny: ["lepek"] },
+      { ...p("g3", "Bezlepková bageta", 7, 45, 3, 260, 55), diety: ["bezlepkovy"], alergeny: [] as string[] },
+      { ...p("g4", "Kuřecí prsa", 23, 0, 1.5, 106, 75), diety: [] as string[] },
+    ];
+    // certifikovaná GF bageta zůstane, pšeničný chléb zmizí –
+    // a hlavně: netagovaná rýže a kuře prochází (pool není ~70 položek)
+    const vys = filtrujPotraviny(kat, { diety: ["bezlepkovy"] });
+    expect(vys.map((x) => x.id).sort()).toEqual(["g1", "g3", "g4"]);
+  });
+
   it("obsahujeAlergen kombinuje tag i název", () => {
     expect(obsahujeAlergen({ nazev: "Losos uzený", alergeny: [] }, "ryby")).toBe(true);
     expect(obsahujeAlergen({ nazev: "Quinoa", alergeny: ["mleko"] }, "mleko")).toBe(true);

@@ -154,14 +154,21 @@ export function obsahujeAlergen(
  * dietám a nesmí obsahovat ŽÁDNÝ z uvedených alergenů – ať už podle
  * alergenového tagu, nebo podle názvu (bezpečnostní síť: tagy má jen
  * ~28 % položek katalogu).
+ *
+ * „Bezlepková dieta" je výjimka: neznamená „jen certifikované GF
+ * produkty" (těch je ~70 a plán z nich je chudý i drahý), ale
+ * „vyloučit lepek" – přirozeně bezlepkové potraviny (rýže, maso,
+ * zelenina) tag bezlepkovy nenosí. Celiakův filtr se tak chová jako
+ * alergie na lepek: široký bezpečný pool, glutenové položky ven.
  * Prázdný filtr = celý katalog (běžný jedlík).
  */
 export function filtrujPotraviny(
   potraviny: Potravina[],
   filtr?: FiltrPotraviny | null,
 ): Potravina[] {
-  const diety = filtr?.diety ?? [];
-  const alergeny = filtr?.alergeny ?? [];
+  const diety = (filtr?.diety ?? []).filter((d) => d !== "bezlepkovy");
+  const alergeny = [...(filtr?.alergeny ?? [])];
+  if (filtr?.diety?.includes("bezlepkovy")) alergeny.push("lepek");
   if (diety.length === 0 && alergeny.length === 0) return potraviny;
   return potraviny.filter(
     (p) =>

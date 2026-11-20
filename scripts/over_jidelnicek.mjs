@@ -1,34 +1,54 @@
 // over_jidelnicek.mjs – audit kvality generovaného denního plánu
 // na ŽIVÉM katalogu (aktualni_ceny): celá jídla, porce, zelenina,
 // ceny a denní makra. Jen čte – nic nezapisuje.
-// Použití: node scripts/over_jidelnicek.mjs [kcal B S T]
+// Použití: node scripts/over_jidelnicek.mjs [kcal B S T] [--tyden]
+//          [--diety=a,b] [--alergeny=a,b]
+//          [--export=katalog.json]  uloží katalog do JSON a skončí
+//          [--katalog=katalog.json] audit bez DB (CI, snapshot)
 import pg from "pg";
 import fs from "node:fs";
-const { Client } = pg;
-const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
-const c = new Client({
-  host: "aws-0-eu-west-2.pooler.supabase.com",
-  port: 6543,
-  user: "postgres.gduquvqofcohbjzzsicb",
-  password: heslo,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
-await c.connect();
-const r = await c.query("select * from aktualni_ceny");
-await c.end();
-console.log(`Katalog: ${r.rows.length} potravin`);
+import path from "node:path";
+const argHodnota = (klic) => process.argv.find((a) => a.startsWith(`--${klic}=`))?.split("=")[1] ?? "";
+const katalogSoubor = argHodnota("katalog");
+const exportSoubor = argHodnota("export");
 
-const potraviny = r.rows.map((x) => ({
-  id: String(x.food_id ?? x.id), nazev: x.nazev, kategorie: x.kategorie,
-  bilkoviny: +x.bilkoviny, sacharidy: +x.sacharidy, tuky: +x.tuky, kalorie: +x.kalorie,
-  beznaCena: +x.bezna_cena || 15,
-  aktualniCena: x.aktualni_cena != null ? +x.aktualni_cena : +x.bezna_cena || 15,
-  obchod: x.obchod ?? null, sleva: !!x.sleva,
-  puvodniCena: x.puvodni_cena != null ? +x.puvodni_cena : null,
-  alergeny: x.alergeny ?? [], diety: x.diety ?? [], obrazek: x.obrazek ?? null,
-  baleniG: x.baleni_g != null ? +x.baleni_g : null,
-}));
+let potraviny;
+if (katalogSoubor) {
+  potraviny = JSON.parse(fs.readFileSync(katalogSoubor, "utf8"));
+  console.log(`Katalog (snapshot ${katalogSoubor}): ${potraviny.length} potravin`);
+} else {
+  const { Client } = pg;
+  const heslo = fs.readFileSync(".env.local", "utf8").match(/SUPABASE_DB_PASSWORD=(.+)/)[1].trim();
+  const c = new Client({
+    host: "aws-0-eu-west-2.pooler.supabase.com",
+    port: 6543,
+    user: "postgres.gduquvqofcohbjzzsicb",
+    password: heslo,
+    database: "postgres",
+    ssl: { rejectUnauthorized: false },
+  });
+  await c.connect();
+  const r = await c.query("select * from aktualni_ceny");
+  await c.end();
+  console.log(`Katalog: ${r.rows.length} potravin`);
+  potraviny = r.rows.map((x) => ({
+    id: String(x.food_id ?? x.id), nazev: x.nazev, kategorie: x.kategorie,
+    bilkoviny: +x.bilkoviny, sacharidy: +x.sacharidy, tuky: +x.tuky, kalorie: +x.kalorie,
+    beznaCena: +x.bezna_cena || 15,
+    aktualniCena: x.aktualni_cena != null ? +x.aktualni_cena : +x.bezna_cena || 15,
+    obchod: x.obchod ?? null, sleva: !!x.sleva,
+    puvodniCena: x.puvodni_cena != null ? +x.puvodni_cena : null,
+    alergeny: x.alergeny ?? [], diety: x.diety ?? [], obrazek: x.obrazek ?? null,
+    baleniG: x.baleni_g != null ? +x.baleni_g : null,
+  }));
+}
+
+if (exportSoubor) {
+  fs.mkdirSync(path.dirname(exportSoubor), { recursive: true });
+  fs.writeFileSync(exportSoubor, JSON.stringify(potraviny));
+  console.log(`Exportováno ${potraviny.length} potravin → ${exportSoubor}`);
+  process.exit(0);
+}
 
 const {
   vygenerujJidelnicek, vygenerujTydenniPlan, jeSuplementTvrdy, jeSuplementSnack,
@@ -37,12 +57,13 @@ const {
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const tydenni = process.argv.includes("--tyden");
-const argHodnota = (klic) => process.argv.find((a) => a.startsWith(`--${klic}=`))?.split("=")[1] ?? "";
 const filtr = {
   diety: argHodnota("diety").split(",").filter(Boolean),
   alergeny: argHodnota("alergeny").split(",").filter(Boolean),
 };
 const maFiltr = filtr.diety.length > 0 || filtr.alergeny.length > 0;
+// „bezlepková dieta" se v generátoru chová jako vyloučení lepku
+const alergenyEf = [...filtr.alergeny, ...(filtr.diety.includes("bezlepkovy") ? ["lepek"] : [])];
 const cile = {
   kalorie: +(args[0] ?? 2200),
   bilkoviny: +(args[1] ?? 150),
@@ -85,7 +106,7 @@ for (const [d, den] of dnyVysledky) {
           flag(`suplement mimo snídani: ${j.nazev}`);
         if (j.aktualniCena !== undefined && !jeCenaSpolehliva(potravina) && j.cena > 0)
           flag(`nespolehlivá cena zobrazena: ${j.nazev} ${j.cena} Kč`);
-        for (const a of filtr.alergeny)
+        for (const a of alergenyEf)
           if (obsahujeAlergen(potravina, a))
             flag(`alergen "${a}" v plánu i přes filtr: ${j.nazev}`);
       }
@@ -121,8 +142,8 @@ if (tydenni) {
 if (maFiltr) {
   const poFiltru = filtrujPotraviny(potraviny, filtr).length;
   const jenTagy = potraviny.filter((p) =>
-    filtr.diety.every((d) => (p.diety ?? []).includes(d)) &&
-    filtr.alergeny.every((a) => !(p.alergeny ?? []).includes(a))).length;
+    filtr.diety.filter((d) => d !== "bezlepkovy").every((d) => (p.diety ?? []).includes(d)) &&
+    alergenyEf.every((a) => !(p.alergeny ?? []).includes(a))).length;
   console.log(`Filtr: ${poFiltru} potravin projde (jen tagy: ${jenTagy}, jmenná síť vyhodila dalších ${jenTagy - poFiltru})`);
 }
 

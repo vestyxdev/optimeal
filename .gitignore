@@ -32,3 +32,4 @@ scripts/_*.txt
 scripts/_*.log
 __pycache__/
 scripts/.dopln_tagy_off.state.json  
+data/katalog_snapshot.json  
