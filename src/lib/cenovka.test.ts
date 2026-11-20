@@ -9,7 +9,7 @@ function cena(
   c: number,
   jeSleva = false,
 ): CenaObchodu {
-  return { obchodId, obchod, cena: c, jeSleva, pozorovanoAt: "2026-03-01T00:00:00Z", baleniG: null };
+  return { obchodId, obchod, cena: c, jeSleva, pozorovanoAt: "2026-03-01T00:00:00Z", baleniG: null, puvodniCena: null };
 }
 
 describe("nejlevnejsiObchod", () => {

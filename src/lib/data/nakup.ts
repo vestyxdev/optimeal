@@ -38,6 +38,9 @@ export interface CenaObchodu {
   pozorovanoAt: string;
   /** gramáž balení u tohoto obchodu (obs.baleni_g ?? foods.baleni_g) */
   baleniG: number | null;
+  /** ověřená původní (přeškrtnutá) cena za 100 g – null bez
+   *  zdrojového ověření (leták/eshop/kupi) nebo artefaktu >4× */
+  puvodniCena: number | null;
 }
 
 /** Načte seznamy přihlášeného uživatele (novější první). */
@@ -211,7 +214,7 @@ export async function nactiCenoveHladiny(
 
   const { data, error } = await klient
     .from("price_observations")
-    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, baleni_g, obchod:retailers(nazev), potravina:foods(baleni_g)")
+    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, baleni_g, puvodni_cena, puvodni_zdroj, obchod:retailers(nazev), potravina:foods(baleni_g)")
     .in("food_id", ids)
     // podezřelá pozorování (špatně spárovaná nabídka, >3×/<0,25×
     // per-food mediánu) Cenovka ignoruje – stejně jako view
@@ -233,13 +236,21 @@ export async function nactiCenoveHladiny(
     const bal = r.potravina as { baleni_g?: number | null } | { baleni_g?: number | null }[] | null;
     const baleniObs = r.baleni_g != null ? Number(r.baleni_g) : null;
     const baleniFood = (Array.isArray(bal) ? bal[0]?.baleni_g : bal?.baleni_g) ?? null;
+    const cena = Number(r.cena);
+    const puvodni = r.puvodni_cena != null ? Number(r.puvodni_cena) : null;
     const radka: CenaObchodu = {
       obchodId: r.retailer_id as string,
       obchod,
-      cena: Number(r.cena),
+      cena,
       jeSleva: Boolean(r.je_sleva),
       pozorovanoAt: r.pozorovano_at as string,
       baleniG: baleniObs ?? (baleniFood != null ? Number(baleniFood) : null),
+      // stejné podmínky jako view aktualni_ceny (0048/0049): původní
+      // cena jen se zdrojovým ověřením, vyšší než akční, max 4×
+      puvodniCena:
+        puvodni !== null && r.puvodni_zdroj != null && puvodni > cena && puvodni <= cena * 4
+          ? puvodni
+          : null,
     };
     const seznam = vysledek.get(r.food_id as string) ?? [];
     seznam.push(radka);

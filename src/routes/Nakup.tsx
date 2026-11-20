@@ -131,15 +131,27 @@ export function Nakup() {
     [polozky, dotazCeny.data],
   );
   // co se skutečně koupí – celá balení/kusy a jejich cena (pokladní účet)
+  // puvodniCena z živého pozorování daného obchodu → „~~původně~~" + úspora
   const nakupy = useMemo(
     () =>
       new Map(
-        polozky.map((p) => [
-          p.id,
-          spocitejNakupniBaleni({ nazev: p.nazev, gramy: p.gramy, baleniG: p.baleniG, cenaZa100g: p.cenaZa100g }),
-        ]),
+        polozky.map((p) => {
+          const obs = p.obchod
+            ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
+            : undefined;
+          return [
+            p.id,
+            spocitejNakupniBaleni({
+              nazev: p.nazev,
+              gramy: p.gramy,
+              baleniG: p.baleniG,
+              cenaZa100g: p.cenaZa100g,
+              cenaBeznaZa100g: obs?.puvodniCena ?? null,
+            }),
+          ];
+        }),
       ),
-    [polozky],
+    [polozky, dotazCeny.data],
   );
 
   if (vybrany !== null && aktualniSeznam) {
@@ -275,7 +287,20 @@ export function Nakup() {
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
                   {p.vlastni && <Badge tono="neutral" className="ml-2">ruční</Badge>}
-                  {p.jeSleva && <Badge tono="warning" className="ml-2">SLEVA {p.obchod}</Badge>}
+                  {p.jeSleva && (() => {
+                    const obs = p.obchod
+                      ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
+                      : undefined;
+                    const pct =
+                      obs?.puvodniCena && p.cenaZa100g
+                        ? Math.round((1 - p.cenaZa100g / obs.puvodniCena) * 100)
+                        : null;
+                    return (
+                      <Badge tono="warning" className="ml-2">
+                        SLEVA{pct !== null ? ` −${pct} %` : ""} {p.obchod}
+                      </Badge>
+                    );
+                  })()}
                   {(() => {
                     const n = nakupy.get(p.id);
                     return n?.zbytek ? (
@@ -290,6 +315,17 @@ export function Nakup() {
                 </span>
                 <span className="whitespace-nowrap tabular-nums text-right">
                   {p.cenaZa100g === null ? "—" : `${formatujCastku(nakupy.get(p.id)?.cenaCelkem ?? 0)} Kč`}
+                  {(() => {
+                    const n = nakupy.get(p.id);
+                    if (!p.jeSleva || !n || n.usetreno <= 0 || n.cenaCelkem === null) return null;
+                    const puvodniCelkem = n.cenaCelkem + n.usetreno;
+                    return (
+                      <span className="block text-xs font-normal text-muted">
+                        <span className="line-through">{formatujCastku(puvodniCelkem)} Kč</span>
+                        {" · "}ušetříte {formatujCastku(n.usetreno)} Kč
+                      </span>
+                    );
+                  })()}
                   {(() => {
                     const tip = p.foodId ? nejlevnejsiObchod(dotazCeny.data?.get(p.foodId)) : null;
                     if (!tip) return null;
@@ -330,6 +366,7 @@ export function Nakup() {
               ? polozky.filter((p) => p.cenaZa100g !== null)
               : nekoupenoSCenou;
             const celkem = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
+            const usetreno = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.usetreno ?? 0), 0);
             const bezCeny = polozky.filter((p) => p.cenaZa100g === null).length;
             const veSleve = zaklad.filter((p) => p.jeSleva).length;
             if (polozky.length === 0) return null;
@@ -337,6 +374,11 @@ export function Nakup() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
                 <span className="text-sm font-semibold tabular-nums">
                   {vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {formatujKc(celkem)} Kč
+                  {usetreno > 0 && (
+                    <span className="ml-2 text-xs font-semibold text-accent">
+                      ušetříte {formatujKc(usetreno)} Kč
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs text-muted">
                   {veSleve > 0 && `${veSleve}× ve slevě`}
