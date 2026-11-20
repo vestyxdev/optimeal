@@ -71,8 +71,57 @@ export interface FiltrPotraviny {
 }
 
 /**
+ * Jmenná heuristika EU-14 alergenů – bezpečnostní síť pro položky bez
+ * alergenových tagů (retail scraper nemá OFF allergens_tags; v katalogu
+ * je tagovaná jen čtvrtina položek). Při alergii je falešně pozitivní
+ * vyloučení bezpečnější než falešně negativní, proto jsou vzorce
+ * záměrně širší – ale ověřené proti typickým českým falešným shodám
+ * (rybíz ≠ ryba, chlebíčky z rýže ≠ chléb, kokos není ořech EU-14).
+ */
+export const ALERGEN_Z_NAZVU: Record<string, RegExp> = {
+  lepek:
+    /p[šs]en|[žz]itn|je[čc]men|oves|[šs]pald|spelt|chleb(?!íč)|rohl[íi]k|housk|baget|t[ěe]stovin|testovin|nudl|[šs]paget|lasagn|penne|fusill|farfalle|tagliatell|rigatoni|gnocchi|makaron|knedl|mouk|múk|strouhan|panko|bulgur|cous ?cous|kuskus|seitan|tarhoň|pern[íi]k|kol[áa][čc]|bucht|croissant|koblih|su[šs]enk|pizza|tortill|wrap\b|kn[äa]ck|crispbread|crackers?|müsli|musli|granola|[šs]trúdl|strudl|[čc]ere[áa]l|vlo[čc]k|triti|pečiv/i,
+  mleko:
+    /ml[eé]k|s[ýy]r|tvaroh|jogurt|zakysan|smetan|m[áa]sl|kef[íi]r|skyr|mozzarell|eidam|gouda|parmez|parmesan|parmigiano|\bniv|hermel|emental|balk[áa]nsk|ricott|mascarpone|puding|zmrzlin|nanuk|[čc]okol[áa]d|srv[áa]tk|whey|kazein|kasein|casein|laktoz|bechamel|feta\b|bryndz|parenic|camembert|cheddar|brie\b|lu[čc]in|lip[áa]nek/i,
+  vejce: /vaj|vejc|[žz]loutk|majon[eé]z|mayonnaise|mayo\b|egg\b|tiramisu/i,
+  ryby:
+    /ryb(?![ií]z)|losos|tu[ňn][áa]k|tuna\b|sardink|sardel|makrel|kapr\b|pstruh|cand[áa]t|[šs]tik|[úu]ho[řr]|tresk|halibut|pangas|anchov|an[čc]ovi[čc]k|garn[áa]t|mo[řr]sk[éeé] ryb/i,
+  arasidy: /ara[šs][íi]d|arasid|peanut|bur[áa]k/i,
+  soja: /s[óo]j|soja|soya|tofu|tempeh|edamame/i,
+  orisky:
+    /o[řr]ech|o[řr][íi][šs]k|orisk|mandel|mandl|l[íi]sk|ke[šs]u|kesu|pist[áa]c|pekan|vla[šs]sk|makadam|para ?o[řr]ech|marzipan|marcip[áa]n|nug[áa]t|nougat|pralin|musli|müsli|granola/i,
+  skorocel: /celer|skorocel|celery/i,
+  horcice: /ho[řr][čc]ic|horcic|k[řr]em[žz]sk|senf|mustard|dijon/i,
+  sezam: /sezam|tahini|hummus|humus|chumus/i,
+  sulfit: /sulfit|si[řr][íi][čc]it|\bv[íi]n|\bvinn|ocet|octov|su[šs]en[éeé] (ovoce|raj[čc])/i,
+  lupina: /lupin/i,
+  korisi:
+    /kor[ýy][šs]|korys|krevet|krab|langust|humr|\brak|raci|shrimp|scampi|garn[áa]t/i,
+  vodnany:
+    /m[ěe]kk[ýy][šs]|mekkys|[úu]st[řr]ic|mu[šs]l|chobotnic|s[éeé]pi|olih|kalam[áa]r|sl[áa]vk|vongole/i,
+};
+
+/** Název potraviny nasvědčuje přítomnosti alergenu? Síť pro chybějící tagy. */
+export function nazevNasvedcujeAlergenu(nazev: string, alergen: string): boolean {
+  return ALERGEN_Z_NAZVU[alergen]?.test(nazev) ?? false;
+}
+
+/** Potravina obsahuje alergen – podle tagu NEBO názvu (tagy pokrývají jen část katalogu). */
+export function obsahujeAlergen(
+  p: { nazev: string; alergeny?: string[] },
+  alergen: string,
+): boolean {
+  return (
+    (p.alergeny ?? []).includes(alergen) ||
+    nazevNasvedcujeAlergenu(p.nazev, alergen)
+  );
+}
+
+/**
  * Odfiltruje katalog podle profilu: potravina musí vyhovovat VŠEM
- * dietám a nesmí obsahovat ŽÁDNÝ z uvedených alergenů.
+ * dietám a nesmí obsahovat ŽÁDNÝ z uvedených alergenů – ať už podle
+ * alergenového tagu, nebo podle názvu (bezpečnostní síť: tagy má jen
+ * ~28 % položek katalogu).
  * Prázdný filtr = celý katalog (běžný jedlík).
  */
 export function filtrujPotraviny(
@@ -85,7 +134,7 @@ export function filtrujPotraviny(
   return potraviny.filter(
     (p) =>
       diety.every((d) => (p.diety ?? []).includes(d)) &&
-      alergeny.every((a) => !(p.alergeny ?? []).includes(a)),
+      alergeny.every((a) => !obsahujeAlergen(p, a)),
   );
 }
 
@@ -425,7 +474,7 @@ export function jeWheyPrasek(p: { nazev: string }): boolean {
  * džem – to jsou legitimní (byť sladké) potraviny.
  */
 const JUNK_RE =
-  /čokol[áa]d|chocolat|choco|cocoa|kakao(?!.*máslo)|lindor|lindt|pralin|bonb[oó]n|bonbonier|dražé|drazee|lokum|rahat|mochi|marshmallow|halva|nug[áa]t|marcip[áa]n|karamell|karamel|haribo|skittles|snickers|bounty|twix|kitkat|kit kat|kinder|raffaello|tic.?tac|mentos|bonpari|žuvač|zmrzlin|gelato|sorbet|nanuk|míša|kopečkov|pusink|mousse|pudink|puding|pudding|žel[ée](?!\w)|gelee|chips|crisps?d?\b|lupínk|lupinek|chipsy|perliv|neperliv|\bvoda\b|water\b|džus|juice|kombucha|ice.?tea|k[áa]v|coffee|espresso|latt[ée]|cappuccino|macchiato|čaj(?!\w)|tea(?!\w)|nápoj|napitie|drink|ml[ée]ko|\bmilk\b|hrne[čc]k|limon[áa]d|cr[èe]me(?!.*fraiche)|tiramisu|cheesecake|brownie|muffin|cupcake|donut|doughnut|z[áa]kusk|dort|větrník|věneček|kremrol|piškot|sušenk|sušenek|biscuit|biscotti|cantuccin|baiocch|cookies?\b|keks|oplatk|oblátk|vafle|wafl|škubánek|mazanec|vánočk|str[úu]dl|kol[áa][čc]|frg[aá]l|bucht|perník|medovník|laskonk|kokosk|pařížsk|punčov|bábovk|tartalet|jelly|candy|fudge|brittle|truffle|mražen[ýáé]\s+(kr[ée]m|dort|jogurt|dezert|puding|smetan)|dezert|energy.?drink|cola|limon[áa]d|soda|fanta|sprite/i;
+  /čokol[áa]d|chocolat|choco|cocoa|kakao(?!.*máslo)|lindor|lindt|pralin|bonb[oó]n|bonbonier|dražé|drazee|lokum|rahat|mochi|marshmallow|halva|nug[áa]t|marcip[áa]n|karamell|karamel|haribo|skittles|snickers|bounty|twix|kitkat|kit kat|kinder|raffaello|tic.?tac|mentos|bonpari|žuvač|zmrzlin|gelato|sorbet|nanuk|míša|kopečkov|pusink|mousse|pudink|puding|pudding|žel[ée](?!\w)|gelee|chips|crisps?d?\b|lupínk|lupinek|chipsy|perliv|neperliv|\bvoda\b|water\b|džus|juice|[šs][ťt][áa]v(?!n)|stava|kombucha|ice.?tea|k[áa]v|coffee|espresso|latt[ée]|cappuccino|macchiato|čaj(?!\w)|tea(?!\w)|nápoj|napitie|drink|ml[ée]ko|\bmilk\b|hrne[čc]k|limon[áa]d|cr[èe]me(?!.*fraiche)|tiramisu|cheesecake|brownie|muffin|cupcake|donut|doughnut|z[áa]kusk|dort|větrník|věneček|kremrol|piškot|sušenk|sušenek|biscuit|biscotti|cantuccin|baiocch|cookies?\b|keks|oplatk|oblátk|vafle|wafl|škubánek|mazanec|vánočk|str[úu]dl|kol[áa][čc]|frg[aá]l|bucht|perník|medovník|laskonk|kokosk|pařížsk|punčov|bábovk|tartalet|jelly|candy|fudge|brittle|truffle|mražen[ýáé]\s+(kr[ée]m|dort|jogurt|dezert|puding|smetan)|dezert|energy.?drink|cola|limon[áa]d|soda|fanta|sprite/i;
 
 /** Sladkost/cukrovinka – nesmí do žádného jídla. */
 export function jeJunk(p: { nazev: string }): boolean {
@@ -473,7 +522,7 @@ const ZELENINA_RE =
 /** Složené produkty, které zeleninu jen „obsahují" – müsli s mrkví,
  * polévková směs nebo džus není zeleninová strana jídla. */
 const ZELENINA_ANTI_RE =
-  /müsli|musli|granola|kaše|vlo[čc]k|pudink|pudding|džus|juice|džem|marmel|kompot|mošt|sirup|nápoj|dražé|lokum|halva|čokol|choco|krém|pomaz|paštik|terrin|polévk|v[ýy]var|n[áa]pl[ňn]|polev|těstovin|r[ýy]ž|kn[ěe]dlík|pizz|tortill|wrap|chips|crisps|burger|om[áa][čc]k|risott|rizoto|tortel|raviol|agnolott|kroužk|smetan|n[áa]kyp|dupetk|krekr|crack|sušen.*(ananas|mango|ban[áa]n|datl|rozink|brusink|meruňk|fík|švestk|brosk|jahod|malin|bor[ůu]vk|hrozink)|tyčink|croissant|smoothie|pasta\b|topink|crouton|stir.?fry|crispbread|knuspi|kn[äa]cke/i;
+  /müsli|musli|granola|kaše|vlo[čc]k|pudink|pudding|džus|juice|[šs][ťt][áa]v(?!n)|stava|džem|marmel|kompot|mošt|sirup|nápoj|dražé|lokum|halva|čokol|choco|krém|pomaz|paštik|terrin|polévk|v[ýy]var|n[áa]pl[ňn]|polev|těstovin|r[ýy]ž|kn[ěe]dlík|pizz|tortill|wrap|chips|crisps|burger|om[áa][čc]k|risott|rizoto|tortel|raviol|agnolott|kroužk|smetan|n[áa]kyp|dupetk|krekr|crack|sušen.*(ananas|mango|ban[áa]n|datl|rozink|brusink|meruňk|fík|švestk|brosk|jahod|malin|bor[ůu]vk|hrozink)|tyčink|croissant|smoothie|pasta\b|topink|crouton|stir.?fry|crispbread|knuspi|kn[äa]cke/i;
 
 /** Luštěniny jako zeleninová strana – jedí se, ale na talíři
  * strany prohrávají s opravdovou zeleninou (rajče, okurka,

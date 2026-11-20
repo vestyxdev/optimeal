@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BONUS_SLEVY,
   filtrujPotraviny,
+  nazevNasvedcujeAlergenu,
+  obsahujeAlergen,
   jeCenaSpolehliva,
   jeJunk,
   jeNepotravinovy,
@@ -397,6 +399,42 @@ describe("filtrujPotraviny", () => {
       const p = katalogSMetadaty.find((k) => k.id === id);
       expect(p?.alergeny ?? []).not.toContain("mleko");
     }
+  });
+
+  it("jmenná síť chytí alergen i bez tagu (živý katalog má tagy jen u ~¼ položek)", () => {
+    const netagovane = [
+      p("n1", "Mléko polotučné čerstvé", 3.3, 4.8, 1.6, 46, 15),
+      p("n2", "Žitný chléb", 8, 45, 1.5, 225, 28),
+      p("n3", "Sýr Eidam 30%", 26, 1, 20, 289, 89),
+      p("n4", "Arašídové máslo", 25, 20, 50, 630, 99),
+      p("n5", "Brambory pozdní", 2, 17, 0.1, 77, 9),
+      p("n6", "Kuřecí prsa", 23, 0, 1.5, 106, 75),
+    ];
+    const vys = filtrujPotraviny(netagovane, {
+      alergeny: ["mleko", "lepek", "arasidy"],
+    });
+    expect(vys.map((x) => x.id)).toEqual(["n5", "n6"]);
+  });
+
+  it("jmenná síť se vyhýbá českým falešným shodám", () => {
+    // rybíz ≠ ryba; chlebíčky z rýže ≠ chléb; svinina nemá sulfit jen ze „vin“;
+    // univerzální koření není niva; kokos není ořech EU-14; mandlí se myslí ořechy
+    expect(nazevNasvedcujeAlergenu("Rybíz černý", "ryby")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Rýžové chlebíčky", "lepek")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Svinina na kmíně", "sulfit")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Univerzální koření", "mleko")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Kokosová voda", "orisky")).toBe(false);
+    expect(nazevNasvedcujeAlergenu("Rybí filé", "ryby")).toBe(true);
+    expect(nazevNasvedcujeAlergenu("Hummus klasik", "sezam")).toBe(true);
+    expect(nazevNasvedcujeAlergenu("Seitan marinovaný", "lepek")).toBe(true);
+    expect(nazevNasvedcujeAlergenu("Mandle natural", "orisky")).toBe(true);
+  });
+
+  it("obsahujeAlergen kombinuje tag i název", () => {
+    expect(obsahujeAlergen({ nazev: "Losos uzený", alergeny: [] }, "ryby")).toBe(true);
+    expect(obsahujeAlergen({ nazev: "Quinoa", alergeny: ["mleko"] }, "mleko")).toBe(true);
+    expect(obsahujeAlergen({ nazev: "Quinoa", alergeny: [] }, "ryby")).toBe(false);
+    expect(obsahujeAlergen({ nazev: "Cizrnová pomazánka" }, "mleko")).toBe(false);
   });
 });
 

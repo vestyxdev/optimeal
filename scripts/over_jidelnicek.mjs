@@ -32,7 +32,7 @@ const potraviny = r.rows.map((x) => ({
 
 const {
   vygenerujJidelnicek, vygenerujTydenniPlan, jeSuplementTvrdy, jeSuplementSnack,
-  jeCenaSpolehliva, kusovaGramaz, klicPodobnosti,
+  jeCenaSpolehliva, kusovaGramaz, klicPodobnosti, obsahujeAlergen, filtrujPotraviny,
 } = await import("../src/lib/generator/generator.ts");
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -85,6 +85,9 @@ for (const [d, den] of dnyVysledky) {
           flag(`suplement mimo snídani: ${j.nazev}`);
         if (j.aktualniCena !== undefined && !jeCenaSpolehliva(potravina) && j.cena > 0)
           flag(`nespolehlivá cena zobrazena: ${j.nazev} ${j.cena} Kč`);
+        for (const a of filtr.alergeny)
+          if (obsahujeAlergen(potravina, a))
+            flag(`alergen "${a}" v plánu i přes filtr: ${j.nazev}`);
       }
       if (kusovaGramaz(j.nazev) === null && j.gramy % 5 !== 0)
         flag(`nečistá gramáž: ${j.nazev} ${j.gramy} g`);
@@ -111,6 +114,16 @@ if (tydenni) {
   for (const [klic, n] of opakovane) flag(`kotva-rodina ${n}× za týden: ${klic}`);
   const top = [...rodinyKotv.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   console.log(`Nejčastější kotvy týdne: ${top.map(([k, n]) => `${k}×${n}`).join(", ")}\n`);
+}
+
+// pokrytí alergenových tagů – kolik položek by filtr propustil jen díky
+// chybějícím tagům (bezpečnostní síť dle názvu je zachytí)
+if (maFiltr) {
+  const poFiltru = filtrujPotraviny(potraviny, filtr).length;
+  const jenTagy = potraviny.filter((p) =>
+    filtr.diety.every((d) => (p.diety ?? []).includes(d)) &&
+    filtr.alergeny.every((a) => !(p.alergeny ?? []).includes(a))).length;
+  console.log(`Filtr: ${poFiltru} potravin projde (jen tagy: ${jenTagy}, jmenná síť vyhodila dalších ${jenTagy - poFiltru})`);
 }
 
 // kolik položek katalogu má necenitelnou cenu
