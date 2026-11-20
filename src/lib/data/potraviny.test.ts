@@ -23,7 +23,46 @@ describe("parsujOffProdukty", () => {
       sacharidy: 4,
       tuky: 0.2,
       obrazek: "https://images.off.org/skyr.jpg",
+      alergeny: [],
+      diety: [],
     });
+  });
+
+  it("mapuje OFF alergeny a dietní tagy na naše klíče", () => {
+    const v = parsujOffProdukty([
+      {
+        product_name: "Skyr",
+        nutriments: { "energy-kcal_100g": 63 },
+        allergens_tags: ["en:milk"],
+        traces_tags: ["en:nuts", "en:gluten"],
+        ingredients_analysis_tags: ["en:vegetarian"],
+      },
+    ]);
+    // traces („může obsahovat") bereme konzervativně jako alergen
+    expect(v?.alergeny.sort()).toEqual(["lepek", "mleko", "orisky"]);
+    expect(v?.diety).toEqual(["vegetariansky"]);
+  });
+
+  it("en:vegan znamená vegansky + vegetariansky; gluten-free label bez lepku → bezlepkovy", () => {
+    const v = parsujOffProdukty([
+      {
+        product_name: "Rostlinný",
+        nutriments: { "energy-kcal_100g": 50 },
+        labels_tags: ["en:vegan", "en:gluten-free"],
+      },
+    ]);
+    expect(v?.diety.sort()).toEqual(["bezlepkovy", "vegansky", "vegetariansky"]);
+    // gluten-free label u produktu, který lepek DEKLARUJE, bezlepkovy nedá
+    const v2 = parsujOffProdukty([
+      {
+        product_name: "Sporný",
+        nutriments: { "energy-kcal_100g": 50 },
+        allergens_tags: ["en:gluten"],
+        labels_tags: ["en:gluten-free"],
+      },
+    ]);
+    expect(v2?.diety).toEqual([]);
+    expect(v2?.alergeny).toEqual(["lepek"]);
   });
 
   it("energy_100g je kJ – převádí na kcal (÷4,184)", () => {

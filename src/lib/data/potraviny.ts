@@ -191,6 +191,9 @@ export async function upravPotravinu(
     ean?: string | null;
     obrazek?: string | null;
     baleniG?: number | null;
+    /** tagy dohledané z OFF – prázdné/undefined = stávající neměnit */
+    alergeny?: string[];
+    diety?: string[];
   },
 ): Promise<void> {
   const klient = supabase;
@@ -208,6 +211,8 @@ export async function upravPotravinu(
     baleni_g: p.baleniG ?? null,
   };
   if (p.obrazek !== undefined) payload.obrazek = p.obrazek;
+  if (p.alergeny?.length) payload.alergeny = p.alergeny;
+  if (p.diety?.length) payload.diety = p.diety;
 
   let { error } = await klient.from("foods").update(payload).eq("id", id);
   // Schéma bez migrace 0009 nezná sloupec obrazek – zkusit znovu bez něj.
@@ -251,6 +256,9 @@ export async function pridejPotravinu(p: {
   ean?: string | null;
   obrazek?: string | null;
   baleniG?: number | null;
+  /** tagy dohledané z OFF – prázdné/undefined = nevyplňovat */
+  alergeny?: string[];
+  diety?: string[];
 }): Promise<string> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -276,6 +284,8 @@ export async function pridejPotravinu(p: {
     schvaleno: true,
   };
   if (p.obrazek != null) payload.obrazek = p.obrazek;
+  if (p.alergeny?.length) payload.alergeny = p.alergeny;
+  if (p.diety?.length) payload.diety = p.diety;
 
   let { data, error } = await klient
     .from("foods")
@@ -318,6 +328,10 @@ export interface OffNalezenaPotravina {
   sacharidy: number | null;
   tuky: number | null;
   obrazek: string | null;
+  /** EU-14 klíče alergenů z OFF allergens+traces (prázdné = OFF nic nemá). */
+  alergeny: string[];
+  /** dietní klíče z OFF analysis/labels (prázdné = OFF nic nemá). */
+  diety: string[];
 }
 
 export interface OffProdukt {
@@ -326,6 +340,41 @@ export interface OffProdukt {
   image_small_url?: string;
   image_front_small_url?: string;
   nutriments?: Record<string, unknown>;
+  allergens_tags?: string[];
+  traces_tags?: string[];
+  ingredients_analysis_tags?: string[];
+  labels_tags?: string[];
+}
+
+/** OFF alergen tag → náš EU-14 klíč (stejné mapování jako ingest_off.mjs). */
+const OFF_ALERGEN_MAPA: Record<string, string> = {
+  "en:gluten": "lepek", "en:crustaceans": "korisi", "en:eggs": "vejce",
+  "en:fish": "ryby", "en:peanuts": "arasidy", "en:soybeans": "soja",
+  "en:milk": "mleko", "en:nuts": "orisky", "en:celery": "skorocel",
+  "en:mustard": "horcice", "en:sesame-seeds": "sezam",
+  "en:sulphur-dioxide-and-sulphites": "sulfit", "en:lupin": "lupina",
+  "en:molluscs": "vodnany",
+};
+
+/** OFF allergens+traces+analysis+labels → naše alergeny/diety.
+ *  „may contain" (traces) bereme konzervativně jako alergen. */
+function tagyZOff(p: OffProdukt): { alergeny: string[]; diety: string[] } {
+  const alergeny = new Set(
+    [...(p.allergens_tags ?? []), ...(p.traces_tags ?? [])]
+      .map((t) => OFF_ALERGEN_MAPA[t])
+      .filter((t): t is string => Boolean(t)),
+  );
+  const anal = new Set(p.ingredients_analysis_tags ?? []);
+  const labels = new Set(p.labels_tags ?? []);
+  const diety = new Set<string>();
+  if (anal.has("en:vegan") || labels.has("en:vegan")) {
+    diety.add("vegansky");
+    diety.add("vegetariansky");
+  } else if (anal.has("en:vegetarian") || labels.has("en:vegetarian")) {
+    diety.add("vegetariansky");
+  }
+  if (labels.has("en:gluten-free") && !alergeny.has("lepek")) diety.add("bezlepkovy");
+  return { alergeny: [...alergeny], diety: [...diety] };
 }
 
 const cisloOff = (v: unknown) => {
@@ -348,6 +397,7 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
   if (!Number.isFinite(kcal) || kcal <= 0) return null;
   const nazev = (p.product_name_cs ?? p.product_name ?? "").trim();
   if (!nazev) return null;
+  const { alergeny, diety } = tagyZOff(p);
   return {
     nazev,
     kalorie: Math.round(kcal),
@@ -355,6 +405,8 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
     sacharidy: cisloOff(n.carbohydrates_100g),
     tuky: cisloOff(n.fat_100g),
     obrazek: (p.image_small_url ?? p.image_front_small_url ?? "").trim() || null,
+    alergeny,
+    diety,
   };
 }
 
@@ -428,7 +480,7 @@ export async function nactiOffPodleEan(
   const ean = normalizujEan(vstup);
   if (ean === null) throw new Error("Zadejte platný čárový kód (8–14 číslic).");
 
-  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,image_small_url,image_front_small_url,nutriments`;
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(ean)}.json?fields=product_name,product_name_cs,image_small_url,image_front_small_url,nutriments,allergens_tags,traces_tags,ingredients_analysis_tags,labels_tags`;
   const odpoved = await fetchOff(url);
 
   const json = (await odpoved.json()) as { status?: number; product?: OffProdukt };

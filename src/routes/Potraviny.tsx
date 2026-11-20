@@ -633,6 +633,8 @@ function FormNovePotraviny({
   const [offKandidati, setOffKandidati] = useState<OffNalezenaPotravina[]>([]);
   // undefined = nebylo dohledáno (u editace ponechat stávající obrázek)
   const [obrazek, setObrazek] = useState<string | null | undefined>(undefined);
+  // tagy dohledané z OFF – ukládat jen když je OFF skutečně vrátilo
+  const [offTagy, setOffTagy] = useState<{ alergeny: string[]; diety: string[] } | null>(null);
 
   // Při editaci dotáhnout uložený EAN (v aktualni_ceny sloupec není).
   const detail = useQuery({
@@ -672,6 +674,7 @@ function FormNovePotraviny({
         baleniG: f.baleni.trim() === "" ? null : cislo(f.baleni, "Balení", 50000),
         ean: normalizujEan(ean),
         ...(obrazek !== undefined ? { obrazek } : {}),
+        ...(offTagy ?? {}),
       };
       if (editovana) {
         await upravPotravinu(editovana.id, hodnoty);
@@ -698,6 +701,11 @@ function FormNovePotraviny({
       tuky: nalezena.tuky?.toString() ?? pred.tuky,
     }));
     setObrazek(nalezena.obrazek);
+    setOffTagy(
+      nalezena.alergeny.length > 0 || nalezena.diety.length > 0
+        ? { alergeny: nalezena.alergeny, diety: nalezena.diety }
+        : null,
+    );
     setOffKandidati([]);
     toast.success("Hodnoty doplněny z OpenFoodFacts – cenu doplňte ručně.");
   }
@@ -762,6 +770,11 @@ function FormNovePotraviny({
         tuky: nalezena.tuky?.toString() ?? pred.tuky,
       }));
       setObrazek(nalezena.obrazek);
+      setOffTagy(
+        nalezena.alergeny.length > 0 || nalezena.diety.length > 0
+          ? { alergeny: nalezena.alergeny, diety: nalezena.diety }
+          : null,
+      );
       toast.success(`„${nalezena.nazev}" nalezen – kategorii a cenu doplňte ručně.`);
     } catch (e) {
       toast.error((e as Error).message);
