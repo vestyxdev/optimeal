@@ -249,3 +249,14 @@ Ověřeno: tsc clean · 368/368 testů (+2 regrese rodiny) · audit matice (stan
 - **Pokrytí**: obrazky 9 555/9 795 (97,5 %), alergeny 4 629, diety 5 759, EAN 6 448 – dopln_tagy_off dobíhá.
 
 Ověřeno: tsc clean · 372/372 testů · build clean · git strom čistý.
+
+
+## Kolo: cizojazyčné dietní veto (DE/FR/IT/NL/SK) + čištění tagů (21. 11. 2026)
+
+- **DIETA_MLEKO_VEJCE_RE a DIETA_MASO_RYBY_RE rozšířeny o DE/FR/IT/NL/SK termíny** — produkty typu Thunfisch, Tuniak, Sahne, Maasdamer, Joghurt, Lait, Œufs, Boeuf, Poulet, Tonno dříve veto prošly přestože nesla crowdsourcovaný vegansky/vegetariansky tag.
+- Rostlinné výjimky rozšířeny symetricky (Soja/Mandel Joghurt, Hafermilch, lait de soja/coco/amande, végétal, pflanzlich, sans lactose, laktosefrei) — cizojazyčné rostlinné produkty zůstávají pro veganské plány způsobilé.
+- Ošetřené hrany: `milch(?!sauer)` — „milchsauer vergoren" je kvas, ne mléko; Œ ligatura mimo `\w` (oddělený \b nefunguje); `uovo` vs „nuovo"; `eier` vs příjmení (Bauermeier); Emmental s dvojitým m.
+- **DB**: odstraněn chybný dietní tag z 36 řádků (německé sýry, tuňáci, krémy, Müllermilch). Kvalitativní report: dietní kontradikce 5 → 0, chybějící mleko 0.
+- Regresní testy: 21 cizojazyčných názvů + falešně-pozitivní hrany (Hofmeier, nuovo, latte jako mléko).
+
+Ověřeno: tsc clean · 373/373 testů · git strom čistý.
