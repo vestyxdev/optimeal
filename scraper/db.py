@@ -489,8 +489,9 @@ class SupabaseWriter:
         """UPSERT asortimentních cen (zdroj='asortiment:<obchod>').
 
         Stejná logika jako zapis_nabidky, plus: nespárované produkty
-        zakládají jako nové potraviny (schvaleno=false), takže se
-        pokryje celý eshopový sortiment – obohaceni.py je pak doplní.
+        zakládají jako nové potraviny (vytvor_potravinu → schvaleno=true,
+        zdroj eshopu je důvěryhodný; makra doplní obohaceni.py z OFF),
+        takže se pokryje celý eshopový sortiment.
         """
         radky: dict[tuple, dict] = {}
         stat = {"sparovano": 0, "preskoceno": 0, "nove_potraviny": 0}

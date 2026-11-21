@@ -97,9 +97,18 @@ def platnost_do(text: str | None, dnes: date | None = None) -> Optional[str]:
     den, mesic = int(m.group(1)), int(m.group(2))
     rok = dnes.year + (1 if mesic < dnes.month - 1 else 0)
     try:
-        return date(rok, mesic, den).isoformat()
+        d = date(rok, mesic, den)
     except ValueError:
         return None
+    # Letáková platnost je ≤ ~3 týdny; datum 60+ dní dopředu je
+    # ve skutečnosti minulý měsíc/rok (zastaralý výpis) – jinak by
+    # prošlá nabídka „žila" dalších ~11 měsíců bez expirace.
+    if (d - dnes).days > 60:
+        try:
+            d = date(rok - 1, mesic, den)
+        except ValueError:
+            return None
+    return d.isoformat()
 
 
 class KupiScraper(BaseScraper):

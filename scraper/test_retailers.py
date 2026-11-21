@@ -95,6 +95,14 @@ class TestPlatnostDo(unittest.TestCase):
             "2027-01-05",
         )
 
+    def test_zastaraly_vypis_nezije_11_mesicu(self):
+        # leden + „platí do 30. 12." → minulý prosinec (expirovaná),
+        # ne prosinec tohoto roku – jinak žije ~11 měsíců
+        self.assertEqual(
+            platnost_do("platí do 30. 12.", dnes=date(2026, 1, 2)),
+            "2025-12-30",
+        )
+
     def test_bez_data(self):
         self.assertIsNone(platnost_do("akce", dnes=date(2026, 11, 15)))
 
