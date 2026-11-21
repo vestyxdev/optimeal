@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ChefHat, Clock, Coins, Flame, Plus, TriangleAlert } from "lucide-react";
+import { ChefHat, Clock, Coins, Flame, Plus, Search, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro } from "@/lib/cena";
+import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 
 /**
  * Recepty – katalog receptů s živými cenami a výživovými hodnotami
@@ -23,6 +24,7 @@ export function Recepty() {
   const { uzivatel } = useAuth();
   const naviguj = useNavigate();
   const [kategorie, setKategorie] = useState<string | null>(null);
+  const [hledani, setHledani] = useState("");
 
   const dotazRecepty = useQuery({ queryKey: ["recepty"], queryFn: nactiRecepty });
   const recepty = dotazRecepty.data ?? [];
@@ -39,7 +41,12 @@ export function Recepty() {
   });
   const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
 
-  const filtrovane = kategorie ? recepty.filter((r) => r.kategorie === kategorie) : recepty;
+  const q = bezDiakritiky(hledani.trim());
+  const filtrovane = recepty.filter(
+    (r) =>
+      (!kategorie || r.kategorie === kategorie) &&
+      (q === "" || skoreShody(bezDiakritiky(r.nazev), q) > 0),
+  );
   const kategorieVSeznamu = [...new Set(recepty.map((r) => r.kategorie))];
 
   return (
@@ -57,6 +64,19 @@ export function Recepty() {
             <Plus className="size-4" /> Nový recept
           </Button>
         )}
+      </div>
+
+      {/* hledání */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+        <input
+          type="search"
+          value={hledani}
+          onChange={(e) => setHledani(e.target.value)}
+          placeholder="Hledat recept…"
+          aria-label="Hledat recept"
+          className="h-11 w-full rounded-2xl border border-border bg-surface pl-10 pr-4 text-sm text-fg placeholder:text-muted focus:outline-2 focus:outline-primary"
+        />
       </div>
 
       {/* filtry kategorií */}
@@ -103,9 +123,11 @@ export function Recepty() {
       {!dotazRecepty.isLoading && filtrovane.length === 0 && (
         <Card className="text-center text-sm text-muted">
           <ChefHat className="mx-auto mb-2 size-6" />
-          {kategorie
-            ? "V této kategorii zatím nic není – zkuste jinou."
-            : "Zatím žádné recepty."}
+          {hledani.trim()
+            ? `Na „${hledani.trim()}" nic není – zkuste jiný název.`
+            : kategorie
+              ? "V této kategorii zatím nic není – zkuste jinou."
+              : "Zatím žádné recepty."}
         </Card>
       )}
 
