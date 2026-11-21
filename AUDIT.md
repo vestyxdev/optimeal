@@ -309,3 +309,15 @@ Overeno: tsc clean – 383/383 testu – git strom cisty.
 - **Testy**: +5 formatujStariCeny.
 
 Overeno: tsc clean – 388/388 testu – RPC top_akce ověřeno proti prod (nový sloupec vrací čerstvá data).
+
+
+## Kolo: obchod u kazde realne ceny + posledni sweep (21. 11. 2026)
+
+- **Koren realnosti cen**: mapAktualniCeny (plany.ts) drzelo obchod jen u slev – u 90 % ocenenych polozek byl NakupniPolozka.obchod null, tzn. nikdy nenasly sve zive pozorovani a zustavaly na snapshotu z doby vzniku navzdy. Nyni obchod = realny zdroj ceny vzdy (view obchod u nej.ceny); Jidlo builder obchod kdyz cenaOk ne jen slevaOk.
+- **Typicka cena label**: katalog potravin ukazuje „typicka cena" pod radkem, kdyz cena pochazi jen z bezna_cena (zadne pozorovani) – odchytava take opravdu cerstvou cenu (gate je pozorovanoAt==null, ne stari).
+- **Vysledky paticka**: pocet polozek jen s typickou cenou je rozepsan v upozorneni.
+- **SkenovaniEan bug**: naKod inline callback se menil kazdym renderem rodice → useEffect restartoval kameru uprostred skenovani. Callback pres ref, efekt s prazdnymi deps.
+- **SetupGate**: navigator.clipboard.writeText bez catchu → unhandled rejection pri zamitnutem opravneni/insecure context.
+- **Sweep auth flow**: Prihlaseni/Registrace/ObnoveniHesla/NoveHeslo clean; Kalibrace (weight_logs trigger) ma min 10-dni rozpeta + TDEE 800-6000 bounds; Layout focus mgmt clean.
+
+Overeno: tsc clean – 388/388 testu.
