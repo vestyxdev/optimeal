@@ -280,3 +280,12 @@ Ověřeno: tsc clean · 374/374 testů · build clean · git strom čistý.
 - **Fantom-kalorie re-fetch**: oprav_fantom_kalorie_off.mjs - pro 73 EAN fantomu stahne cerstve OFF nutriments, prepise jen vnitrne konzistentni odpovedi (3 opraveny, 33 OFF-nekonzistentni zustavaji karantenou, 12 stejnych/nenalezenych).
 
 Overeno: tsc clean - 377/377 testu - git strom cisty.
+
+## Kolo: stopy vs obsahuje vsude + receptove integrace (21. 11. 2026)
+
+- **Denik**: nactiDenik/nactiDenikRozsah joinnou foods(alergeny, alergeny_stopy) pres food_id – zapsane polozky varuji retroaktivne (danger obsahuje / warning muze obsahovat stopy); manualni polozky kryje jmenna sit.
+- **Nakup**: shopping_list_items joinnou foods(alergeny, alergeny_stopy); polozky vcetne rucnich (jmennou siti) varuji stejne. Fallback select pro pre-0055 DB.
+- **ReceptDetail**: krokovac porci (1-20) – Celkem sloupec, mobilni radky (nove i celkem g), ceny i souhrn Cely recept se skaluji; Na porci karty zustavaji. Tlacitka Do seznamu (ulozNakupniSeznam, gramy podle krokovace, nazev nese porce) a Do deniku (zapise 1 porci, kategorie->typ jidla).
+- **DenikZapis**: akordeon Z receptu – lazy nacteni receptu, hledani (skoreShody), alergenova varovani receptu (obsahuje/stopy). receptNaPoznamku: makra surovin za porci normovana na 100 g; suroviny mimo katalog se preskoci, >40% neznamych -> null (zadny podhodnoceny zapis).
+
+Overeno: tsc clean - 382/382 testu (+5 receptNaPoznamku) - git strom cisty.
