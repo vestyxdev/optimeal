@@ -15,11 +15,14 @@ function KopirujRadek({ text }: { text: string }) {
     <button
       className="group flex w-full items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2 text-left font-mono text-xs"
       onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setZkopirovano(true);
-          toast.success("Zkopírováno do schránky");
-          setTimeout(() => setZkopirovano(false), 1500);
-        });
+        void navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            setZkopirovano(true);
+            toast.success("Zkopírováno do schránky");
+            setTimeout(() => setZkopirovano(false), 1500);
+          })
+          .catch(() => toast.error("Zkopírování se nepodařilo – označte text ručně."));
       }}
     >
       <span className="truncate">{text}</span>
