@@ -43,7 +43,8 @@ export interface CenaObchodu {
   /** gramáž balení u tohoto obchodu (obs.baleni_g ?? foods.baleni_g) */
   baleniG: number | null;
   /** ověřená původní (přeškrtnutá) cena za 100 g – null bez
-   *  zdrojového ověření (leták/eshop/kupi) nebo artefaktu >4× */
+   *  zdrojového ověření (leták/eshop/kupi) nebo pack-mismatch
+   *  artefaktu (>2,5× akční / >2× běžná – stejné meze jako view) */
   puvodniCena: number | null;
 }
 
@@ -224,7 +225,7 @@ export async function nactiCenoveHladiny(
 
   const { data, error } = await klient
     .from("price_observations")
-    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, baleni_g, puvodni_cena, puvodni_zdroj, obchod:retailers(nazev), potravina:foods(baleni_g)")
+    .select("food_id, retailer_id, cena, je_sleva, pozorovano_at, baleni_g, puvodni_cena, puvodni_zdroj, obchod:retailers(nazev), potravina:foods(baleni_g, bezna_cena)")
     .in("food_id", ids)
     // podezřelá pozorování (špatně spárovaná nabídka, >3×/<0,25×
     // per-food mediánu) Cenovka ignoruje – stejně jako view
@@ -236,16 +237,27 @@ export async function nactiCenoveHladiny(
     .order("pozorovano_at", { ascending: false });
   if (error) throw new Error(`Ceny obchodů se nenačetly: ${error.message}`);
 
+  // redukce na 1 obs na (potravina, obchod) – stejné preference jako
+  // view: aktivní sleva před běžnou cenou, v rámci nich nejnovější.
+  // sort je stabilní, data už přišla seřazená desc podle pozorovano_at.
+  const radky = [...(data ?? [])].sort(
+    (a, b) => Number(b.je_sleva) - Number(a.je_sleva),
+  );
   const videno = new Set<string>();
-  for (const r of data ?? []) {
+  for (const r of radky) {
     const klic = `${r.food_id}:${r.retailer_id}`;
     if (videno.has(klic)) continue;
     videno.add(klic);
     const naz = r.obchod as { nazev?: string } | { nazev?: string }[] | null;
     const obchod = (Array.isArray(naz) ? naz[0]?.nazev : naz?.nazev) ?? "Obchod";
-    const bal = r.potravina as { baleni_g?: number | null } | { baleni_g?: number | null }[] | null;
+    const bal = r.potravina as
+      | { baleni_g?: number | null; bezna_cena?: number | null }
+      | { baleni_g?: number | null; bezna_cena?: number | null }[]
+      | null;
     const baleniObs = r.baleni_g != null ? Number(r.baleni_g) : null;
-    const baleniFood = (Array.isArray(bal) ? bal[0]?.baleni_g : bal?.baleni_g) ?? null;
+    const potravina = Array.isArray(bal) ? bal[0] : bal;
+    const baleniFood = potravina?.baleni_g ?? null;
+    const bezna = potravina?.bezna_cena != null ? Number(potravina.bezna_cena) : null;
     const cena = Number(r.cena);
     const puvodni = r.puvodni_cena != null ? Number(r.puvodni_cena) : null;
     const radka: CenaObchodu = {
@@ -255,10 +267,15 @@ export async function nactiCenoveHladiny(
       jeSleva: Boolean(r.je_sleva),
       pozorovanoAt: r.pozorovano_at as string,
       baleniG: baleniObs ?? (baleniFood != null ? Number(baleniFood) : null),
-      // stejné podmínky jako view aktualni_ceny (0048/0049): původní
-      // cena jen se zdrojovým ověřením, vyšší než akční, max 4×
+      // stejné podmínky jako view aktualni_ceny (0052): původní cena jen
+      // se zdrojovým ověřením, reálná sleva (>1,01×), max 2,5× akční
+      // a max 2× běžná cena – jinak pack-mismatch artefakt
       puvodniCena:
-        puvodni !== null && r.puvodni_zdroj != null && puvodni > cena && puvodni <= cena * 4
+        puvodni !== null &&
+        r.puvodni_zdroj != null &&
+        puvodni > cena * 1.01 &&
+        puvodni <= cena * 2.5 &&
+        (bezna === null || bezna <= 0 || puvodni <= bezna * 2)
           ? puvodni
           : null,
     };
