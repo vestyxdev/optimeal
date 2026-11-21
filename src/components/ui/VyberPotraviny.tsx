@@ -1,12 +1,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Barcode, Beef, ChevronDown, Cookie, Milk, Package, Plus,
-  Search, Tag, History, TriangleAlert, Wheat, X,
+  Search, Star, Tag, History, TriangleAlert, Wheat, X,
 } from "lucide-react";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import { ALERGEN_NAZVY, hledejPodleEanLokalne } from "@/lib/data/potraviny";
+import { nactiStalice, prepnoutStalici } from "@/lib/data/spiz";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 import { formatujCenu, formatujKcal, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
@@ -85,6 +87,9 @@ export function VyberPotraviny({
   chyba = false,
   ariaLabel,
   mojeAlergie = [],
+  otevrenoVnejsi,
+  naOtevrenoZmena,
+  bezTlacitka = false,
 }: {
   potraviny: PolozkaVyberu[];
   hodnota: string;
@@ -93,12 +98,32 @@ export function VyberPotraviny({
   ariaLabel?: string;
   /** efektivní alergeny uživatele – řádek s kolizí dostane varování */
   mojeAlergie?: string[];
+  /** řízený režim – dialog otevírá/zavírá volající (rychlý zápis) */
+  otevrenoVnejsi?: boolean;
+  naOtevrenoZmena?: (o: boolean) => void;
+  /** bez vlastního trigger tlačítka – jen dialog (řízený režim) */
+  bezTlacitka?: boolean;
 }) {
-  const [otevreno, setOtevreno] = useState(false);
+  const [otevrenoVnitrni, setOtevrenoVnitrni] = useState(false);
+  const otevreno = otevrenoVnejsi ?? otevrenoVnitrni;
+  const setOtevreno = (o: boolean) => {
+    setOtevrenoVnitrni(o);
+    naOtevrenoZmena?.(o);
+  };
   const [dotaz, setDotaz] = useState("");
   const [kategorie, setKategorie] = useState<string | null>(null);
   const [skenuje, setSkenuje] = useState(false);
   const [nedavneIds, setNedavneIds] = useState<string[]>([]);
+  const klientQ = useQueryClient();
+  // stálice – picker si data nese sám, volající nemusí propásovat
+  const dotazStalice = useQuery({ queryKey: ["stalice"], queryFn: nactiStalice });
+  const stalice = dotazStalice.data ?? new Set<string>();
+  const mutStalice = useMutation({
+    mutationFn: (p: PolozkaVyberu) => prepnoutStalici(p.id, p.nazev),
+    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["stalice"] }),
+    onError: () => toast.error("Stálici se nepodařilo uložit."),
+  });
+  const pinuj = (p: PolozkaVyberu) => mutStalice.mutate(p);
 
   const vybrana = useMemo(
     () => potraviny.find((p) => p.id === hodnota) ?? null,
@@ -166,6 +191,16 @@ export function VyberPotraviny({
     setOtevreno(true);
   };
 
+  // řízené otevření – vyčistit dotaz/filtry jako při otevri()
+  useEffect(() => {
+    if (otevrenoVnejsi) {
+      setDotaz("");
+      setKategorie(null);
+      setSkenuje(false);
+      setNedavneIds(nactiNedavne());
+    }
+  }, [otevrenoVnejsi]);
+
   const vyber = (id: string) => {
     ulozNedavne(id);
     onZmena(id);
@@ -189,6 +224,7 @@ export function VyberPotraviny({
 
   return (
     <>
+      {!bezTlacitka && (
       <button
         type="button"
         onClick={otevri}
@@ -211,6 +247,7 @@ export function VyberPotraviny({
         )}
         <ChevronDown className="size-4 shrink-0 text-muted" />
       </button>
+      )}
 
       {otevreno && (
         <div
@@ -310,7 +347,7 @@ export function VyberPotraviny({
               <div className="flex min-h-0 flex-1 flex-col">
                 <ul role="listbox" className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 sm:px-3">
                   {filtrovane.map((p) => (
-                    <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} />
+                    <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} pripnuta={stalice.has(p.id)} onPin={pinuj} />
                   ))}
                   {filtrovane.length === 0 && (
                     <li className="px-4 py-10 text-center text-sm text-muted">
@@ -332,7 +369,7 @@ export function VyberPotraviny({
                     <SekceNadpis ikona={Tag}>Dnes ve slevě</SekceNadpis>
                     <div className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:px-5">
                       {veSleve.map((p) => (
-                        <KartaPotraviny key={p.id} p={p} onVyber={vyber} />
+                        <KartaPotraviny key={p.id} p={p} onVyber={vyber} pripnuta={stalice.has(p.id)} onPin={pinuj} />
                       ))}
                     </div>
                   </section>
@@ -342,7 +379,7 @@ export function VyberPotraviny({
                     <SekceNadpis ikona={History}>Naposledy přidané</SekceNadpis>
                     <div className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:px-5">
                       {nedavne.map((p) => (
-                        <KartaPotraviny key={p.id} p={p} onVyber={vyber} />
+                        <KartaPotraviny key={p.id} p={p} onVyber={vyber} pripnuta={stalice.has(p.id)} onPin={pinuj} />
                       ))}
                     </div>
                   </section>
@@ -351,7 +388,7 @@ export function VyberPotraviny({
                   <SekceNadpis ikona={Package}>Všechny potraviny</SekceNadpis>
                   <ul role="listbox" className="px-2 sm:px-3">
                     {potraviny.slice(0, MAX_VYSLEDKU).map((p) => (
-                      <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} />
+                      <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} pripnuta={stalice.has(p.id)} onPin={pinuj} />
                     ))}
                   </ul>
                 </section>
@@ -406,30 +443,34 @@ function SekceNadpis({
   );
 }
 
-/** Řádek seznamu – fotka, název, kcal + cena + SLEVA, plus tlačítko. */
+/** Řádek seznamu – fotka, název, kcal + cena + SLEVA, plus a pin tlačítka. */
 function Radek({
   p,
   aktivni,
   onVyber,
   mojeAlergie = [],
+  pripnuta = false,
+  onPin,
 }: {
   p: PolozkaVyberu;
   aktivni: boolean;
   onVyber: (id: string) => void;
   mojeAlergie?: string[];
+  pripnuta?: boolean;
+  onPin?: (p: PolozkaVyberu) => void;
 }) {
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   const stopySet = new Set(p.alergenyStopy ?? []);
   const obsahShoda = shoda.filter((a) => !stopySet.has(a));
   const stopyShoda = shoda.filter((a) => stopySet.has(a));
   return (
-    <li>
+    <li className="flex items-center gap-0.5">
       <button
         type="button"
         role="option"
         aria-selected={aktivni}
         onClick={() => onVyber(p.id)}
-        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface active:bg-surface-2"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface active:bg-surface-2"
       >
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-14" />
         <span className="min-w-0 flex-1">
@@ -472,18 +513,40 @@ function Radek({
           <Plus className="size-4" />
         </span>
       </button>
+      {onPin && (
+        <button
+          type="button"
+          onClick={() => onPin(p)}
+          aria-label={pripnuta ? `${p.nazev} – odebrat ze stálic` : `${p.nazev} – připnout do stálic`}
+          aria-pressed={pripnuta}
+          className="grid size-10 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface hover:text-accent"
+        >
+          <Star className={cn("size-4", pripnuta && "fill-accent text-accent")} aria-hidden />
+        </button>
+      )}
     </li>
   );
 }
 
 /** Kartička pro vodorovné lišty (Ve slevě / Nedávné) – e-shopový vzhled. */
-function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string) => void }) {
+function KartaPotraviny({
+  p,
+  onVyber,
+  pripnuta = false,
+  onPin,
+}: {
+  p: PolozkaVyberu;
+  onVyber: (id: string) => void;
+  pripnuta?: boolean;
+  onPin?: (p: PolozkaVyberu) => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => onVyber(p.id)}
-      className="group w-36 shrink-0 snap-start rounded-2xl border border-border bg-surface p-2.5 text-left transition-colors hover:border-primary/60"
-    >
+    <div className="relative w-36 shrink-0 snap-start">
+      <button
+        type="button"
+        onClick={() => onVyber(p.id)}
+        className="group w-full rounded-2xl border border-border bg-surface p-2.5 text-left transition-colors hover:border-primary/60"
+      >
       <div className="relative mb-2 overflow-hidden rounded-xl bg-surface-2">
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="aspect-square w-full" />
         {p.sleva && (
@@ -515,6 +578,21 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
           <Plus className="size-3.5" />
         </span>
       </span>
-    </button>
+      </button>
+      {onPin && (
+        <button
+          type="button"
+          onClick={() => onPin(p)}
+          aria-label={pripnuta ? `${p.nazev} – odebrat ze stálic` : `${p.nazev} – připnout do stálic`}
+          aria-pressed={pripnuta}
+          className={cn(
+            "absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full bg-bg/80 backdrop-blur transition-colors",
+            pripnuta ? "text-accent" : "text-muted hover:text-accent",
+          )}
+        >
+          <Star className={cn("size-4", pripnuta && "fill-accent")} aria-hidden />
+        </button>
+      )}
+    </div>
   );
 }

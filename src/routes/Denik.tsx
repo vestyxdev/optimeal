@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { Prstenec } from "@/components/ui/Prstenec";
-import type { PolozkaVyberu } from "@/components/ui/VyberPotraviny";
+import { VyberPotraviny, type PolozkaVyberu } from "@/components/ui/VyberPotraviny";
 import { DenikZapis } from "@/components/denik/DenikZapis";
 import { SerieKarta } from "@/components/denik/SerieKarta";
 import {
@@ -77,6 +77,9 @@ export function Denik() {
   const [rychly, setRychly] = useState("");
   const [rychlyTyp, setRychlyTyp] = useState<TypJidla>(typPodleCasu);
   const [rychlyGramy, setRychlyGramy] = useState<Record<number, number>>({});
+  // ruční výměna nalezené potraviny – index klauzule → vybrané food id
+  const [rychlyShody, setRychlyShody] = useState<Record<number, string>>({});
+  const [swapIndex, setSwapIndex] = useState<number | null>(null);
 
   const dotazDenik = useQuery({
     queryKey: ["denik", datum],
@@ -152,13 +155,16 @@ export function Denik() {
     if (rychly.trim() === "") return [];
     const katalog = dotazKatalog.data ?? [];
     return parsujRychlyZapis(rychly).map((p, i) => {
-      const shoda = najdiPotravinu(katalog, p.dotaz);
+      const rucni = rychlyShody[i] !== undefined
+        ? katalog.find((k) => k.id === rychlyShody[i])
+        : undefined;
+      const shoda = rucni ?? najdiPotravinu(katalog, p.dotaz);
       // nerozpoznané množství → balení potraviny, jinak 100 g
       const gramy = rychlyGramy[i] ?? p.gramy ?? shoda?.baleniG ?? 100;
       const makra = shoda ? makraProMnozstvi(shoda, gramy) : null;
       return { ...p, shoda, gramy, makra };
     });
-  }, [rychly, rychlyGramy, dotazKatalog.data]);
+  }, [rychly, rychlyGramy, rychlyShody, dotazKatalog.data]);
 
   // „Zapsat vše" – dávkový insert jen nalezených položek do zvoleného slotu
   const mutaceRychly = useMutation({
@@ -166,6 +172,7 @@ export function Denik() {
     onSuccess: (_v, zapsane) => {
       setRychly("");
       setRychlyGramy({});
+      setRychlyShody({});
       toast.success(`Zapsáno ${zapsane.length} ${sklonuj(zapsane.length, "položka", "položky", "položek")}.`);
       void dotazovak.invalidateQueries({ queryKey: ["denik"] });
     },
@@ -287,7 +294,11 @@ export function Denik() {
           <Zap className="size-4 shrink-0 text-primary" aria-hidden />
           <Input
             value={rychly}
-            onChange={(e) => setRychly(e.target.value)}
+            onChange={(e) => {
+              setRychly(e.target.value);
+              // přepsaný text mění význam indexů – ruční výměny zahodit
+              setRychlyShody({});
+            }}
             placeholder="např. 200g kuřecí prsa, 100 g rýže, 2 vejce"
             aria-label="Rychlý zápis"
             className="min-w-0 flex-1"
@@ -313,7 +324,7 @@ export function Denik() {
                       <MiniaturaPotraviny obrazek={p.shoda.obrazek} velikost="size-7" inline />
                       <button
                         type="button"
-                        onClick={() => setZapisOtevren(rychlyTyp)}
+                        onClick={() => setSwapIndex(i)}
                         className="min-w-0 flex-1 truncate text-left font-medium hover:text-primary"
                         title="Vyměnit nalezenou potravinu"
                       >
@@ -341,10 +352,15 @@ export function Denik() {
                       </span>
                     </>
                   ) : (
-                    <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-warning">
+                    <button
+                      type="button"
+                      onClick={() => setSwapIndex(i)}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs text-warning"
+                      title="Vybrat potravinu ručně"
+                    >
                       <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
-                      <span className="truncate">„{p.vstup}" – nenalezeno v katalogu</span>
-                    </span>
+                      <span className="truncate">„{p.vstup}" – nenalezeno, vyberte ručně</span>
+                    </button>
                   )}
                 </li>
               ))}
@@ -379,6 +395,20 @@ export function Denik() {
                 Zapsat vše
               </Button>
             </div>
+            <VyberPotraviny
+              potraviny={potravinyProVyber}
+              hodnota={swapIndex !== null ? (rychlePolozky[swapIndex]?.shoda?.id ?? "") : ""}
+              onZmena={(id) => {
+                if (swapIndex !== null) {
+                  setRychlyShody((s) => ({ ...s, [swapIndex]: id }));
+                  setSwapIndex(null);
+                }
+              }}
+              bezTlacitka
+              otevrenoVnejsi={swapIndex !== null}
+              naOtevrenoZmena={(o) => { if (!o) setSwapIndex(null); }}
+              mojeAlergie={mojeAlergie}
+            />
           </>
         )}
       </section>
