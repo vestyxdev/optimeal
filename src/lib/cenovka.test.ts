@@ -45,10 +45,28 @@ describe("porovnejObchody", () => {
     expect(lidl).toMatchObject({ pokryti: 1, celkem: 8 });
   });
 
-  it("řadí od nejlevnějšího, při shodě vítězí lepší pokrytí", () => {
+  it("řadí od nejlepšího pokrytí, při shodě vítězí nižší součet", () => {
     const v = porovnejObchody(polozky, hladiny);
-    expect(v[0]?.obchod).toBe("Lidl");
-    expect(v[1]?.obchod).toBe("Rohlík");
+    // Rohlík pokryje 2 položky (20 Kč), Lidl jen 1 (8 Kč) – neúplný
+    // košík nesmí vyhrát „nejlevnější" před kompletním nákupem
+    expect(v[0]?.obchod).toBe("Rohlík");
+    expect(v[1]?.obchod).toBe("Lidl");
+  });
+
+  it("při stejném pokrytí vítězí levnější košík", () => {
+    const mapa = new Map<string, CenaObchodu[]>([
+      ["f1", [cena("r1", "Rohlík", 12), cena("r2", "Lidl", 8)]],
+      ["f2", [cena("r1", "Rohlík", 5), cena("r2", "Lidl", 9)]],
+    ]);
+    const v = porovnejObchody(
+      [
+        { foodId: "f1", gramy: 100, nazev: "Kuřecí prso" },
+        { foodId: "f2", gramy: 200, nazev: "Kuřecí stehno" },
+      ],
+      mapa,
+    );
+    // Lidl: 8×1 + 9×2 = 26 · Rohlík: 12×1 + 5×2 = 22 → Rohlík levnější
+    expect(v[0]?.obchod).toBe("Rohlík");
   });
 
   it("obchod bez ceny se vůbec neobjeví", () => {

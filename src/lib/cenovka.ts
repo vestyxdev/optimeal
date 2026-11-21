@@ -52,13 +52,19 @@ export function porovnejObchody(
     }
   }
 
+  // neznámých počítáme jen z ocenitelných položek (ruční bez foodId
+  // nemůže mít cenu nikde – nepatří do statistiky pokrytí)
+  const ocenitelnych = polozky.filter((p) => p.foodId).length;
   for (const h of mapa.values()) {
-    h.neznamych = polozky.length - h.pokryti;
+    h.neznamych = ocenitelnych - h.pokryti;
     h.celkem = Math.round(h.celkem * 100) / 100;
     h.usetreno = Math.round(h.usetreno * 100) / 100;
   }
+  // Pokrytí před cenou: obchod, kde košík jde koupit skoro celý,
+  // má přednost před součtem z pár oceněných položek – nižší
+  // „celkem" z malého pokrytí není levnější nákup, jen neúplný.
   return [...mapa.values()].sort(
-    (a, b) => a.celkem - b.celkem || b.pokryti - a.pokryti,
+    (a, b) => b.pokryti - a.pokryti || a.celkem - b.celkem,
   );
 }
 
