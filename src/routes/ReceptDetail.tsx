@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Pencil, Printer, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, Minus, Pencil, Plus, Printer, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -28,6 +28,8 @@ export function ReceptDetail() {
   const naviguj = useNavigate();
   const klientQ = useQueryClient();
   const [potvrditSmazani, setPotvrditSmazani] = useState(false);
+  // null = výchozí recept.porce; krokovač mění „vařím na N porcí"
+  const [porci, setPorci] = useState<number | null>(null);
 
   const dotazRecept = useQuery({
     queryKey: ["recept", id],
@@ -59,6 +61,10 @@ export function ReceptDetail() {
   });
 
   const ceny = dotazCeny.data ?? null;
+  const effektivniPorce = Math.max(
+    1,
+    Math.min(20, Math.round(porci ?? recept?.porce ?? 1)),
+  );
   const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
   const alergeny = recept ? alergenyReceptu(recept) : [];
   const stopy = recept ? stopyReceptu(recept) : [];
@@ -165,15 +171,40 @@ export function ReceptDetail() {
           {/* suroviny */}
           <Card className="p-0 lg:col-span-3">
             <div className="border-b border-border px-5 py-4">
-              <CardNadpis className="mb-0 flex items-center gap-2">
-                <UtensilsCrossed className="size-5 text-primary" /> Suroviny
-              </CardNadpis>
+              <div className="flex items-center justify-between gap-3">
+                <CardNadpis className="mb-0 flex items-center gap-2">
+                  <UtensilsCrossed className="size-5 text-primary" /> Suroviny
+                </CardNadpis>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Méně porcí"
+                    disabled={effektivniPorce <= 1}
+                    onClick={() => setPorci(Math.max(1, effektivniPorce - 1))}
+                    className="grid size-7 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
+                  >
+                    <Minus className="size-3.5" />
+                  </button>
+                  <span className="min-w-16 text-center text-sm font-semibold tabular-nums">
+                    {effektivniPorce} {sklonuj(effektivniPorce, "porce", "porce", "porcí")}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Více porcí"
+                    disabled={effektivniPorce >= 20}
+                    onClick={() => setPorci(Math.min(20, effektivniPorce + 1))}
+                    className="grid size-7 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
             {/* mobil: kompaktní řádky (název, g/porci, obchod, cena) */}
             <div className="divide-y divide-border md:hidden">
               {recept.suroviny.map((s) => {
                 const p = ceny?.find((x) => x.id === s.foodId);
-                const cena = p ? (p.aktualniCena * s.gramyNaPorce * recept.porce) / 100 : null;
+                const cena = p ? (p.aktualniCena * s.gramyNaPorce * effektivniPorce) / 100 : null;
                 return (
                   <div key={s.foodId} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                     <span className="flex min-w-0 items-center gap-2 font-medium">
@@ -184,7 +215,9 @@ export function ReceptDetail() {
                           {s.poznamka && <span className="text-muted"> ({s.poznamka})</span>}
                         </span>
                         <span className="text-xs text-muted tabular-nums">
-                          {Math.round(s.gramyNaPorce)} g/porci{p?.obchod ? ` · ${p.obchod}` : ""}
+                          {Math.round(s.gramyNaPorce)} g/porci · celkem{" "}
+                          {Math.round(s.gramyNaPorce * effektivniPorce)} g
+                          {p?.obchod ? ` · ${p.obchod}` : ""}
                         </span>
                       </span>
                     </span>
@@ -210,7 +243,7 @@ export function ReceptDetail() {
               <tbody>
                 {recept.suroviny.map((s) => {
                   const p = ceny?.find((x) => x.id === s.foodId);
-                  const celkemG = s.gramyNaPorce * recept.porce;
+                  const celkemG = s.gramyNaPorce * effektivniPorce;
                   const cena = p ? (p.aktualniCena * celkemG) / 100 : null;
                   return (
                     <tr key={s.foodId} className="border-b border-border last:border-0">
@@ -251,7 +284,7 @@ export function ReceptDetail() {
           {/* výživa */}
           <div className="space-y-4 lg:col-span-2">
             {(() => {
-              const rozbor = spocitejRecept(recept, ceny);
+              const rozbor = spocitejRecept({ ...recept, porce: effektivniPorce }, ceny);
               return (
                 <>
                   <Card>
@@ -283,8 +316,8 @@ export function ReceptDetail() {
                       </div>
                     </div>
                     <p className="mt-3 text-xs text-muted">
-                      Celý recept ({recept.porce}{" "}
-                      {sklonuj(recept.porce, "porce", "porce", "porcí")}):{" "}
+                      Celý recept ({effektivniPorce}{" "}
+                      {sklonuj(effektivniPorce, "porce", "porce", "porcí")}):{" "}
                       {formatujCastku(rozbor.celkem.cena)} Kč ·{" "}
                       {formatujKcal(rozbor.celkem.kalorie)} kcal
                     </p>
