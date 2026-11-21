@@ -8,6 +8,7 @@ import {
   podilNaCili,
   posledniPredchoziDen,
   posunDen,
+  receptNaPoznamku,
   sectiPrijem,
   spocitejSerii,
   nazevTypuJidla,
@@ -312,5 +313,83 @@ describe("dnyVTextu", () => {
     expect(dnyVTextu(1)).toBe("den");
     expect(dnyVTextu(3)).toBe("dny");
     expect(dnyVTextu(21)).toBe("dní");
+  });
+});
+
+describe("receptNaPoznamku", () => {
+  const mapa = new Map([
+    ["kure", { kalorie: 174, bilkoviny: 27, sacharidy: 0, tuky: 6.5 }],
+    ["ryze", { kalorie: 130, bilkoviny: 2.7, sacharidy: 28, tuky: 0.3 }],
+    ["olej", { kalorie: 884, bilkoviny: 0, sacharidy: 0, tuky: 100 }],
+  ]);
+
+  it("sečte makra surovin za porci a přepočítá na 100 g", () => {
+    const p = receptNaPoznamku(
+      {
+        nazev: "Kuře s rýží",
+        suroviny: [
+          { foodId: "kure", gramyNaPorce: 150 },
+          { foodId: "ryze", gramyNaPorce: 80 },
+          { foodId: "olej", gramyNaPorce: 10 },
+        ],
+      },
+      mapa,
+    );
+    expect(p).not.toBeNull();
+    expect(p!.mnozstviG).toBe(240);
+    // za porci: 261 + 104 + 88.4 = 453.4 kcal na 240 g → 188.9/100 g
+    expect(p!.kalorie).toBeCloseTo(188.9, 1);
+    expect(p!.bilkoviny).toBeCloseTo((40.5 + 2.16) * (100 / 240), 1);
+    expect(p!.foodId).toBeNull();
+    expect(p!.nazev).toBe("Kuře s rýží");
+  });
+
+  it("přeskočí surovinu mimo katalog, makra se normují na známé gramy", () => {
+    const p = receptNaPoznamku(
+      {
+        nazev: "Směs",
+        suroviny: [
+          { foodId: "kure", gramyNaPorce: 200 },
+          { foodId: "mimo", gramyNaPorce: 40 },
+        ],
+      },
+      mapa,
+    );
+    expect(p).not.toBeNull();
+    expect(p!.kalorie).toBeCloseTo(174, 0);
+  });
+
+  it("vrátí null, když je většina surovin mimo katalog", () => {
+    expect(
+      receptNaPoznamku(
+        {
+          nazev: "Nic",
+          suroviny: [
+            { foodId: "kure", gramyNaPorce: 50 },
+            { foodId: "mimo", gramyNaPorce: 200 },
+          ],
+        },
+        mapa,
+      ),
+    ).toBeNull();
+  });
+
+  it("vrátí null u prázdného receptu", () => {
+    expect(receptNaPoznamku({ nazev: "Prázdný", suroviny: [] }, mapa)).toBeNull();
+  });
+
+  it("přeskočí surovinu s nulovou energetickou hodnotou", () => {
+    const p = receptNaPoznamku(
+      {
+        nazev: "Jen kuře",
+        suroviny: [
+          { foodId: "kure", gramyNaPorce: 150 },
+          { foodId: "voda", gramyNaPorce: 50 },
+        ],
+      },
+      new Map([...mapa, ["voda", { kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0 }]]),
+    );
+    expect(p).not.toBeNull();
+    expect(p!.kalorie).toBeCloseTo(174, 0);
   });
 });

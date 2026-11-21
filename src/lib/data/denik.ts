@@ -365,6 +365,53 @@ export async function zapisDoDeniku(
 }
 
 /**
+ * Recept (porce) → řádek deníku. Makra receptu se sečtou ze surovin
+ * (každá po gramyNaPorce na 1 porci) a přepočítají na 100 g váhy porce.
+ * foodId = null – deníkový řádek je „surovina recept", ne katalogový
+ * food; jmenná alergenová síť kryje název, tagy surovin sem nedosáhnou.
+ * Suroviny mimo katalog (smazané) se přeskočí; kdyby nic nenašla,
+ * vrací null místo zavádějící nuly.
+ */
+export function receptNaPoznamku(
+  recept: {
+    nazev: string;
+    suroviny: { foodId: string | null; gramyNaPorce: number; obrazek?: string | null }[];
+  },
+  mapaMakro: Map<
+    string,
+    { kalorie: number; bilkoviny?: number; sacharidy?: number; tuky?: number }
+  >,
+): NovaPoznamka | null {
+  let gramyPorce = 0;
+  let gramyZname = 0;
+  const soucet = { kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0 };
+  for (const s of recept.suroviny) {
+    gramyPorce += s.gramyNaPorce;
+    const p = s.foodId ? mapaMakro.get(s.foodId) : undefined;
+    if (!p || p.kalorie <= 0) continue;
+    const koef = s.gramyNaPorce / 100;
+    gramyZname += s.gramyNaPorce;
+    soucet.kalorie += p.kalorie * koef;
+    soucet.bilkoviny += (p.bilkoviny ?? 0) * koef;
+    soucet.sacharidy += (p.sacharidy ?? 0) * koef;
+    soucet.tuky += (p.tuky ?? 0) * koef;
+  }
+  if (gramyPorce <= 0 || gramyZname / gramyPorce < 0.6) return null;
+  const f = 100 / gramyZname;
+  const r = (n: number) => Math.round(n * f * 100) / 100;
+  return {
+    foodId: null,
+    nazev: recept.nazev,
+    obrazek: recept.suroviny.map((s) => s.obrazek).find(Boolean) ?? null,
+    mnozstviG: Math.round(gramyPorce * 10) / 10,
+    kalorie: r(soucet.kalorie),
+    bilkoviny: r(soucet.bilkoviny),
+    sacharidy: r(soucet.sacharidy),
+    tuky: r(soucet.tuky),
+  };
+}
+
+/**
  * Kopie uloženého záznamu na jiný den – zachová typ jídla, gramáž,
  * makro-snapshot i čas zápisu (hodina:minuta se přenese na nové datum).
  */

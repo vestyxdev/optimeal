@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   CalendarDays,
+  ChefHat,
   ChevronDown,
   ChevronUp,
   Flame,
+  Plus,
   Trash2,
+  TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { GramazPill } from "@/components/ui/GramazPill";
@@ -17,13 +20,18 @@ import { VyberPotraviny, type PolozkaVyberu } from "@/components/ui/VyberPotravi
 import {
   makraProMnozstvi,
   podilNaCili,
+  receptNaPoznamku,
   sectiPrijem,
   TYPY_JIDLA,
   zapisDoDeniku,
   type NovaPoznamka,
   type TypJidla,
 } from "@/lib/data/denik";
+import { alergenyReceptu, nactiRecepty, stopyReceptu, type Recept } from "@/lib/data/recepty";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
+import { sklonuj } from "@/lib/sklonovani";
 import type { Cile } from "@/lib/vyziva/cile";
 
 /**
@@ -63,7 +71,33 @@ export function DenikZapis({
   );
   const [polozky, setPolozky] = useState<PolozkaZapisu[]>([]);
   const [vlivOtevren, setVlivOtevren] = useState(true);
+  const [receptyOtevreny, setReceptyOtevreny] = useState(false);
+  const [dotazRecept, setDotazRecept] = useState("");
   const seznamRef = useRef<HTMLDivElement>(null);
+
+  // katalog makro/100g pro přepočet receptu na porci
+  const mapaMakro = useMemo(
+    () => new Map(potraviny.map((p) => [p.id, p])),
+    [potraviny],
+  );
+  // recepty se tahají až po otevření sekce (seznam může být velký)
+  const dotazRecepty = useQuery({
+    queryKey: ["recepty"],
+    queryFn: nactiRecepty,
+    enabled: receptyOtevreny,
+    staleTime: 60 * 1000,
+  });
+  const filtrovaneRecepty = useMemo(() => {
+    const vsechny = dotazRecepty.data ?? [];
+    const q = bezDiakritiky(dotazRecept.trim());
+    if (!q) return vsechny.slice(0, 20);
+    return vsechny
+      .map((r) => ({ r, skore: skoreShody(bezDiakritiky(r.nazev), q) }))
+      .filter((x) => x.skore > 0)
+      .sort((a, b) => b.skore - a.skore)
+      .slice(0, 20)
+      .map((x) => x.r);
+  }, [dotazRecepty.data, dotazRecept]);
 
   // zámek posouvání pozadí + Escape zavře
   useEffect(() => {
@@ -98,6 +132,22 @@ export function DenikZapis({
       },
     ]);
     // posun dolů na novou položku
+    requestAnimationFrame(() => {
+      const el = seznamRef.current;
+      el?.scrollTo?.({ top: el.scrollHeight, behavior: "smooth" });
+    });
+  };
+
+  const pridejRecept = (r: Recept) => {
+    const poznamka = receptNaPoznamku(r, mapaMakro);
+    if (!poznamka) {
+      toast.error("Z receptu nejde makra spočítat – suroviny mimo katalog.");
+      return;
+    }
+    setPolozky((stare) => [
+      ...stare,
+      { ...poznamka, klic: `recept-${r.id}-${Date.now()}`, baleniG: null },
+    ]);
     requestAnimationFrame(() => {
       const el = seznamRef.current;
       el?.scrollTo?.({ top: el.scrollHeight, behavior: "smooth" });
@@ -257,6 +307,89 @@ export function DenikZapis({
             ariaLabel="Přidat potravinu do deníku"
             mojeAlergie={mojeAlergie}
           />
+
+          {/* ---- přidat porci receptu ---- */}
+          <section className="rounded-2xl bg-surface">
+            <button
+              type="button"
+              onClick={() => setReceptyOtevreny((v) => !v)}
+              aria-expanded={receptyOtevreny}
+              className="flex w-full items-center gap-2 px-4 py-3.5 text-left"
+            >
+              <ChefHat className="size-4 text-accent" />
+              <span className="text-sm font-bold text-fg">Z receptu</span>
+              {receptyOtevreny ? (
+                <ChevronUp className="ml-auto size-4 text-accent" />
+              ) : (
+                <ChevronDown className="ml-auto size-4 text-accent" />
+              )}
+            </button>
+            {receptyOtevreny && (
+              <div className="px-3 pb-3">
+                <input
+                  type="search"
+                  value={dotazRecept}
+                  onChange={(e) => setDotazRecept(e.target.value)}
+                  placeholder="Hledat recept…"
+                  aria-label="Hledat recept"
+                  className="mb-2 h-10 w-full rounded-xl border border-border bg-bg px-3 text-sm text-fg placeholder:text-muted focus:outline-2 focus:outline-primary"
+                />
+                {dotazRecepty.isPending ? (
+                  <p className="px-1 py-3 text-xs text-muted">Načítám recepty…</p>
+                ) : filtrovaneRecepty.length === 0 ? (
+                  <p className="px-1 py-3 text-xs text-muted">
+                    {dotazRecepty.data?.length ? "Žádný recept neodpovídá." : "Zatím žádné recepty – vytvořte je v sekci Recepty."}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border/50">
+                    {filtrovaneRecepty.map((r) => {
+                      const stopyVse = stopyReceptu(r);
+                      const obsah = alergenyReceptu(r).filter(
+                        (a) => mojeAlergie.includes(a) && !stopyVse.includes(a),
+                      );
+                      const stopy = stopyVse.filter((a) => mojeAlergie.includes(a));
+                      return (
+                        <li key={r.id} className="flex items-center gap-3 py-2">
+                          <MiniaturaPotraviny
+                            obrazek={r.suroviny.map((s) => s.obrazek).find(Boolean) ?? null}
+                            velikost="size-10"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-fg">
+                              {r.nazev}
+                            </span>
+                            <span className="block text-xs text-muted">
+                              {r.porce} {sklonuj(r.porce, "porce", "porce", "porcí")}
+                            </span>
+                            {obsah.length > 0 && (
+                              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger">
+                                <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                                obsahuje {obsah.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                              </span>
+                            )}
+                            {stopy.length > 0 && (
+                              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warning">
+                                <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                                může obsahovat stopy: {stopy.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => pridejRecept(r)}
+                            aria-label={`Přidat porci receptu ${r.nazev}`}
+                            className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-fg transition-transform hover:scale-105"
+                          >
+                            <Plus className="size-4" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </section>
 
           {/* ---- vliv na příjem ---- */}
           {polozky.length > 0 && (
