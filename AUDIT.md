@@ -260,3 +260,13 @@ Ověřeno: tsc clean · 372/372 testů · build clean · git strom čistý.
 - Regresní testy: 21 cizojazyčných názvů + falešně-pozitivní hrany (Hofmeier, nuovo, latte jako mléko).
 
 Ověřeno: tsc clean · 373/373 testů · git strom čistý.
+
+## Kolo: alergeny_stopy – „obsahuje" vs „může obsahovat stopy" (21. 11. 2026)
+
+- **foods.alergeny_stopy** (migrace 0055, aplikována): podmnožina `alergeny` pocházející jen z OFF `traces_tags`. `alergeny` zůstává unionem ingrediencí i stop → `obsahujeAlergen` a varování se chovají identicky (konzervativní), UI ale umí rozlišit „obsahuje mléko" od „může obsahovat stopy mléka".
+- **UI**: `AlergenInfo` v katalogu ukazuje „alergeny:" a „může obsahovat stopy:" zvlášť; stopová kolize s uživatelovou alergií varuje jemnějším textem (warning místo danger).
+- **Pipeline**: `tagyZOff`/`parsujOffProdukt`/`ingest_off.mjs`/`dopln_tagy_off.mjs` zapisují stopy; EAN save-flow zapisuje `alergeny_stopy`; `dopln_tagy_off.mjs --stopy` zpětně doplňuje existujícím 6,4k EAN řádkům (běží na pozadí, resumable).
+- **Dedupe**: alergen deklarovaný současně jako ingredience se do stop nepropíše.
+- Testy: +2 (mapování traces→stopy, dedupe ingredience/stopa).
+
+Ověřeno: tsc clean · 374/374 testů · build clean · git strom čistý.
