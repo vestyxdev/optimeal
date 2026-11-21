@@ -31,8 +31,10 @@ scripts/_*.json
 scripts/_*.txt
 scripts/_*.log
 scripts/dopln_*.log
+scripts/oprav_fantom*.log
 __pycache__/
 scripts/.dopln_*.state.json
+scripts/.oprav_*.state.json
 data/katalog_snapshot.json  
 
 # dočasné skripty a audit nástroje
