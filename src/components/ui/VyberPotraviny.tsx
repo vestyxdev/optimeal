@@ -123,7 +123,12 @@ export function VyberPotraviny({
     onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["stalice"] }),
     onError: () => toast.error("Stálici se nepodařilo uložit."),
   });
-  const pinuj = (p: PolozkaVyberu) => mutStalice.mutate(p);
+  // dvojklik na hvězdičku by přepnul stálici dvakrát a záměr se ztratil –
+  // dokud běží přepnutí téže položky, další klepnutí ignorujeme
+  const pinuj = (p: PolozkaVyberu) => {
+    if (mutStalice.isPending && mutStalice.variables?.id === p.id) return;
+    mutStalice.mutate(p);
+  };
 
   const vybrana = useMemo(
     () => potraviny.find((p) => p.id === hodnota) ?? null,

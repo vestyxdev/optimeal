@@ -509,7 +509,7 @@ function RozpocetKarta({ cena, rozpocet }: { cena: number; rozpocet: number }) {
           style={{ width: `${Math.min(100, procento)}%` }}
         />
       </div>
-      <p className="mt-2 text-xs text-muted">
+      <p className="mt-2 text-xs text-muted tabular-nums">
         {presahuje
           ? `Plán překračuje rozpočet o ${formatujKc(cena - rozpocet)} Kč – zkuste vyšší podíl slevových potravin.`
           : `Plán se vejde do rozpočtu – rezerva ${formatujKc(rozpocet - cena)} Kč.`}

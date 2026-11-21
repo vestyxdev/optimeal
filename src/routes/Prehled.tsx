@@ -240,7 +240,7 @@ function PrihlasenyPrehled() {
         podtitul="Váš přehled: denní cíl, poslední plán, úspory ze slev a nákupní seznamy – vše živě z účtu."
         vizual={
           uspora > 0 ? (
-            <span className="om-cenovka rotate-6 self-center text-sm lg:self-auto">
+            <span className="om-cenovka rotate-6 self-center text-sm tabular-nums lg:self-auto">
               sleva −{formatujKc(uspora)} Kč
             </span>
           ) : undefined
@@ -393,7 +393,7 @@ function PrihlasenyPrehled() {
                 <span className="font-semibold">{TYP_NAZVY[plan.typ] ?? plan.typ}</span>
                 {uspora > 0 && <Badge tono="ok">−{formatujCastku(uspora)} Kč</Badge>}
               </div>
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted tabular-nums">
                 Cíl {formatujKcal(plan.cil_kalorie)} kcal ·{" "}
                 {new Date(plan.vytvoreno).toLocaleDateString("cs-CZ")}
                 {cenaPosledniho > 0 && <> · nákup ≈ {formatujKc(cenaPosledniho)} Kč</>}
@@ -468,7 +468,7 @@ function PrihlasenyPrehled() {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-muted">
+                <p className="text-sm text-muted tabular-nums">
                   Rozpočet {formatujKc(rozpocet)} Kč/týden – vygenerujte týdenní
                   plán a uvidíte, jak mu odpovídá.
                 </p>
@@ -617,7 +617,7 @@ function StaliceWidget() {
                 {p.slevaProcenta != null && (
                   <Badge tono="accent" className="ml-1.5">−{p.slevaProcenta} %</Badge>
                 )}
-                <span className="block text-[10px] text-muted">
+                <span className="block text-[10px] text-muted tabular-nums">
                   {formatujKc(p.aktualniCena * 10)}/kg
                 </span>
               </span>

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase, supabaseNastaveno } from "./supabase";
 import { ulozCile, ulozProfil } from "./data/profil";
 import { migrujSpizAStaliceHosta } from "./data/spiz";
+import { logChyba } from "./logChyba";
 
 /**
  * Autentizace – Supabase Auth (e-mail + heslo).
@@ -82,10 +83,15 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
                   void klient.invalidateQueries({ queryKey: ["spiz"] });
                   void klient.invalidateQueries({ queryKey: ["stalice"] });
                 }
-              } catch {
-                /* migrace spíže nesmí zablokovat přihlášení */
+              } catch (chyba) {
+                // migrace spíže nesmí zablokovat přihlášení – ale
+                // nesmí ani tiše zmizet, jinak by hostovská data zmizela
+                // nenávratně bez stopy
+                logChyba(chyba, { zdroj: "auth", misto: "migrace-spize" });
               }
-              migrujCileHosta().catch(() => {});
+              migrujCileHosta().catch((chyba) =>
+                logChyba(chyba, { zdroj: "auth", misto: "migrace-cilu" }),
+              );
             })();
           }
           return novy;
@@ -166,9 +172,15 @@ async function migrujCileHosta(): Promise<void> {
       teloTukProcento:
         tuk != null && Number.isFinite(tuk) && tuk >= 3 && tuk <= 60 ? tuk : null,
     };
-    await ulozProfil(vstupy).catch(() => {});
+    await ulozProfil(vstupy).catch((chyba) =>
+      logChyba(chyba, { zdroj: "auth", misto: "migrace-profilu" }),
+    );
   }
-  if (host.cile) await ulozCile(host.cile, "auto").catch(() => {});
+  if (host.cile) {
+    await ulozCile(host.cile, "auto").catch((chyba) =>
+      logChyba(chyba, { zdroj: "auth", misto: "migrace-cilu" }),
+    );
+  }
 }
 
 /** Většina chyb Supabase jde člověku vysvětlit česky. */

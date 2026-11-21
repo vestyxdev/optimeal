@@ -145,8 +145,11 @@ export function Potraviny() {
     onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["stalice"] }),
     onError: (e: Error) => toast.error(e.message),
   });
-  const naStalici = (p: KatalogPotravina) =>
+  // stejná ochrana jako v pickeru – dvojklik by přepnutí vrátil zpět
+  const naStalici = (p: KatalogPotravina) => {
+    if (mutaceStalice.isPending && mutaceStalice.variables?.id === p.id) return;
     mutaceStalice.mutate({ id: p.id, nazev: p.nazev });
+  };
   const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
   // stav filtrů žije v URL (?dotaz&kategorie&slevy&razeni) – sdílený
   // odkaz, refresh i tlačítko Zpět drží stejný pohled
