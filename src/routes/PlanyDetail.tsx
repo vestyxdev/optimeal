@@ -209,6 +209,7 @@ export function PlanyDetail() {
             const s = (obsah as DenVysledek).jidelnicek[nazevJidla];
             if (s) mutaceZapisDenik.mutate({ nazevJidla, jidla: s.jidla });
           }}
+          zapisujeSe={mutaceZapisDenik.isPending}
         />
       ) : (
         <TydennyVysledek
@@ -218,6 +219,7 @@ export function PlanyDetail() {
             const s = (obsah as TydenniPlan).dny[denIndex]?.jidelnicek[nazevJidla];
             if (s) mutaceZapisDenik.mutate({ nazevJidla, jidla: s.jidla });
           }}
+          zapisujeSe={mutaceZapisDenik.isPending}
         />
       )}
     </div>

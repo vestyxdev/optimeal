@@ -40,6 +40,7 @@ export function SkenovaniEan({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [chyba, setChyba] = useState<string | null>(null);
+  const [rucniKod, setRucniKod] = useState("");
   // naKod v refu – rodič předává inline funkci, která se mění každý
   // render; bez refu by efekt restartoval kameru při každém renderu
   const naKodRef = useRef(naKod);
@@ -156,7 +157,31 @@ export function SkenovaniEan({
         </button>
       </div>
       {chyba ? (
-        <p role="alert" className="text-sm text-danger">{chyba}</p>
+        <div className="space-y-2">
+          <p role="alert" className="text-sm text-danger">{chyba}</p>
+          {/* kamera nedostupná/odmítnutá – ruční zápis kódu jako záloha */}
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const kod = rucniKod.replace(/\s+/g, "");
+              if (/^\d{8,14}$/.test(kod)) naKod(kod);
+              else setChyba("Kód má 8–14 číslic – zkontrolujte ho.");
+            }}
+          >
+            <input
+              value={rucniKod}
+              onChange={(e) => setRucniKod(e.target.value)}
+              inputMode="numeric"
+              placeholder="Nebo napište kód ručně…"
+              aria-label="Čárový kód ručně"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm tabular-nums"
+            />
+            <Button type="submit" disabled={rucniKod.trim() === ""}>
+              Hledat
+            </Button>
+          </form>
+        </div>
       ) : (
         <div className="relative overflow-hidden rounded-lg bg-black">
           <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />

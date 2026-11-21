@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, supabaseNastaveno } from "./supabase";
 import { ulozCile, ulozProfil } from "./data/profil";
+import { migrujSpizAStaliceHosta } from "./data/spiz";
 
 /**
  * Autentizace – Supabase Auth (e-mail + heslo).
@@ -71,9 +72,21 @@ export function AuthPoskytovatel({ children }: { children: ReactNode }) {
           if (pred !== null && pred.id !== (novy?.id ?? null)) {
             klient.clear();
           }
-          // první přihlášení po hostovském průvodci cíli → přenést cíle
+          // první přihlášení po hostu → přenést cíle, spíž i stálice;
+          // po migraci zneplatnit query cache (už je načtená hostovská verze)
           if (pred === null && novy !== null) {
-            migrujCileHosta().catch(() => {});
+            void (async () => {
+              try {
+                const spizMigrovana = await migrujSpizAStaliceHosta();
+                if (spizMigrovana) {
+                  void klient.invalidateQueries({ queryKey: ["spiz"] });
+                  void klient.invalidateQueries({ queryKey: ["stalice"] });
+                }
+              } catch {
+                /* migrace spíže nesmí zablokovat přihlášení */
+              }
+              migrujCileHosta().catch(() => {});
+            })();
           }
           return novy;
         });

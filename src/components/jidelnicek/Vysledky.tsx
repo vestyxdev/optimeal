@@ -173,11 +173,14 @@ function MrizkaJidel({
   jidelnicek,
   naVymenuJidla,
   naZapisDoDeniku,
+  zapisujeSe = false,
 }: {
   jidelnicek: Record<string, SouhrnJidla>;
   naVymenuJidla?: ((nazevJidla: string) => void) | undefined;
   /** zapíše celé jídlo do dnešního deníku (detail uloženého plánu) */
   naZapisDoDeniku?: ((nazevJidla: string) => void) | undefined;
+  /** zápis do deníku běží – tlačítko zamknout (double-submit) */
+  zapisujeSe?: boolean;
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -185,12 +188,13 @@ function MrizkaJidel({
           <Card key={nazevJidla} className="p-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="font-semibold">{nazevJidla}</span>
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-0.5">
                 <span className="text-xs text-muted">{formatujKcal(souhrn.kalorie)} kcal</span>
                 {naZapisDoDeniku && souhrn.jidla.length > 0 && (
                   <button
                     onClick={() => naZapisDoDeniku(nazevJidla)}
-                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
+                    disabled={zapisujeSe}
+                    className="rounded-lg p-2.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary disabled:pointer-events-none disabled:opacity-40"
                     title={`Zapsat ${nazevJidla.toLowerCase()} do dnešního deníku`}
                     aria-label={`Zapsat ${nazevJidla.toLowerCase()} do deníku`}
                   >
@@ -200,7 +204,7 @@ function MrizkaJidel({
                 {naVymenuJidla && souhrn.jidla.length > 0 && (
                   <button
                     onClick={() => naVymenuJidla(nazevJidla)}
-                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
+                    className="rounded-lg p-2.5 text-muted transition-colors hover:bg-surface-2 hover:text-primary"
                     title={`Vyměnit ${nazevJidla.toLowerCase()} za jinou kombinaci`}
                     aria-label={`Vyměnit ${nazevJidla.toLowerCase()}`}
                   >
@@ -259,11 +263,13 @@ export function DenniVysledek({
   cile,
   naVymenu,
   naZapisDoDeniku,
+  zapisujeSe = false,
 }: {
   den: DenVysledek;
   cile: Cile;
   naVymenu?: ((nazevJidla: string) => void) | undefined;
   naZapisDoDeniku?: ((nazevJidla: string) => void) | undefined;
+  zapisujeSe?: boolean;
 }) {
   const nakup = useMemo(() => sestavNakupniSeznam(den.jidelnicek), [den.jidelnicek]);
 
@@ -280,6 +286,7 @@ export function DenniVysledek({
         jidelnicek={den.jidelnicek}
         naVymenuJidla={naVymenu}
         naZapisDoDeniku={naZapisDoDeniku}
+        zapisujeSe={zapisujeSe}
       />
 
       <KartaNakupu polozky={nakup} soucetPopisek="Celkem za den" />
@@ -292,11 +299,13 @@ export function TydennyVysledek({
   cile,
   naVymenu,
   naZapisDoDeniku,
+  zapisujeSe = false,
 }: {
   plan: TydenniPlan;
   cile: Cile;
   naVymenu?: ((denIndex: number, nazevJidla: string) => void) | undefined;
   naZapisDoDeniku?: ((denIndex: number, nazevJidla: string) => void) | undefined;
+  zapisujeSe?: boolean;
 }) {
   const dni = Object.keys(plan.dny).length;
   return (
@@ -339,6 +348,7 @@ export function TydennyVysledek({
                       ? (nazevJidla) => naZapisDoDeniku(Number(den), nazevJidla)
                       : undefined
                   }
+                  zapisujeSe={zapisujeSe}
                 />
               </div>
             </details>

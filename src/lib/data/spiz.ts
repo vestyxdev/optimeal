@@ -4,8 +4,10 @@ import { supabase } from "@/lib/supabase";
  * Spíž („mám doma") + Moje stálice.
  *
  * Přihlášený: tabulky pantry_items / pinned_staples (RLS user_id).
- * Host: localStorage – „om-spiz" / „om-stalice"; při přihlášení
- * se spíž/stálice nemigrují (jednoduché, domácí data = zařízení).
+ * Host: localStorage – „om-spiz" / „om-stalice"; při prvním přihlášení
+ * se obsah migruje na účet (migrujSpizAStaliceHosta) a lokální kopie
+ * se smaže – upserty dělají migraci idempotentní i bezpečnou při
+ * přihlášení na více zařízeních.
  */
 
 export interface PolozkaSpize {
@@ -124,6 +126,44 @@ export function jeVeSpizi(
       (p.foodId != null && s.foodId === p.foodId) ||
       s.nazev.trim().toLowerCase() === p.nazev.trim().toLowerCase(),
   );
+}
+
+/**
+ * Přenese hostovskou spíž + stálice na účet po prvním přihlášení.
+ * Upserty podle (user_id, nazev) / (user_id, food_id) – opakovaný
+ * běh ani přihlášení na jiném zařízení duplikáty nevytvoří.
+ * Volá se z auth.tsx po přechodu host→uživatel.
+ */
+export async function migrujSpizAStaliceHosta(): Promise<boolean> {
+  const klient = supabase;
+  if (!klient) return false;
+  const {
+    data: { user },
+  } = await klient.auth.getUser();
+  if (!user) return false;
+  const spizHost = ctiHost(K_SPIZ);
+  const staliceHost = ctiHost(K_STALICE);
+  if (spizHost.length === 0 && staliceHost.length === 0) return false;
+  if (spizHost.length > 0) {
+    const { error } = await klient.from("pantry_items").upsert(
+      spizHost.map((p) => ({ user_id: user.id, food_id: p.foodId, nazev: p.nazev })),
+      { onConflict: "user_id,nazev" },
+    );
+    if (error) throw new Error(`Migrace spíže selhala: ${error.message}`);
+  }
+  const staliceIds = staliceHost
+    .map((p) => p.foodId)
+    .filter((id): id is string => id !== null);
+  if (staliceIds.length > 0) {
+    const { error } = await klient.from("pinned_staples").upsert(
+      staliceIds.map((id) => ({ user_id: user.id, food_id: id })),
+      { onConflict: "user_id,food_id" },
+    );
+    if (error) throw new Error(`Migrace stálic selhala: ${error.message}`);
+  }
+  localStorage.removeItem(K_SPIZ);
+  localStorage.removeItem(K_STALICE);
+  return true;
 }
 
 // ------------------------------------------------------------------
