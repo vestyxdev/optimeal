@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Minus, Pencil, Plus, Printer, ShoppingCart, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, Minus, NotebookPen, Pencil, Plus, Printer, ShoppingCart, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, stopyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ulozNakupniSeznam } from "@/lib/data/nakup";
+import { dnesISO, receptNaPoznamku, zapisDoDeniku, type TypJidla } from "@/lib/data/denik";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
@@ -51,6 +52,27 @@ export function ReceptDetail() {
       toast.success("Recept byl smazán.");
       void klientQ.invalidateQueries({ queryKey: ["recepty"] });
       naviguj("/recepty");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const mutaceZapisDenik = useMutation({
+    mutationFn: () => {
+      const r = recept!;
+      const mapa = new Map((ceny ?? []).map((p) => [p.id, p]));
+      const poznamka = receptNaPoznamku(r, mapa);
+      if (!poznamka) {
+        throw new Error("Z receptu nejde makra spočítat – suroviny mimo katalog.");
+      }
+      const TYP: Record<string, TypJidla> = {
+        snidane: "snidane", svacina: "svacina", desert: "odpoledne",
+      };
+      const klic = TYP[r.kategorie] ?? "obed";
+      return zapisDoDeniku(klic, dnesISO(), new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }), [poznamka]);
+    },
+    onSuccess: () => {
+      toast.success("Porci jsme zapsali do dnešního deníku.");
+      void klientQ.invalidateQueries({ queryKey: ["denik"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -182,13 +204,22 @@ export function ReceptDetail() {
             </>
           )}
           {uzivatel !== null && recept !== null && (
-            <Button
-              varianta="outline"
-              onClick={() => mutaceNakup.mutate()}
-              disabled={mutaceNakup.isPending}
-            >
-              <ShoppingCart className="size-4" /> Do seznamu
-            </Button>
+            <>
+              <Button
+                varianta="outline"
+                onClick={() => mutaceZapisDenik.mutate()}
+                disabled={mutaceZapisDenik.isPending}
+              >
+                <NotebookPen className="size-4" /> Do deníku
+              </Button>
+              <Button
+                varianta="outline"
+                onClick={() => mutaceNakup.mutate()}
+                disabled={mutaceNakup.isPending}
+              >
+                <ShoppingCart className="size-4" /> Do seznamu
+              </Button>
+            </>
           )}
           <Button varianta="outline" onClick={() => window.print()}>
             <Printer className="size-4" /> Tisk
