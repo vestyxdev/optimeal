@@ -40,6 +40,10 @@ export function SkenovaniEan({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [chyba, setChyba] = useState<string | null>(null);
+  // naKod v refu – rodič předává inline funkci, která se mění každý
+  // render; bez refu by efekt restartoval kameru při každém renderu
+  const naKodRef = useRef(naKod);
+  naKodRef.current = naKod;
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -78,7 +82,7 @@ export function SkenovaniEan({
         behi = true;
         try {
           const nalezy = await detektor.detect(videoRef.current);
-          if (nalezy.length > 0 && !zruseno) naKod(nalezy[0]!.rawValue);
+          if (nalezy.length > 0 && !zruseno) naKodRef.current(nalezy[0]!.rawValue);
         } catch {
           /* nečitelný snímek – zkoušíme dál */
         } finally {
@@ -111,7 +115,7 @@ export function SkenovaniEan({
           { video: { facingMode: "environment" }, audio: false },
           video,
           (vysledek) => {
-            if (vysledek && !zruseno) naKod(vysledek.getText());
+            if (vysledek && !zruseno) naKodRef.current(vysledek.getText());
           },
         );
       } catch {
@@ -134,7 +138,7 @@ export function SkenovaniEan({
       ovladani?.stop();
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [naKod]);
+  }, []);
 
   return (
     <div className="space-y-3 rounded-card border border-border bg-surface-2 p-3">
