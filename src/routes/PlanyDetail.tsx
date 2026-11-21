@@ -1,14 +1,17 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { useState } from "react";
-import { ArrowLeft, Printer, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Printer, Trash2, TriangleAlert } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { DenniVysledek, TydennyVysledek, KartaNakupu } from "@/components/jidelnicek/Vysledky";
-import { nactiPlan, smazPlan } from "@/lib/data/plany";
+import { nactiPlan, nactiPotravinyPodleId, smazPlan } from "@/lib/data/plany";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
+import { obsahujeAlergen } from "@/lib/generator/generator";
 import {
   dnesISO,
   jidloPlanuNaPoznamku,
@@ -61,6 +64,43 @@ export function PlanyDetail() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis do deníku selhal."),
   });
+
+  // retroaktivní kontrola alergií – profil se mohl změnit po uložení plánu
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
+  const mojeAlergie = useMemo(
+    () => efektivniAlergieProfilu(dotazProfil.data),
+    [dotazProfil.data],
+  );
+  const jidlaPlanu = useMemo<Jidlo[]>(() => {
+    const p = dotaz.data;
+    const v = p?.data?.vysledek;
+    if (!v || p.typ === "mealprep") return [];
+    const jidelnicky = "dny" in (v as object)
+      ? Object.values((v as TydenniPlan).dny).map((d) => d.jidelnicek)
+      : [(v as DenVysledek).jidelnicek];
+    return jidelnicky.flatMap((j) => Object.values(j).flatMap((s) => s.jidla));
+  }, [dotaz.data]);
+  const foodIds = useMemo(() => [...new Set(jidlaPlanu.map((j) => j.id))], [jidlaPlanu]);
+  const dotazPotraviny = useQuery({
+    queryKey: ["plan_alergeny", id],
+    queryFn: () => nactiPotravinyPodleId(foodIds),
+    enabled: foodIds.length > 0 && mojeAlergie.length > 0,
+  });
+  const konflikty = useMemo(() => {
+    const mapa = new Map((dotazPotraviny.data ?? []).map((p) => [p.id, p]));
+    const obsah = new Map<string, Set<string>>();
+    const stopy = new Map<string, Set<string>>();
+    for (const j of jidlaPlanu) {
+      const p = mapa.get(j.id);
+      const stopySet = new Set(p?.alergenyStopy ?? []);
+      for (const a of mojeAlergie) {
+        if (!obsahujeAlergen({ nazev: j.nazev, alergeny: p?.alergeny ?? [] }, a)) continue;
+        const cil = stopySet.has(a) ? stopy : obsah;
+        cil.set(j.nazev, new Set([...(cil.get(j.nazev) ?? []), a]));
+      }
+    }
+    return { obsah, stopy };
+  }, [jidlaPlanu, dotazPotraviny.data, mojeAlergie]);
 
   if (dotaz.isLoading) {
     return (
@@ -128,6 +168,35 @@ export function PlanyDetail() {
         </div>
       </div>
 
+      {konflikty.obsah.size > 0 && (
+        <Card className="border-danger/40 bg-danger-soft/40">
+          <p className="flex items-start gap-2 text-sm font-semibold text-danger">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              Plán obsahuje {konflikty.obsah.size === 1 ? "položku" : "položky"} v konfliktu
+              s vaší alergií:{" "}
+              {[...konflikty.obsah.entries()]
+                .map(([nazev, alg]) => `${nazev} (${[...alg].map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")})`)
+                .join(" · ")}
+              . Alergie mohla být nastavena až po vytvoření plánu.
+            </span>
+          </p>
+        </Card>
+      )}
+      {konflikty.obsah.size === 0 && konflikty.stopy.size > 0 && (
+        <Card className="border-warning/40 bg-warning-soft/40">
+          <p className="flex items-start gap-2 text-sm font-semibold text-warning">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              Položky v plánu mohou obsahovat stopy vašich alergenů:{" "}
+              {[...konflikty.stopy.entries()]
+                .map(([nazev, alg]) => `${nazev} (${[...alg].map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")})`)
+                .join(" · ")}
+              .
+            </span>
+          </p>
+        </Card>
+      )}
       {obsah === null ? (
         <Card className="text-sm text-muted">Obsah plánu se nepodařilo načíst.</Card>
       ) : plan.typ === "mealprep" ? (
