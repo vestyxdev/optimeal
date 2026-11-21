@@ -148,18 +148,27 @@ export function Nakup() {
     enabled: vybrany !== null && foodIds.length > 0,
   });
   // optimalizace podle zvoleného režimu – item.id → živá nabídka
-  // v přiřazeném obchodě (kusově = globální min, jeden/dva = výběr)
+  // v přiřazeném obchodě (kusově = globální min, jeden/dva = výběr);
+  // položky spíže se do cílů obchodů nepočítají – už jsou doma
   const optimal = useMemo(
-    () => optimalizujNakup(polozky, dotazCeny.data ?? new Map(), rezim),
-    [polozky, dotazCeny.data, rezim],
+    () => optimalizujNakup(
+      polozky.filter((p) => !jeDoma(p)),
+      dotazCeny.data ?? new Map(),
+      rezim,
+    ),
+    [polozky, spiz, dotazCeny.data, rezim],
   );
   // základ režimu 1 obchod – pro „ušetříš X oproti 1 obchodu" u dvojice
   const optimalJeden = useMemo(
     () =>
       rezim === "dva"
-        ? optimalizujNakup(polozky, dotazCeny.data ?? new Map(), "jeden")
+        ? optimalizujNakup(
+            polozky.filter((p) => !jeDoma(p)),
+            dotazCeny.data ?? new Map(),
+            "jeden",
+          )
         : null,
-    [polozky, dotazCeny.data, rezim],
+    [polozky, spiz, dotazCeny.data, rezim],
   );
   // živé pozorování k položce – primárně z režimového přiřazení,
   // nekryté položky (v jeden/dva režimu) spadnou na vlastní obchod

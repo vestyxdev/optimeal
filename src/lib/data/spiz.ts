@@ -86,12 +86,11 @@ export async function odeberZeSpize(p: PolozkaSpize): Promise<void> {
     zapisHost(K_SPIZ, ctiHost(K_SPIZ).filter((x) => x.nazev !== p.nazev));
     return;
   }
-  let q = klient
+  const { error } = await klient
     .from("pantry_items")
     .delete()
     .eq("user_id", user.id)
     .eq("nazev", p.nazev);
-  const { error } = await q;
   if (error) throw new Error(`Ze spíže se nepodařilo odebrat: ${error.message}`);
 }
 
