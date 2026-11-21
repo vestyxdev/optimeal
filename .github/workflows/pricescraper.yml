@@ -59,22 +59,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m scraper.ceniky --obchod "${{ matrix.obchod }}"
 
-  # Dohledání původních (přeškrtnutých) cen z detailů kupi.cz – nabídky
-  # bez uváděné % slevy dostanou reálnou „běžně stojí" cenu. Jede až po
-  # celé matici (slugs jsou napříč řetězci sdílené – dedupe) a na vlastní
-  # IP runneru; i po částečném selhání legů obohatí to, co se nascrapovalo.
-  puvodni:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: scrape
-    if: always()
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: pip install -r scraper/requirements.txt
-      - env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python -m scraper.obohaceni_puvodni --limit 600
+  # Obohacení původních cen je v puvodni.yml (workflow_run trigger) –
+  # jako downstream job ho rerun spadlých legů rušil.
