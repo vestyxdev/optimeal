@@ -48,10 +48,11 @@ RE_BEZNA = re.compile(
 MAX_NASOBEK = 2.5
 
 
-def _get(session: requests.Session, url: str, pokusy: int = 3) -> requests.Response | None:
+def _get(session: requests.Session, url: str, pokusy: int = 3,
+         headers: dict | None = None) -> requests.Response | None:
     for i in range(pokusy):
         try:
-            r = session.get(url, timeout=30)
+            r = session.get(url, timeout=30, headers=headers)
             if r.status_code in (403, 429, 500, 502, 503, 504):
                 time.sleep(3 + 4 * i)
                 continue
