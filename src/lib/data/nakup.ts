@@ -27,6 +27,10 @@ export interface PolozkaNakupu {
   foodId?: string | null;
   /** gramáž prodávaného balení z katalogu – pro „co se koupí" */
   baleniG?: number | null;
+  /** alergeny napojené potraviny – pro varování v seznamu */
+  alergeny?: string[];
+  /** podmnožina jen ze stop – „může obsahovat", jemnější varování */
+  alergenyStopy?: string[];
 }
 
 /** Jedna aktuální cena potraviny u konkrétního obchodu. */
@@ -164,11 +168,11 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
 
   let { data, error } = await klient
     .from("shopping_list_items")
-    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id, potravina:foods(obrazek, baleni_g)")
+    .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id, potravina:foods(obrazek, baleni_g, alergeny, alergeny_stopy)")
     .eq("list_id", idSeznamu)
     .order("id");
-  // před migrací 0009 foods.obrazek neexistuje → fallback bez joinu
-  if (error && /obrazek/i.test(error.message)) {
+  // před migrací 0009/0055 foods.obrazek/alergeny_stopy neexistuje → fallback bez joinu
+  if (error && /obrazek|alergeny_stopy/i.test(error.message)) {
     const znovu = await klient
       .from("shopping_list_items")
       .select("id, nazev, gramy, cena_za_100g, obchod, je_sleva, koupeno, vlastni, kategorie, food_id")
@@ -195,6 +199,12 @@ export async function nactiPolozkySeznamu(idSeznamu: string): Promise<PolozkaNak
     baleniG: (Array.isArray(p.potravina)
       ? (p.potravina[0]?.baleni_g ?? null)
       : ((p.potravina as { baleni_g?: number | null } | null)?.baleni_g ?? null)) as number | null,
+    alergeny: (Array.isArray(p.potravina)
+      ? (p.potravina[0]?.alergeny ?? [])
+      : ((p.potravina as { alergeny?: string[] | null } | null)?.alergeny ?? [])) as string[],
+    alergenyStopy: (Array.isArray(p.potravina)
+      ? (p.potravina[0]?.alergeny_stopy ?? [])
+      : ((p.potravina as { alergeny_stopy?: string[] | null } | null)?.alergeny_stopy ?? [])) as string[],
   }));
 }
 

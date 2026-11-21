@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Printer, Plus, Store, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Store, Trash2, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -20,6 +20,9 @@ import {
   smazPolozku,
   type PolozkaNakupu,
 } from "@/lib/data/nakup";
+import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
+import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
+import { obsahujeAlergen } from "@/lib/generator/generator";
 import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
 import { sklonuj } from "@/lib/sklonovani";
 import { formatujCastku, formatujKc } from "@/lib/cena";
@@ -37,6 +40,11 @@ export function Nakup() {
   const [potvrditSmazani, setPotvrditSmazani] = useState(false);
 
   const dotazSeznamy = useQuery({ queryKey: ["me_nakupni_seznamy"], queryFn: nactiMeNakupniSeznamy });
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
+  const mojeAlergie = useMemo(
+    () => efektivniAlergieProfilu(dotazProfil.data),
+    [dotazProfil.data],
+  );
   const dotazPolozky = useQuery({
     queryKey: ["nakupni_seznam", vybrany],
     queryFn: () => nactiPolozkySeznamu(vybrany as string),
@@ -306,6 +314,28 @@ export function Nakup() {
                       <Badge tono="warning" className="ml-2">
                         SLEVA{pct !== null ? ` −${pct} %` : ""} {p.obchod}
                       </Badge>
+                    );
+                  })()}
+                  {(() => {
+                    const stopySet = new Set(p.alergenyStopy ?? []);
+                    const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
+                    const obsah = shoda.filter((a) => !stopySet.has(a));
+                    const stopy = shoda.filter((a) => stopySet.has(a));
+                    return (
+                      <>
+                        {obsah.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-danger">
+                            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                            obsahuje {obsah.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                          </span>
+                        )}
+                        {stopy.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-warning">
+                            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                            může obsahovat stopy: {stopy.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                          </span>
+                        )}
+                      </>
                     );
                   })()}
                   {(() => {
