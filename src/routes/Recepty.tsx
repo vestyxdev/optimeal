@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { useAuth } from "@/lib/auth";
-import { alergenyReceptu, nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { alergenyReceptu, stopyReceptu, nactiRecepty, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
@@ -114,20 +114,32 @@ export function Recepty() {
           Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-32" />)}
         {filtrovane.map((recept) => {
           const rozbor = spocitejRecept(recept, dotazCeny.data ?? null);
+          const stopySet = new Set(stopyReceptu(recept));
           const shodaAlergie = alergenyReceptu(recept).filter((a) => mojeAlergie.includes(a));
+          const obsahShoda = shodaAlergie.filter((a) => !stopySet.has(a));
+          const stopyShoda = shodaAlergie.filter((a) => stopySet.has(a));
           return (
             <Link key={recept.id} to={`/recepty/${recept.id}`} className="group">
               <Card className="h-full transition-colors group-hover:border-primary">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-semibold text-fg">{recept.nazev}</h2>
                   <div className="flex shrink-0 gap-1.5">
-                    {shodaAlergie.length > 0 && (
+                    {obsahShoda.length > 0 && (
                       <Badge
                         tono="danger"
-                        title={`Obsahuje vaše alergeny: ${shodaAlergie.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}`}
+                        title={`Obsahuje vaše alergeny: ${obsahShoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}`}
                       >
                         <TriangleAlert className="size-3" aria-hidden />
                         alergen
+                      </Badge>
+                    )}
+                    {stopyShoda.length > 0 && (
+                      <Badge
+                        tono="warning"
+                        title={`Může obsahovat stopy vašeho alergenu: ${stopyShoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}`}
+                      >
+                        <TriangleAlert className="size-3" aria-hidden />
+                        stopy
                       </Badge>
                     )}
                     {uzivatel && recept.userId === uzivatel.id && (
