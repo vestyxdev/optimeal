@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { nactiSerii } from "@/lib/data/denik";
 import { SerieObsah } from "@/components/denik/SerieKarta";
@@ -176,11 +176,17 @@ function ZiveAkce() {
                   {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
                 </span>
               )}
-              {formatujPlatnostDo(p.platnostDo) && (
-                <span className="mt-0.5 block text-[10px] text-muted">
-                  {formatujPlatnostDo(p.platnostDo)}
-                </span>
-              )}
+              {(() => {
+                const poznamky = [
+                  formatujPlatnostDo(p.platnostDo),
+                  formatujStariCeny(p.pozorovanoAt),
+                ].filter(Boolean);
+                return poznamky.length > 0 ? (
+                  <span className="mt-0.5 block text-[10px] text-muted">
+                    {poznamky.join(" · ")}
+                  </span>
+                ) : null;
+              })()}
             </Link>
           ))}
         </div>
@@ -326,11 +332,17 @@ function PrihlasenyPrehled() {
                     {formatujCenu(p.puvodniCena, p.baleniG).hlavni}
                   </span>
                 )}
-                {formatujPlatnostDo(p.platnostDo) && (
-                  <span className="mt-0.5 block text-[10px] text-muted">
-                    {formatujPlatnostDo(p.platnostDo)}
-                  </span>
-                )}
+                {(() => {
+                  const poznamky = [
+                    formatujPlatnostDo(p.platnostDo),
+                    formatujStariCeny(p.pozorovanoAt),
+                  ].filter(Boolean);
+                  return poznamky.length > 0 ? (
+                    <span className="mt-0.5 block text-[10px] text-muted">
+                      {poznamky.join(" · ")}
+                    </span>
+                  ) : null;
+                })()}
               </Link>
             ))}
           </div>

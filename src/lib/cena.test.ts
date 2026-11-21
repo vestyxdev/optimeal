@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, referencniCena, slevaProcenta } from "@/lib/cena";
+import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, formatujPlatnostDo, formatujStariCeny, referencniCena, slevaProcenta } from "@/lib/cena";
 
 describe("formatujCenu", () => {
   it("balené zboží → cena za balení + jednotková vedlejší", () => {
@@ -57,6 +57,39 @@ describe("formatujPlatnostDo", () => {
     const d = new Date("2030-06-19T00:00:00"); // středa
     expect(d.getDay()).toBe(3);
     expect(formatujPlatnostDo("2030-06-19")).toBe("do st 19. 6.");
+  });
+});
+
+describe("formatujStariCeny", () => {
+  const pred = (dny: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - dny);
+    return d.toISOString();
+  };
+
+  it("prázdný/neplatný vstup → null", () => {
+    expect(formatujStariCeny(null)).toBeNull();
+    expect(formatujStariCeny(undefined)).toBeNull();
+    expect(formatujStariCeny("")).toBeNull();
+    expect(formatujStariCeny("nesmysl")).toBeNull();
+  });
+
+  it("dnešní pozorování → null (nic k hlášení)", () => {
+    expect(formatujStariCeny(new Date().toISOString())).toBeNull();
+  });
+
+  it("včerejší pozorování → „včera“", () => {
+    expect(formatujStariCeny(pred(1))).toBe("včera");
+  });
+
+  it("starší pozorování → „z <d>. <m>.“", () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 4);
+    expect(formatujStariCeny(d.toISOString())).toBe(`z ${d.getDate()}. ${d.getMonth() + 1}.`);
+  });
+
+  it("budoucí timestamp (posunuté hodiny) → null", () => {
+    expect(formatujStariCeny(pred(-2))).toBeNull();
   });
 });
 

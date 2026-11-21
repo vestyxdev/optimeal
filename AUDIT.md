@@ -297,3 +297,15 @@ Overeno: tsc clean - 382/382 testu (+5 receptNaPoznamku) - git strom cisty.## Ko
 - **GDPR export**: doplnena weight_logs (historie vahy, adaptivni TDEE) do exportu.
 
 Overeno: tsc clean – 383/383 testu – git strom cisty.
+
+
+## Kolo: realnost cen – stáří pozorování a živá data (21. 11. 2026)
+
+- **formatujStariCeny (cena.ts)**: stáří pozorování jako „včera"/„z 18. 11."; dnešek → null. Zobrazené ceny už se netváří jako živá, když je pozorování starší – letáky končí a scrape vypadává.
+- **PozorovanoAt napříč pipeline**: Potravina → Jidlo → NakupniPolozka (sestavNakupniSeznam i mealprep drží konzervativně NEJSTARŠÍ známé pozorování). Uložené plány (JSONB) si ho pamatují samy.
+- **Nakup**: řádky používají ŽIVÉ pozorování obchodu když existuje (cena, je_sleva, puvodni) místo snapshotu z doby vzniku seznamu – včerejší letáková cena se už netváří jako dnešní. Badge SLEVA, „ušetříte", „cena chybí" počty a „nejlevněji" tip jedou na efektivní (živé ?? snapshot) hodnoty, řádek i účet jsou konzistentní.
+- **Vysledky/KartaNakupu**: „Díky dnešním slevám" → „Díky slevám" (stáří neslo ověřit); patička ukazuje „Ceny pozorovány z … – ověřte aktuálnost" podle nejstarší položky.
+- **Potraviny katalog + Prehled akce + VyberPotraviny**: podtitulek „<obchod> · z 18. 11." / „cena z 18. 11." u nečerstvých cen; landing top_akce RPC nově vrací pozorovano_at (migrace 0056).
+- **Testy**: +5 formatujStariCeny.
+
+Overeno: tsc clean – 388/388 testu – RPC top_akce ověřeno proti prod (nový sloupec vrací čerstvá data).

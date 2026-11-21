@@ -8,7 +8,7 @@ import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import { ALERGEN_NAZVY, hledejPodleEanLokalne } from "@/lib/data/potraviny";
 import { obsahujeAlergen } from "@/lib/generator/generator";
-import { formatujCenu, formatujKcal, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { cn } from "@/lib/cn";
 
@@ -33,6 +33,8 @@ export interface PolozkaVyberu {
   slevaProcenta?: number | null;
   /** poslední den akce (ISO) – „do út 18. 11.“ */
   platnostDo?: string | null;
+  /** stáří cenového pozorování – starší cena se ukáže jako „z 18. 11." */
+  pozorovanoAt?: string | null;
   kategorie?: string;
   obrazek?: string | null;
   /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
@@ -461,6 +463,9 @@ function Radek({
                 {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
               </span>
             )}
+            {formatujStariCeny(p.pozorovanoAt) && (
+              <span>cena {formatujStariCeny(p.pozorovanoAt)}</span>
+            )}
           </span>
         </span>
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-fg">
@@ -501,6 +506,9 @@ function KartaPotraviny({ p, onVyber }: { p: PolozkaVyberu; onVyber: (id: string
           </span>
           {p.sleva && formatujPlatnostDo(p.platnostDo) && (
             <span className="text-[10px] text-muted">{formatujPlatnostDo(p.platnostDo)}</span>
+          )}
+          {formatujStariCeny(p.pozorovanoAt) && (
+            <span className="text-[10px] text-muted">cena {formatujStariCeny(p.pozorovanoAt)}</span>
           )}
         </span>
         <span className="grid size-7 place-items-center rounded-full bg-primary text-primary-fg transition-transform group-hover:scale-110">

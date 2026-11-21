@@ -274,6 +274,8 @@ export interface Jidlo {
   role?: RoleJidla;
   /** kusový popisek množství: „2 ks · 120 g" (vejce, rohlík, banán…) */
   popisekMnozstvi?: string;
+  /** stáří zdrojového cenového pozorování – UI ukáže „cena z …" */
+  pozorovanoAt?: string | null;
 }
 
 export interface SouhrnJidla {
@@ -318,6 +320,8 @@ export interface NakupniPolozka {
   obrazek?: string | null;
   /** gramáž prodávaného balení (když je známá) – pro nákupní balení */
   baleniG?: number | null;
+  /** stáří cenového pozorování – konzervativně nejstarší známé */
+  pozorovanoAt?: string | null;
   cenaCelkem: number;
   usetreno: number;
 }
@@ -1007,6 +1011,7 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     sleva: slevaOk,
     obrazek: p.obrazek ?? null,
     baleniG: p.baleniG ?? null,
+    pozorovanoAt: p.pozorovanoAt ?? null,
   };
 }
 
@@ -2004,12 +2009,21 @@ export function sestavNakupniSeznam(jidelnicek: Record<string, SouhrnJidla>): Na
           sleva: jidlo.sleva,
           obrazek: jidlo.obrazek ?? null,
           baleniG: jidlo.baleniG ?? null,
+          pozorovanoAt: jidlo.pozorovanoAt ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         };
         mapa.set(jidlo.id, polozka);
       }
       polozka.gramy += jidlo.gramy;
+      // při sloučení držet NEJSTARŠÍ známé pozorování – popisek
+      // stáří musí být konzervativní (ne horší než skutečnost)
+      if (
+        jidlo.pozorovanoAt &&
+        (!polozka.pozorovanoAt || jidlo.pozorovanoAt < polozka.pozorovanoAt)
+      ) {
+        polozka.pozorovanoAt = jidlo.pozorovanoAt;
+      }
     }
   }
 

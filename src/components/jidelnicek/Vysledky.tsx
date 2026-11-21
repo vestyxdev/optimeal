@@ -11,7 +11,7 @@ import {
   type SouhrnJidla,
   type TydenniPlan,
 } from "@/lib/generator/generator";
-import { formatujCastku, formatujKcal, formatujKc, formatujMakro } from "@/lib/cena";
+import { formatujCastku, formatujKcal, formatujKc, formatujMakro, formatujStariCeny } from "@/lib/cena";
 import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
 
 /**
@@ -44,6 +44,15 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
   const usetreno = nakupy.reduce((s, n) => s + (n.usetreno ?? 0), 0);
   const bezCeny = polozky.filter((x) => x.cenaZa100g === null).length;
   const tvarPolozka = bezCeny === 1 ? "položka" : bezCeny < 5 ? "položky" : "položek";
+  // nejstarší známé pozorování – součet stojí na cenách maximálně
+  // tohoto stáří; poctivější než tvrdit „dnešní ceny"
+  const stariSouctu = formatujStariCeny(
+    polozky.reduce<string | null>((min, x) => {
+      const p = x.pozorovanoAt;
+      if (!p) return min;
+      return min === null || p < min ? p : min;
+    }, null),
+  );
 
   return (
     <Card className="p-0">
@@ -55,7 +64,7 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
       {usetreno > 0 && (
         <div className="flex items-center gap-2 border-b border-border bg-ok-soft px-5 py-2 text-sm text-ok">
           <PiggyBank className="size-4 shrink-0" />
-          Díky dnešním slevám šetříte {formatujCastku(usetreno)} Kč
+          Díky slevám šetříte {formatujCastku(usetreno)} Kč
         </div>
       )}
       {/* mobil: kompaktní řádky (název, množství, sleva, cena) */}
@@ -139,9 +148,12 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
         </tfoot>
       </table>
       </div>
-      {bezCeny > 0 && (
+      {(bezCeny > 0 || stariSouctu) && (
         <div className="border-t border-border bg-surface-2 px-5 py-2 text-xs text-muted">
-          {bezCeny} {tvarPolozka} nemá známou cenu – součet zahrnuje jen oceněné položky.
+          {bezCeny > 0 &&
+            `${bezCeny} ${tvarPolozka} nemá známou cenu – součet zahrnuje jen oceněné položky.`}
+          {stariSouctu &&
+            `${bezCeny > 0 ? " " : ""}Ceny pozorovány ${stariSouctu} – ověřte aktuálnost v obchodě.`}
         </div>
       )}
     </Card>

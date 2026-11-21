@@ -14,7 +14,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { filtrujKatalog, type RazeniKatalogu } from "@/lib/katalog";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
@@ -543,9 +543,17 @@ function RadekPotraviny({
             {cenaLabel(p, p.puvodniCena)}
           </span>
         )}
-        {p.obchod && !p.sleva && (
-          <span className="block text-xs font-normal text-muted">{p.obchod}</span>
-        )}
+        {(() => {
+          const podtitulek = [
+            p.obchod && !p.sleva ? p.obchod : null,
+            formatujStariCeny(p.pozorovanoAt),
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return podtitulek ? (
+            <span className="block text-xs font-normal text-muted">{podtitulek}</span>
+          ) : null;
+        })()}
       </td>
       {uzivatelId !== null && (
         <td className="px-4 py-2.5 text-right">
@@ -618,9 +626,17 @@ function KartaPotraviny({
                   {cenaLabel(p, p.puvodniCena)}
                 </span>
               )}
-              {p.obchod && !p.sleva && (
-                <span className="ml-1 text-xs font-normal text-muted">{p.obchod}</span>
-              )}
+              {(() => {
+                const podtitulek = [
+                  p.obchod && !p.sleva ? p.obchod : null,
+                  formatujStariCeny(p.pozorovanoAt),
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return podtitulek ? (
+                  <span className="block text-xs font-normal text-muted">{podtitulek}</span>
+                ) : null;
+              })()}
             </span>
           </div>
         </div>

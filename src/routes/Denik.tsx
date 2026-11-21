@@ -152,6 +152,7 @@ export function Denik() {
         kategorie: k.kategorie ?? "ostatni",
         obrazek: k.obrazek,
         baleniG: k.baleniG ?? null,
+        pozorovanoAt: k.pozorovanoAt ?? null,
         alergeny: k.alergeny ?? [],
         alergenyStopy: k.alergenyStopy ?? [],
       })),

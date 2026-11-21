@@ -109,6 +109,13 @@ export function sestavMealprep(
       const existujici = nakup.get(p.id);
       if (existujici) {
         existujici.gramy += gramy;
+        // sloučené řádky drží nejstarší známé pozorování (konzervativní)
+        if (
+          p.pozorovanoAt &&
+          (!existujici.pozorovanoAt || p.pozorovanoAt < existujici.pozorovanoAt)
+        ) {
+          existujici.pozorovanoAt = p.pozorovanoAt;
+        }
       } else {
         nakup.set(p.id, {
           id: p.id,
@@ -122,6 +129,7 @@ export function sestavMealprep(
           sleva: p.aktualniCena > 0 && p.sleva,
           obrazek: p.obrazek ?? null,
           baleniG: p.baleniG ?? null,
+          pozorovanoAt: p.pozorovanoAt ?? null,
           cenaCelkem: 0,
           usetreno: 0,
         });

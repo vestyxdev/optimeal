@@ -124,6 +124,8 @@ export interface VerejnaAkce {
   platnostDo: string | null;
   obrazek: string | null;
   baleniG: number | null;
+  /** stáří zdrojového pozorování – „cena z …" u nečerstvých */
+  pozorovanoAt?: string | null;
 }
 
 /** Top slevy přes security-definer RPC – čitelné i nepřihlášeným (landing). */
@@ -141,6 +143,7 @@ export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
     platnostDo: (r.platnost_do ?? null) as string | null,
     obrazek: (r.obrazek ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
   }));
 }
 

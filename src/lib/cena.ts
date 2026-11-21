@@ -124,3 +124,24 @@ export function formatujPlatnostDo(iso: string | null | undefined): string | nul
   if (d.getTime() === dnes.getTime()) return "do dneška";
   return `do ${DNY_KRATCE[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}.`;
 }
+
+/**
+ * Stáří cenového pozorování – „včera" / „z 18. 11." / null.
+ * Zdroje se aktualizují jednou denně, ale letáky končí a scrape
+ * občas vypadne – bez popisku vypadá i týden stará cena jako
+ * živá. Dnešní cena vrací null (nic k hlášení), stejně tak
+ * neznámé/nevalidní datum (nevymýšlíme si).
+ */
+export function formatujStariCeny(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dnes = new Date();
+  dnes.setHours(0, 0, 0, 0);
+  const pozor = new Date(d);
+  pozor.setHours(0, 0, 0, 0);
+  const dnyStari = Math.round((dnes.getTime() - pozor.getTime()) / 86400e3);
+  if (dnyStari <= 0) return null;
+  if (dnyStari === 1) return "včera";
+  return `z ${d.getDate()}. ${d.getMonth() + 1}.`;
+}

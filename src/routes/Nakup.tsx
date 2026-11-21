@@ -25,7 +25,7 @@ import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
 import { sklonuj } from "@/lib/sklonovani";
-import { formatujCastku, formatujKc } from "@/lib/cena";
+import { formatujCastku, formatujKc, formatujStariCeny } from "@/lib/cena";
 import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
 
 /**
@@ -138,28 +138,42 @@ export function Nakup() {
       ),
     [polozky, dotazCeny.data],
   );
+  // živé pozorování k položce (podle jejího obchodu) – jeden
+  // lookup na řádek, sdílený cenou/slevou/stářím
+  const obsNaPolozku = useMemo(
+    () =>
+      new Map(
+        polozky.map((p) => [
+          p.id,
+          p.obchod
+            ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
+            : undefined,
+        ]),
+      ),
+    [polozky, dotazCeny.data],
+  );
   // co se skutečně koupí – celá balení/kusy a jejich cena (pokladní účet)
-  // puvodniCena z živého pozorování daného obchodu → „~~původně~~" + úspora
+  // cena/sleva z ŽIVÉHO pozorování daného obchodu, když existuje –
+  // snapshot z doby vzniku seznamu je jinak zastaralý (včerejší
+  // letáková cena by se tvářila jako dnešní)
   const nakupy = useMemo(
     () =>
       new Map(
         polozky.map((p) => {
-          const obs = p.obchod
-            ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
-            : undefined;
+          const obs = obsNaPolozku.get(p.id);
           return [
             p.id,
             spocitejNakupniBaleni({
               nazev: p.nazev,
               gramy: p.gramy,
               baleniG: p.baleniG,
-              cenaZa100g: p.cenaZa100g,
+              cenaZa100g: obs?.cena ?? p.cenaZa100g,
               cenaBeznaZa100g: obs?.puvodniCena ?? null,
             }),
           ];
         }),
       ),
-    [polozky, dotazCeny.data],
+    [polozky, obsNaPolozku],
   );
 
   if (vybrany !== null && aktualniSeznam) {
@@ -302,13 +316,15 @@ export function Nakup() {
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
                   {p.vlastni && <Badge tono="neutral" className="ml-2">ruční</Badge>}
-                  {p.jeSleva && (() => {
-                    const obs = p.obchod
-                      ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
-                      : undefined;
+                  {(() => {
+                    const obs = obsNaPolozku.get(p.id);
+                    // efektivní sleva = živá, pokud ji obchod právě hlásí;
+                    // snapshot flag jen když pozorování chybí
+                    const slevaEfektivni = obs?.jeSleva ?? p.jeSleva;
+                    if (!slevaEfektivni) return null;
                     const pct =
                       obs?.puvodniCena && p.cenaZa100g
-                        ? Math.round((1 - p.cenaZa100g / obs.puvodniCena) * 100)
+                        ? Math.round((1 - (obs.cena) / obs.puvodniCena) * 100)
                         : null;
                     return (
                       <Badge tono="warning" className="ml-2">
@@ -351,10 +367,27 @@ export function Nakup() {
                   {nakupy.get(p.id)?.popisek ?? `${Math.round(p.gramy)} g`}
                 </span>
                 <span className="whitespace-nowrap tabular-nums text-right">
-                  {p.cenaZa100g === null ? "—" : `${formatujCastku(nakupy.get(p.id)?.cenaCelkem ?? 0)} Kč`}
                   {(() => {
                     const n = nakupy.get(p.id);
-                    if (!p.jeSleva || !n || n.usetreno <= 0 || n.cenaCelkem === null) return null;
+                    return n?.cenaCelkem != null
+                      ? `${formatujCastku(n.cenaCelkem)} Kč`
+                      : "—";
+                  })()}
+                  {(() => {
+                    // stáří zdrojového pozorování – týden stará cena
+                    // nesmí působit jako živá (letáky končí, scrape vypadává)
+                    if (nakupy.get(p.id)?.cenaCelkem == null) return null;
+                    const stari = formatujStariCeny(obsNaPolozku.get(p.id)?.pozorovanoAt);
+                    return stari ? (
+                      <span className="block text-[10px] font-normal text-muted">
+                        cena {stari}
+                      </span>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const n = nakupy.get(p.id);
+                    const slevaEfektivni = obsNaPolozku.get(p.id)?.jeSleva ?? p.jeSleva;
+                    if (!slevaEfektivni || !n || n.usetreno <= 0 || n.cenaCelkem === null) return null;
                     const puvodniCelkem = n.cenaCelkem + n.usetreno;
                     return (
                       <span className="block text-xs font-normal text-muted">
@@ -366,9 +399,10 @@ export function Nakup() {
                   {(() => {
                     const tip = p.foodId ? nejlevnejsiObchod(dotazCeny.data?.get(p.foodId)) : null;
                     if (!tip) return null;
-                    // ukazujeme jen když živá nabídka podbíjí uloženou cenu,
-                    // nebo když položka cenu vůbec neměla
-                    if (p.cenaZa100g !== null && tip.cena >= p.cenaZa100g - 0.001) return null;
+                    // ukazujeme jen když živá nabídka podbíjí ZOBRAZENOU cenu
+                    // (živé pozorování ?? snapshot), nebo položka cenu neměla
+                    const zobrazena = obsNaPolozku.get(p.id)?.cena ?? p.cenaZa100g;
+                    if (zobrazena !== null && tip.cena >= zobrazena - 0.001) return null;
                     return (
                       <span className="block text-xs font-medium text-primary">
                         nejlevněji {tip.obchod}
@@ -396,16 +430,21 @@ export function Nakup() {
 
           {/* účet – součet známých cen, přepočet na gramy */}
           {(() => {
-            const nekoupenoSCenou = polozky.filter((p) => p.cenaZa100g !== null && !p.koupeno);
+            // efektivní cena/sleva = živé pozorování ?? snapshot –
+            // stejná pravidla jako v nakupy (jinak by se řádek a účet
+            // neshodly)
+            const maCenu = (p: (typeof polozky)[number]) =>
+              nakupy.get(p.id)?.cenaCelkem != null;
+            const veSleveEfektivne = (p: (typeof polozky)[number]) =>
+              obsNaPolozku.get(p.id)?.jeSleva ?? p.jeSleva;
+            const nekoupenoSCenou = polozky.filter((p) => maCenu(p) && !p.koupeno);
             const vseKoupeno = polozky.length > 0 && polozky.every((p) => p.koupeno);
             // po odškrtnutí všeho ukazujeme součet celého nákupu, ne „0 Kč"
-            const zaklad = vseKoupeno
-              ? polozky.filter((p) => p.cenaZa100g !== null)
-              : nekoupenoSCenou;
+            const zaklad = vseKoupeno ? polozky.filter(maCenu) : nekoupenoSCenou;
             const celkem = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
             const usetreno = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.usetreno ?? 0), 0);
-            const bezCeny = polozky.filter((p) => p.cenaZa100g === null).length;
-            const veSleve = zaklad.filter((p) => p.jeSleva).length;
+            const bezCeny = polozky.filter((p) => !maCenu(p)).length;
+            const veSleve = zaklad.filter(veSleveEfektivne).length;
             if (polozky.length === 0) return null;
             return (
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
