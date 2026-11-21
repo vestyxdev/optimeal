@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
+import { nejlevnejsiObchod, optimalizujNakup, porovnejObchody } from "@/lib/cenovka";
 import { deduplikujPolozky } from "@/lib/data/nakup";
 import type { CenaObchodu } from "@/lib/data/nakup";
 
@@ -142,5 +142,84 @@ describe("deduplikujPolozky", () => {
       pol("f3", "C", 100),
     ]);
     expect(v).toHaveLength(3);
+  });
+});
+
+describe("optimalizujNakup", () => {
+  const pol = (
+    id: string,
+    foodId: string | null,
+    gramy = 100,
+    baleniG: number | null = null,
+  ) => ({ id, foodId, nazev: `Položka ${id}`, gramy, baleniG });
+
+  const mapa = new Map<string, CenaObchodu[]>([
+    ["f1", [cena("r1", "Rohlík", 20), cena("r2", "Lidl", 15)]],
+    ["f2", [cena("r1", "Rohlík", 10), cena("r2", "Lidl", 12)]],
+    ["f3", [cena("r2", "Lidl", 8)]],
+  ]);
+  const polozky = [pol("p1", "f1"), pol("p2", "f2"), pol("p3", "f3")];
+
+  it("kusově – každá položka na globálně nejlevnější nabídku", () => {
+    const v = optimalizujNakup(polozky, mapa, "kusove");
+    expect(v.prirazeni.get("p1")?.obchod).toBe("Lidl");
+    expect(v.prirazeni.get("p2")?.obchod).toBe("Rohlík");
+    expect(v.prirazeni.get("p3")?.obchod).toBe("Lidl");
+    expect(v.obchody.sort()).toEqual(["Lidl", "Rohlík"]);
+    expect(v.pokryti).toBe(3);
+    expect(v.cenitelnych).toBe(3);
+    // 15 + 10 + 8 Kč/100 g × 100 g = 33 Kč
+    expect(v.celkem).toBe(33);
+  });
+
+  it("jeden obchod – vítězí nejvyšší pokrytí, pak nejnižší účet", () => {
+    const v = optimalizujNakup(polozky, mapa, "jeden");
+    // Lidl pokryje všechny 3 položky → jediný plný obchod
+    expect(v.obchody).toEqual(["Lidl"]);
+    expect(v.pokryti).toBe(3);
+    expect(v.celkem).toBe(35); // 15 + 12 + 8
+    expect(v.prirazeni.get("p2")?.obchod).toBe("Lidl"); // ne Rohlík
+  });
+
+  it("dva obchody – vítězí pár s plným pokrytím a nejnižším účtem", () => {
+    const v = optimalizujNakup(polozky, mapa, "dva");
+    expect(v.obchody.sort()).toEqual(["Lidl", "Rohlík"]);
+    expect(v.pokryti).toBe(3);
+    // uvnitř páru se položka přiřadí levnějšímu obchodu: f2 → Rohlík
+    expect(v.prirazeni.get("p2")?.obchod).toBe("Rohlík");
+    expect(v.celkem).toBe(33);
+  });
+
+  it("nekrytá položka → prirazeni null, pokrytí < cenitelných", () => {
+    const v = optimalizujNakup(
+      [pol("p1", "f1"), pol("p9", "f9"), pol("px", null)],
+      mapa,
+      "jeden",
+    );
+    expect(v.cenitelnych).toBe(1); // f9 nemá nabídku, px nemá foodId
+    expect(v.pokryti).toBe(1);
+    // položka úplně bez nabídky se do mapy vůbec nedostane
+    // (UI padne na snapshot/vlastní cenu)
+    expect(v.prirazeni.has("p9")).toBe(false);
+    expect(v.prirazeni.has("px")).toBe(false);
+  });
+
+  it("balenková cena – 250 g se počítá jako celé 500 g balení", () => {
+    const baleni: CenaObchodu = { ...cena("r1", "Rohlík", 10), baleniG: 500 };
+    const v = optimalizujNakup(
+      [pol("p1", "f1", 250)],
+      new Map([["f1", [baleni]]]),
+      "jeden",
+    );
+    // 1 × 500 g balení à 50 Kč (ne 25 Kč za 250 g)
+    expect(v.celkem).toBe(50);
+  });
+
+  it("prázdné nabídky – žádný obchod, nulový účet", () => {
+    const v = optimalizujNakup([pol("p1", "f9")], new Map(), "jeden");
+    expect(v.obchody).toEqual([]);
+    expect(v.celkem).toBe(0);
+    expect(v.pokryti).toBe(0);
+    expect(v.cenitelnych).toBe(0);
   });
 });

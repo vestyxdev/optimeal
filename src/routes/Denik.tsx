@@ -1,9 +1,11 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2, TriangleAlert } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2, TriangleAlert, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { GramazPill } from "@/components/ui/GramazPill";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { Prstenec } from "@/components/ui/Prstenec";
@@ -24,14 +26,18 @@ import {
   smazPoznamkuDeniku,
   TYPY_JIDLA,
   upravPoznamkuDeniku,
+  zapisDoDeniku,
   zkopirujZaznamy,
+  type NovaPoznamka,
   type PoznamkaDeniku,
   type TypJidla,
 } from "@/lib/data/denik";
+import { najdiPotravinu, parsujRychlyZapis } from "@/lib/rychlyZapis";
 import { ALERGEN_NAZVY, nactiKatalogPotravin } from "@/lib/data/potraviny";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 import { efektivniAlergieProfilu, nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
+import { sklonuj } from "@/lib/sklonovani";
 import { lazyKomponenta } from "@/lib/lazyRoute";
 
 const DenikTyden = lazyKomponenta(() => import("@/components/denik/DenikTyden"));
@@ -42,6 +48,16 @@ const DenikTyden = lazyKomponenta(() => import("@/components/denik/DenikTyden"))
  * pod ním sekce podle typu jídla a záznamy s možností smazání.
  * Zápis nových položek probíhá ve sheetu DenikZapis.
  */
+
+/** Výchozí slot rychlého zápisu podle denní doby. */
+function typPodleCasu(d = new Date()): TypJidla {
+  const h = d.getHours();
+  if (h < 10) return "snidane";
+  if (h < 11) return "svacina";
+  if (h < 15) return "obed";
+  if (h < 17) return "odpoledne";
+  return "vecere";
+}
 
 function formatujDatum(iso: string): string {
   // „st 19. 11. 2026“ – cs-CZ krátký den
@@ -57,6 +73,10 @@ export function Denik() {
   const dotazovak = useQueryClient();
   const [datum, setDatum] = useState(dnesISO());
   const [zapisOtevren, setZapisOtevren] = useState<TypJidla | null>(null);
+  // rychlý zápis – text + cílový slot + ruční úpravy gramáží v náhledu
+  const [rychly, setRychly] = useState("");
+  const [rychlyTyp, setRychlyTyp] = useState<TypJidla>(typPodleCasu);
+  const [rychlyGramy, setRychlyGramy] = useState<Record<number, number>>({});
 
   const dotazDenik = useQuery({
     queryKey: ["denik", datum],
@@ -83,7 +103,7 @@ export function Denik() {
   const dotazKatalog = useQuery({
     queryKey: ["katalog_potravin"],
     queryFn: nactiKatalogPotravin,
-    enabled: zapisOtevren !== null,
+    enabled: zapisOtevren !== null || rychly.trim() !== "",
     staleTime: 10 * 60 * 1000,
   });
 
@@ -125,6 +145,31 @@ export function Denik() {
     },
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Kopírování selhalo."),
+  });
+
+  // rychlý zápis – živý náhled rozpoznaných klauzulí proti katalogu
+  const rychlePolozky = useMemo(() => {
+    if (rychly.trim() === "") return [];
+    const katalog = dotazKatalog.data ?? [];
+    return parsujRychlyZapis(rychly).map((p, i) => {
+      const shoda = najdiPotravinu(katalog, p.dotaz);
+      // nerozpoznané množství → balení potraviny, jinak 100 g
+      const gramy = rychlyGramy[i] ?? p.gramy ?? shoda?.baleniG ?? 100;
+      const makra = shoda ? makraProMnozstvi(shoda, gramy) : null;
+      return { ...p, shoda, gramy, makra };
+    });
+  }, [rychly, rychlyGramy, dotazKatalog.data]);
+
+  // „Zapsat vše" – dávkový insert jen nalezených položek do zvoleného slotu
+  const mutaceRychly = useMutation({
+    mutationFn: (poznamky: NovaPoznamka[]) => zapisDoDeniku(rychlyTyp, datum, "", poznamky),
+    onSuccess: (_v, zapsane) => {
+      setRychly("");
+      setRychlyGramy({});
+      toast.success(`Zapsáno ${zapsane.length} ${sklonuj(zapsane.length, "položka", "položky", "položek")}.`);
+      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis selhal."),
   });
 
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);
@@ -235,6 +280,108 @@ export function Denik() {
 
       {/* ---- série zapisování ---- */}
       {dotazSerie.data && <SerieKarta serie={dotazSerie.data} />}
+
+      {/* ---- rychlý zápis ---- */}
+      <section className="rounded-2xl bg-surface p-4" aria-label="Rychlý zápis">
+        <div className="flex items-center gap-2">
+          <Zap className="size-4 shrink-0 text-primary" aria-hidden />
+          <Input
+            value={rychly}
+            onChange={(e) => setRychly(e.target.value)}
+            placeholder="např. 200g kuřecí prsa, 100 g rýže, 2 vejce"
+            aria-label="Rychlý zápis"
+            className="min-w-0 flex-1"
+          />
+          <Select
+            value={rychlyTyp}
+            onChange={(e) => setRychlyTyp(e.target.value as TypJidla)}
+            aria-label="Typ jídla"
+            className="w-auto shrink-0"
+          >
+            {TYPY_JIDLA.map((t) => (
+              <option key={t.klic} value={t.klic}>{t.nazev}</option>
+            ))}
+          </Select>
+        </div>
+        {rychlePolozky.length > 0 && (
+          <>
+            <ul className="mt-3 divide-y divide-border/60">
+              {rychlePolozky.map((p, i) => (
+                <li key={i} className="flex items-center gap-2 py-2 text-sm">
+                  {p.shoda ? (
+                    <>
+                      <MiniaturaPotraviny obrazek={p.shoda.obrazek} velikost="size-7" inline />
+                      <button
+                        type="button"
+                        onClick={() => setZapisOtevren(rychlyTyp)}
+                        className="min-w-0 flex-1 truncate text-left font-medium hover:text-primary"
+                        title="Vyměnit nalezenou potravinu"
+                      >
+                        {p.shoda.nazev}
+                        {p.odhad && (
+                          <span className="ml-1.5 text-xs font-normal text-muted">
+                            ~{p.jednotka}
+                          </span>
+                        )}
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={p.gramy}
+                        onChange={(e) => {
+                          const g = Number(e.target.value);
+                          if (g > 0) setRychlyGramy((s) => ({ ...s, [i]: g }));
+                        }}
+                        aria-label={`Gramáž – ${p.shoda.nazev}`}
+                        className="w-[4.5rem] rounded-lg border border-border bg-surface px-2 py-1 text-right text-sm tabular-nums"
+                      />
+                      <span className="text-xs text-muted">g</span>
+                      <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted">
+                        {p.makra ? formatujKcal(p.makra.kalorie) : "–"}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-warning">
+                      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                      <span className="truncate">„{p.vstup}" – nenalezeno v katalogu</span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted">
+                {rychlePolozky.filter((p) => p.shoda !== null).length}/{rychlePolozky.length} nalezeno
+                {dotazKatalog.isLoading && " · načítám katalog…"}
+              </span>
+              <Button
+                velikost="sm"
+                disabled={
+                  rychlePolozky.every((p) => p.shoda === null) || mutaceRychly.isPending
+                }
+                onClick={() =>
+                  mutaceRychly.mutate(
+                    rychlePolozky
+                      .filter((p) => p.shoda !== null)
+                      .map((p) => ({
+                        foodId: p.shoda!.id,
+                        nazev: p.shoda!.nazev,
+                        obrazek: p.shoda!.obrazek,
+                        mnozstviG: p.gramy,
+                        kalorie: p.shoda!.kalorie,
+                        bilkoviny: p.shoda!.bilkoviny,
+                        sacharidy: p.shoda!.sacharidy,
+                        tuky: p.shoda!.tuky,
+                      })),
+                  )
+                }
+              >
+                Zapsat vše
+              </Button>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* ---- souhrn dne ---- */}
       <section className="rounded-2xl bg-surface p-4" aria-label="Souhrn příjmu za den">

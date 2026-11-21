@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Printer, Plus, Store, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Home, Printer, Plus, Store, Trash2, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -23,7 +23,9 @@ import {
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { obsahujeAlergen } from "@/lib/generator/generator";
-import { nejlevnejsiObchod, porovnejObchody } from "@/lib/cenovka";
+import { nejlevnejsiObchod, optimalizujNakup, type RezimOptimalizace } from "@/lib/cenovka";
+import { jeVeSpizi, nactiSpiz, odeberZeSpize, pridejDoSpize } from "@/lib/data/spiz";
+import { cn } from "@/lib/cn";
 import { sklonuj } from "@/lib/sklonovani";
 import { formatujCastku, formatujKc, formatujStariCeny } from "@/lib/cena";
 import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
@@ -38,6 +40,8 @@ export function Nakup() {
   const [vybrany, setVybrany] = useState<string | null>(null);
   const [novaPolozka, setNovaPolozka] = useState("");
   const [potvrditSmazani, setPotvrditSmazani] = useState(false);
+  // režim Cenovky: 1 obchod / 2 obchody / kusově nejlevněji
+  const [rezim, setRezim] = useState<RezimOptimalizace>("kusove");
 
   const dotazSeznamy = useQuery({ queryKey: ["me_nakupni_seznamy"], queryFn: nactiMeNakupniSeznamy });
   const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
@@ -50,8 +54,19 @@ export function Nakup() {
     queryFn: () => nactiPolozkySeznamu(vybrany as string),
     enabled: vybrany !== null,
   });
+  // spíž – položky, co uživatel má doma, se vynechávají z účtu
+  const dotazSpiz = useQuery({ queryKey: ["spiz"], queryFn: nactiSpiz });
+  const spiz = dotazSpiz.data ?? [];
+  const jeDoma = (p: { foodId?: string | null; nazev: string }) => jeVeSpizi(spiz, p);
 
   const neplatneMutace = (e: Error) => toast.error(e.message);
+
+  const mutaceSpiz = useMutation({
+    mutationFn: (p: { foodId: string | null; nazev: string; doSpize: boolean }) =>
+      p.doSpize ? pridejDoSpize(p) : odeberZeSpize(p),
+    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["spiz"] }),
+    onError: neplatneMutace,
+  });
 
   const mutaceKoupeno = useMutation({
     mutationFn: (p: { id: string; koupeno: boolean }) => prepnoutKoupeno(p.id, p.koupeno),
@@ -119,6 +134,8 @@ export function Nakup() {
   const seznamy = dotazSeznamy.data ?? [];
   const polozky = dotazPolozky.data ?? [];
   const aktualniSeznam = seznamy.find((s) => s.id === vybrany) ?? null;
+  // položky „mám doma" (spíž) – mimo skupiny obchodů i účet
+  const doma = useMemo(() => polozky.filter(jeDoma), [polozky, spiz]);
 
   // Cenovka – živé ceny položek napříč obchody (price_observations)
   const foodIds = useMemo(
@@ -130,27 +147,34 @@ export function Nakup() {
     queryFn: () => nactiCenoveHladiny(foodIds),
     enabled: vybrany !== null && foodIds.length > 0,
   });
-  const souhrnyObchodu = useMemo(
-    () =>
-      porovnejObchody(
-        polozky.filter((p): p is PolozkaNakupu & { foodId: string } => p.foodId != null),
-        dotazCeny.data ?? new Map(),
-      ),
-    [polozky, dotazCeny.data],
+  // optimalizace podle zvoleného režimu – item.id → živá nabídka
+  // v přiřazeném obchodě (kusově = globální min, jeden/dva = výběr)
+  const optimal = useMemo(
+    () => optimalizujNakup(polozky, dotazCeny.data ?? new Map(), rezim),
+    [polozky, dotazCeny.data, rezim],
   );
-  // živé pozorování k položce (podle jejího obchodu) – jeden
-  // lookup na řádek, sdílený cenou/slevou/stářím
+  // základ režimu 1 obchod – pro „ušetříš X oproti 1 obchodu" u dvojice
+  const optimalJeden = useMemo(
+    () =>
+      rezim === "dva"
+        ? optimalizujNakup(polozky, dotazCeny.data ?? new Map(), "jeden")
+        : null,
+    [polozky, dotazCeny.data, rezim],
+  );
+  // živé pozorování k položce – primárně z režimového přiřazení,
+  // nekryté položky (v jeden/dva režimu) spadnou na vlastní obchod
   const obsNaPolozku = useMemo(
     () =>
       new Map(
         polozky.map((p) => [
           p.id,
-          p.obchod
-            ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
-            : undefined,
+          optimal.prirazeni.get(p.id) ??
+            (p.obchod
+              ? dotazCeny.data?.get(p.foodId ?? "")?.find((o) => o.obchod === p.obchod)
+              : undefined),
         ]),
       ),
-    [polozky, dotazCeny.data],
+    [polozky, dotazCeny.data, optimal],
   );
   // co se skutečně koupí – celá balení/kusy a jejich cena (pokladní účet)
   // cena/sleva z ŽIVÉHO pozorování daného obchodu, když existuje –
@@ -233,49 +257,79 @@ export function Nakup() {
         {dotazPolozky.isLoading && <Skeleton className="h-40" />}
 
         {/* Cenovka – kde se stejný košík vyplatí nejvíc */}
-        {!dotazPolozky.isLoading && souhrnyObchodu.length > 0 && (
+        {!dotazPolozky.isLoading && optimal.cenitelnych > 0 && (
           <Card className="p-0">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <Store className="size-4 text-muted" aria-hidden />
                 Kde nakoupit nejlevněji
               </h2>
-              <span className="text-xs text-muted">živé ceny z posledních 30 dnů</span>
-            </div>
-            <ul className="divide-y divide-border/60">
-              {souhrnyObchodu.slice(0, 4).map((s, i) => (
-                <li key={s.obchodId} className="flex items-baseline justify-between gap-3 px-4 py-2.5 text-sm">
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className={i === 0 ? "font-semibold" : "font-medium"}>{s.obchod}</span>
-                    {i === 0 && <Badge tono="ok">nejlevnější</Badge>}
-                    <span className="text-xs text-muted">
-                      ceny u {s.pokryti} z {polozky.filter((p) => p.foodId).length} položek
-                    </span>
-                  </span>
-                  <span className="tabular-nums font-semibold">
-                    ≈ {formatujKc(s.celkem)} Kč
-                    {s.usetreno > 0 && (
-                      <span className="block text-right text-xs font-semibold text-accent">
-                        slevy −{formatujKc(s.usetreno)} Kč
-                      </span>
+              <div
+                className="flex rounded-pill border border-border bg-surface-2 p-0.5"
+                role="tablist"
+                aria-label="Režim nákupu"
+              >
+                {(
+                  [
+                    ["jeden", "1 obchod"],
+                    ["dva", "2 obchody"],
+                    ["kusove", "Kusově"],
+                  ] as const
+                ).map(([r, label]) => (
+                  <button
+                    key={r}
+                    type="button"
+                    role="tab"
+                    aria-selected={rezim === r}
+                    onClick={() => setRezim(r)}
+                    className={cn(
+                      "min-h-[36px] rounded-pill px-3.5 text-sm font-semibold transition-colors",
+                      rezim === r
+                        ? "bg-primary text-primary-fg shadow-card"
+                        : "text-muted hover:text-fg",
                     )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
+              <span className="min-w-0">
+                <span className="font-semibold">{optimal.obchody.join(" + ") || "—"}</span>
+                <span className="ml-2 text-xs text-muted">
+                  {optimal.pokryti} z {optimal.cenitelnych}{" "}
+                  {sklonuj(optimal.cenitelnych, "položky", "položek", "položek")} dostupných
+                </span>
+                {rezim === "dva" && optimalJeden && (
+                  <span className="ml-2 text-xs font-semibold text-ok">
+                    {optimalJeden.celkem - optimal.celkem > 0.01
+                      ? `ušetříte ${formatujCastku(optimalJeden.celkem - optimal.celkem)} Kč oproti 1 obchodu`
+                      : optimal.pokryti > optimalJeden.pokryti
+                        ? "kryje víc položek než 1 obchod"
+                        : ""}
                   </span>
-                </li>
-              ))}
-            </ul>
+                )}
+              </span>
+              <span className="tabular-nums font-semibold">
+                ≈ {formatujKc(optimal.celkem)} Kč
+              </span>
+            </div>
           </Card>
         )}
 
         {!dotazPolozky.isLoading && (
         <Card className="p-0">
           {(() => {
-            // seskupení podle obchodu – v každé sekci nekoupené napřed,
-            // zápatí skupiny ukazuje mezisoučet (praktické v regále)
+            // seskupení podle PŘIŘAZENÉHO obchodu (režim optimalizace);
+            // nekryté položky zůstávají u vlastního obchodu / bez obchodu;
+            // položky „mám doma" jdou mimo skupiny – do oddílu spíže
             const skupiny = new Map<string, PolozkaNakupu[]>();
             for (const p of [...polozky].sort(
               (a, b) => Number(a.koupeno) - Number(b.koupeno),
             )) {
-              const k = p.obchod ?? "";
+              if (jeDoma(p)) continue;
+              const k = optimal.prirazeni.get(p.id)?.obchod ?? p.obchod ?? "";
               skupiny.set(k, [...(skupiny.get(k) ?? []), p]);
             }
             const sekce = [...skupiny.entries()].sort(
@@ -411,6 +465,14 @@ export function Nakup() {
                   })()}
                 </span>
                 <button
+                  onClick={() => mutaceSpiz.mutate({ foodId: p.foodId ?? null, nazev: p.nazev, doSpize: true })}
+                  className="rounded-lg p-2.5 text-muted transition-colors hover:bg-ok-soft hover:text-ok"
+                  title="Mám doma – přesunout do spíže"
+                  aria-label={`${p.nazev} mám doma`}
+                >
+                  <Home className="size-4" />
+                </button>
+                <button
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}
                   className="rounded-lg p-2.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat položku"
@@ -428,6 +490,34 @@ export function Nakup() {
             ));
           })()}
 
+          {/* Spíž – „mám doma" – z účtu vynechané položky */}
+          {doma.length > 0 && (
+            <details className="border-t border-border">
+              <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-semibold text-muted transition-colors hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+                <Home className="size-4" aria-hidden />
+                Už mám doma (Spíž)
+                <Badge tono="neutral">{doma.length}</Badge>
+              </summary>
+              <ul className="divide-y divide-border/60">
+                {doma.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted">
+                    <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-7" />
+                    <span className="flex-1 font-medium">
+                      {p.nazev}
+                      <span className="ml-2 font-normal tabular-nums">{Math.round(p.gramy)} g</span>
+                    </span>
+                    <button
+                      onClick={() => mutaceSpiz.mutate({ foodId: p.foodId ?? null, nazev: p.nazev, doSpize: false })}
+                      className="min-h-[44px] rounded-lg px-3 text-xs font-semibold text-muted transition-colors hover:bg-warning-soft hover:text-warning"
+                    >
+                      Došlo – vrátit do nákupu
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
           {/* účet – součet známých cen, přepočet na gramy */}
           {(() => {
             // efektivní cena/sleva = živé pozorování ?? snapshot –
@@ -437,13 +527,15 @@ export function Nakup() {
               nakupy.get(p.id)?.cenaCelkem != null;
             const veSleveEfektivne = (p: (typeof polozky)[number]) =>
               obsNaPolozku.get(p.id)?.jeSleva ?? p.jeSleva;
-            const nekoupenoSCenou = polozky.filter((p) => maCenu(p) && !p.koupeno);
-            const vseKoupeno = polozky.length > 0 && polozky.every((p) => p.koupeno);
+            // položky spíže se do účtu nepočítají – už jsou doma
+            const nekoupenoSCenou = polozky.filter((p) => maCenu(p) && !p.koupeno && !jeDoma(p));
+            const kupovane = polozky.filter((p) => !jeDoma(p));
+            const vseKoupeno = kupovane.length > 0 && kupovane.every((p) => p.koupeno);
             // po odškrtnutí všeho ukazujeme součet celého nákupu, ne „0 Kč"
-            const zaklad = vseKoupeno ? polozky.filter(maCenu) : nekoupenoSCenou;
+            const zaklad = vseKoupeno ? kupovane.filter(maCenu) : nekoupenoSCenou;
             const celkem = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
             const usetreno = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.usetreno ?? 0), 0);
-            const bezCeny = polozky.filter((p) => !maCenu(p)).length;
+            const bezCeny = kupovane.filter((p) => !maCenu(p)).length;
             const veSleve = zaklad.filter(veSleveEfektivne).length;
             if (polozky.length === 0) return null;
             return (

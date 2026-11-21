@@ -75,3 +75,156 @@ export function nejlevnejsiObchod(
   if (!nabidka || nabidka.length === 0) return null;
   return nabidka.reduce((min, c) => (c.cena < min.cena ? c : min));
 }
+
+/* ============================================================
+ * SMART CART OPTIMIZER – 1 obchod / 2 obchody / kusově
+ * ============================================================ */
+
+export type RezimOptimalizace = "jeden" | "dva" | "kusove";
+
+export interface VysledekOptimalizace {
+  /** item.id → nabídka v přiřazeném obchodě (null = v režimu nekrytá) */
+  prirazeni: Map<string, CenaObchodu | null>;
+  /** názvy obchodů v přiřazení (pořadí podle pokrytí) */
+  obchody: string[];
+  /** položek ocenitelných u vybraných obchodů */
+  pokryti: number;
+  /** kolik položek má vůbec živou nabídku (jmenovatel pokrytí) */
+  cenitelnych: number;
+  /** balenkový součet u přiřazených obchodů (Kč, celá balení) */
+  celkem: number;
+}
+
+interface OptimalizovatelnaPolozka {
+  id: string;
+  foodId?: string | null;
+  nazev: string;
+  gramy: number;
+  baleniG?: number | null;
+}
+
+/**
+ * Přiřadí položky obchodům podle režimu a vrátí balenkový součet.
+ *
+ * „jeden" / „dva": vybere obchod (pár obchodů) s nejvyšším pokrytím,
+ * při shodě nejnižší součet celých balení. Položku přiřadíme tomu
+ * z vybraných obchodů, kde má nejnižší cenu/100 g (stejné baleniG →
+ * nejnižší balenková cena). Položky bez nabídky u vybraných obchodů
+ * zůstávají nekryté (prirazeni = null) – UI je nechá na vlastní ceně.
+ *
+ * „kusove": každá položka jde na svou globálně nejlevnější nabídku.
+ */
+export function optimalizujNakup(
+  polozky: OptimalizovatelnaPolozka[],
+  ceny: Map<string, CenaObchodu[]>,
+  rezim: RezimOptimalizace,
+): VysledekOptimalizace {
+  const balenkovaCena = (p: OptimalizovatelnaPolozka, c: CenaObchodu): number =>
+    spocitejNakupniBaleni({
+      nazev: p.nazev,
+      gramy: p.gramy,
+      baleniG: c.baleniG ?? p.baleniG ?? null,
+      cenaZa100g: c.cena,
+      cenaBeznaZa100g: c.puvodniCena ?? null,
+    }).cenaCelkem ?? 0;
+
+  const ocenitelne = polozky.filter(
+    (p) => p.foodId != null && (ceny.get(p.foodId)?.length ?? 0) > 0,
+  );
+
+  if (rezim === "kusove") {
+    const prirazeni = new Map<string, CenaObchodu | null>();
+    const pocty = new Map<string, number>();
+    let celkem = 0;
+    for (const p of ocenitelne) {
+      const nej = nejlevnejsiObchod(ceny.get(p.foodId as string));
+      prirazeni.set(p.id, nej);
+      if (nej) {
+        celkem += balenkovaCena(p, nej);
+        pocty.set(nej.obchod, (pocty.get(nej.obchod) ?? 0) + 1);
+      }
+    }
+    return {
+      prirazeni,
+      obchody: [...pocty.entries()].sort((a, b) => b[1] - a[1]).map(([o]) => o),
+      pokryti: ocenitelne.filter((p) => prirazeni.get(p.id)).length,
+      cenitelnych: ocenitelne.length,
+      celkem: Math.round(celkem * 100) / 100,
+    };
+  }
+
+  // unikátní obchody z nabídek (id → název)
+  const obchodyMap = new Map<string, string>();
+  for (const nabidka of ceny.values()) {
+    for (const c of nabidka) obchodyMap.set(c.obchodId, c.obchod);
+  }
+  const ids = [...obchodyMap.keys()];
+
+  // skóre skupiny obchodů: pokrytí (primární) + balenkový součet (tiebreak)
+  const skoreSkupiny = (skupina: string[]) => {
+    let pokryti = 0;
+    let celkem = 0;
+    for (const p of ocenitelne) {
+      const nabidka = (ceny.get(p.foodId as string) ?? []).filter((c) =>
+        skupina.includes(c.obchodId),
+      );
+      const nej = nabidka.length
+        ? nabidka.reduce((m, c) => (c.cena < m.cena ? c : m))
+        : null;
+      if (nej) {
+        pokryti++;
+        celkem += balenkovaCena(p, nej);
+      }
+    }
+    return { pokryti, celkem };
+  };
+
+  const lepsi = (
+    a: { skupina: string[]; pokryti: number; celkem: number } | null,
+    b: { skupina: string[]; pokryti: number; celkem: number },
+  ) => a === null || b.pokryti > a.pokryti || (b.pokryti === a.pokryti && b.celkem < a.celkem);
+
+  let best: { skupina: string[]; pokryti: number; celkem: number } | null = null;
+  if (rezim === "jeden") {
+    for (const id of ids) {
+      const s = skoreSkupiny([id]);
+      if (lepsi(best, { skupina: [id], ...s })) best = { skupina: [id], ...s };
+    }
+  } else {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const skupina = [ids[i]!, ids[j]!];
+        const s = skoreSkupiny(skupina);
+        if (lepsi(best, { skupina, ...s })) best = { skupina, ...s };
+      }
+    }
+  }
+
+  const prirazeni = new Map<string, CenaObchodu | null>();
+  const pocty = new Map<string, number>();
+  let celkem = 0;
+  let pokryti = 0;
+  if (best) {
+    for (const p of ocenitelne) {
+      const nabidka = (ceny.get(p.foodId as string) ?? []).filter((c) =>
+        best.skupina.includes(c.obchodId),
+      );
+      const nej = nabidka.length
+        ? nabidka.reduce((m, c) => (c.cena < m.cena ? c : m))
+        : null;
+      prirazeni.set(p.id, nej);
+      if (nej) {
+        pokryti++;
+        celkem += balenkovaCena(p, nej);
+        pocty.set(nej.obchod, (pocty.get(nej.obchod) ?? 0) + 1);
+      }
+    }
+  }
+  return {
+    prirazeni,
+    obchody: [...pocty.entries()].sort((a, b) => b[1] - a[1]).map(([o]) => o),
+    pokryti,
+    cenitelnych: ocenitelne.length,
+    celkem: Math.round(celkem * 100) / 100,
+  };
+}

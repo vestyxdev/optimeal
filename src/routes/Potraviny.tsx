@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
-  Sparkles, Tag, Trash2, TriangleAlert, Wheat, X,
+  Sparkles, Star, Tag, Trash2, TriangleAlert, Wheat, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { filtrujKatalog, type RazeniKatalogu } from "@/lib/katalog";
+import { cn } from "@/lib/cn";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
 import {
@@ -33,6 +34,7 @@ import {
   type OffNalezenaPotravina,
 } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
+import { nactiStalice, prepnoutStalici } from "@/lib/data/spiz";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 
 /**
@@ -135,6 +137,16 @@ export function Potraviny() {
     queryFn: nactiProfil,
     enabled: uzivatel !== null,
   });
+  const klientQ = useQueryClient();
+  const dotazStalice = useQuery({ queryKey: ["stalice"], queryFn: nactiStalice });
+  const stalice = dotazStalice.data ?? new Set<string>();
+  const mutaceStalice = useMutation({
+    mutationFn: (p: { id: string; nazev: string }) => prepnoutStalici(p.id, p.nazev),
+    onSuccess: () => void klientQ.invalidateQueries({ queryKey: ["stalice"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const naStalici = (p: KatalogPotravina) =>
+    mutaceStalice.mutate({ id: p.id, nazev: p.nazev });
   const mojeAlergie = efektivniAlergieProfilu(dotazProfil.data);
   // stav filtrů žije v URL (?dotaz&kategorie&slevy&razeni) – sdílený
   // odkaz, refresh i tlačítko Zpět drží stejný pohled
@@ -284,6 +296,8 @@ export function Potraviny() {
               p={p}
               uzivatelId={uzivatel?.id ?? null}
               mojeAlergie={mojeAlergie}
+              pripnuta={stalice.has(p.id)}
+              naStalici={() => naStalici(p)}
               naUpravu={() => {
                 setEditovana(p);
                 setFormZobrazen(true);
@@ -332,6 +346,8 @@ export function Potraviny() {
                 p={p}
                 uzivatelId={uzivatel?.id ?? null}
                 mojeAlergie={mojeAlergie}
+                pripnuta={stalice.has(p.id)}
+                naStalici={() => naStalici(p)}
                 naUpravu={() => {
                   setEditovana(p);
                   setFormZobrazen(true);
@@ -479,15 +495,48 @@ function AlergenInfo({
   );
 }
 
+function TlacitkoStalice({
+  pripnuta,
+  naStalici,
+  nazev,
+}: {
+  pripnuta: boolean;
+  naStalici: () => void;
+  nazev: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        naStalici();
+      }}
+      className={cn(
+        "mr-1.5 inline-flex size-11 -translate-y-0.5 items-center justify-center align-middle transition-colors",
+        pripnuta ? "text-accent" : "text-muted hover:text-accent",
+      )}
+      title={pripnuta ? "Odepnout ze stálic" : "Připnout do stálic"}
+      aria-label={pripnuta ? `Odepnout ${nazev} ze stálic` : `Připnout ${nazev} do stálic`}
+      aria-pressed={pripnuta}
+    >
+      <Star className={cn("size-4", pripnuta && "fill-accent")} aria-hidden />
+    </button>
+  );
+}
+
 function RadekPotraviny({
   p,
   uzivatelId,
   mojeAlergie = [],
+  pripnuta = false,
+  naStalici,
   naUpravu,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
   mojeAlergie?: string[];
+  pripnuta?: boolean;
+  naStalici?: () => void;
   naUpravu: () => void;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
@@ -497,6 +546,9 @@ function RadekPotraviny({
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
       <td className="px-4 py-2.5">
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" inline />
+        {naStalici !== undefined && (
+          <TlacitkoStalice pripnuta={pripnuta} naStalici={naStalici} nazev={p.nazev} />
+        )}
         <span className="font-medium">{p.nazev}</span>
         <span className="ml-2 inline-flex gap-1">
           {p.sleva && (
@@ -572,11 +624,15 @@ function KartaPotraviny({
   p,
   uzivatelId,
   mojeAlergie = [],
+  pripnuta = false,
+  naStalici,
   naUpravu,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
   mojeAlergie?: string[];
+  pripnuta?: boolean;
+  naStalici?: () => void;
   naUpravu: () => void;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
@@ -589,7 +645,12 @@ function KartaPotraviny({
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-12" ikona={Ikona} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 font-medium leading-snug">{p.nazev}</p>
+            <p className="min-w-0 font-medium leading-snug">
+              {naStalici !== undefined && (
+                <TlacitkoStalice pripnuta={pripnuta} naStalici={naStalici} nazev={p.nazev} />
+              )}
+              {p.nazev}
+            </p>
             {vlastni && (
               <span className="flex shrink-0">
                 <AkcePotraviny p={p} naUpravu={naUpravu} />

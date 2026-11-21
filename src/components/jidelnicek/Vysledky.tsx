@@ -218,7 +218,18 @@ function MrizkaJidel({
                     <div className="flex justify-between gap-2 text-sm font-medium">
                       <span className="flex min-w-0 items-center gap-2">
                         <MiniaturaPotraviny obrazek={j.obrazek} velikost="size-8" />
-                        <span className="min-w-0">{j.nazev}</span>
+                        <span className="min-w-0">
+                          {j.nazev}
+                          {j.davkaDni ? (
+                            <Badge tono="accent" className="ml-1.5">
+                              vaření na {j.davkaDni} dny
+                            </Badge>
+                          ) : j.dopredu ? (
+                            <Badge tono="neutral" className="ml-1.5">
+                              dovařené z předchozího dne
+                            </Badge>
+                          ) : null}
+                        </span>
                       </span>
                       <span className="shrink-0 whitespace-nowrap tabular-nums">
                         {j.popisekMnozstvi ?? `${Math.round(j.gramy)} g`}
@@ -287,13 +298,14 @@ export function TydennyVysledek({
   naVymenu?: ((denIndex: number, nazevJidla: string) => void) | undefined;
   naZapisDoDeniku?: ((denIndex: number, nazevJidla: string) => void) | undefined;
 }) {
+  const dni = Object.keys(plan.dny).length;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metrika nazev="Kalorie za týden" hodnota={formatujKcal(plan.tyden.kalorie)} cilyJednotka={`z ${formatujKcal(cile.kalorie * 7)} kcal`} />
-        <Metrika nazev="Bílkoviny za týden" hodnota={formatujMakro(plan.tyden.bilkoviny)} cilyJednotka={`z ${formatujMakro(cile.bilkoviny * 7)} g`} />
-        <Metrika nazev="Cena za týden" hodnota={formatujKc(plan.tyden.cena)} cilyJednotka="Kč za 7 dní" />
-        <Metrika nazev="Ušetřeno slevami" hodnota={formatujKc(plan.tyden.cenaBezna - plan.tyden.cena)} cilyJednotka="Kč v rámci týdne" />
+        <Metrika nazev={`Kalorie za ${dni} ${dni === 1 ? "den" : dni < 5 ? "dny" : "dní"}`} hodnota={formatujKcal(plan.tyden.kalorie)} cilyJednotka={`z ${formatujKcal(cile.kalorie * dni)} kcal`} />
+        <Metrika nazev={`Bílkoviny za ${dni} ${dni === 1 ? "den" : dni < 5 ? "dny" : "dní"}`} hodnota={formatujMakro(plan.tyden.bilkoviny)} cilyJednotka={`z ${formatujMakro(cile.bilkoviny * dni)} g`} />
+        <Metrika nazev={`Cena za ${dni} ${dni === 1 ? "den" : dni < 5 ? "dny" : "dní"}`} hodnota={formatujKc(plan.tyden.cena)} cilyJednotka={`Kč za ${dni} ${dni === 1 ? "den" : dni < 5 ? "dny" : "dní"}`} />
+        <Metrika nazev="Ušetřeno slevami" hodnota={formatujKc(plan.tyden.cenaBezna - plan.tyden.cena)} cilyJednotka={`Kč v rámci ${dni === 1 ? "dne" : `${dni} dnů`}`} />
       </div>
 
       <Card className="p-0">
@@ -334,7 +346,7 @@ export function TydennyVysledek({
         </div>
       </Card>
 
-      <KartaNakupu polozky={plan.nakup} soucetPopisek="Celkem za týden" />
+      <KartaNakupu polozky={plan.nakup} soucetPopisek={`Celkem za ${dni} ${dni === 1 ? "den" : dni < 5 ? "dny" : "dní"}`} />
     </div>
   );
 }

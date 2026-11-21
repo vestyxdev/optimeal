@@ -1,3 +1,12 @@
+## Feature sprint – 2026-11 (differentiators)
+
+- **Batch prep**: vygenerujTydenniPlan({pocetDni:1|3|5|7, vareniDopredu}) – obědy/večeře se vaří na 2 dny, párové dny nesou dopredu=true; balenková synergie škáluje porce na celá balení; výměna jídla čistí párové značky; UI odznaky „vaření na N dny"/„dovařené" a dynamické součty (den/dny/dní).
+- **Cart optimizer** (cenovka.optimalizujNakup): režimy jeden/dva/kusove, balenkový součet přes spocitejNakupniBaleni, pokrytí primární kritérium; Nakup.tsx segmentovaný přepínač + seskupení podle přiřazených obchodů + porovnání úspor 2v1.
+- **Spíž**: pantry_items (0057) + localStorage host; „Mám doma"/„Došlo" řádky v Nákupu, vyloučení z účtu i skupin obchodů, oddíl „Už mám doma".
+- **Stálice**: pinned_staples (0057) + hvězda v katalogu (řádek i karta) + widget „Moje stálice v akci" na Přehledu (jen ověřené slevy puvodni_zdroj, jinak nejnižší Kč/kg).
+- **Rychlý zápis**: rychlyZapis.ts – deterministický CZ parser (g/kg/ml/dkg/ks/lžíce/lžička/hrnek/plátek/hrst/balení, desetinná čárka, dělítko a/i); Denik bar s náhledem, úpravou gramáže a „Zapsat vše" → zapisDoDeniku.
+- Testy: +52 nových (cenovka 6, generator 6, rychlyZapis 36, spiz 4).
+
 # OptiMeal – Technical Audit & Assessment
 
 > **Historický snapshot** – audit stavu před implementačními fázemi. Body v sekcích

@@ -23,9 +23,10 @@ import { formatujCastku, formatujCenu, formatujKcal, formatujKc, formatujMakro, 
 import { nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { nactiSerii } from "@/lib/data/denik";
 import { SerieObsah } from "@/components/denik/SerieKarta";
-import { cenaPlanu, nactiPosledniPlan, usporaPlanu } from "@/lib/data/plany";
+import { cenaPlanu, nactiPosledniPlan, nactiPotravinyPodleId, usporaPlanu } from "@/lib/data/plany";
 import { nactiMeNakupniSeznamy } from "@/lib/data/nakup";
 import { nactiAktualniSlevy, nactiVerejneAkce } from "@/lib/data/potraviny";
+import { nactiStalice } from "@/lib/data/spiz";
 import { lazyKomponenta } from "@/lib/lazyRoute";
 
 const MakroGraf = lazyKomponenta(() => import("@/components/prehled/MakroGraf"));
@@ -349,6 +350,8 @@ function PrihlasenyPrehled() {
         )}
       </Card>
 
+      <StaliceWidget />
+
       <div className="grid gap-4 lg:grid-cols-3">
         {/* denní cíl */}
         <Card>
@@ -551,5 +554,91 @@ function UctenkaUkazka() {
         AKCE
       </span>
     </div>
+  );
+}
+
+/**
+ * „Moje stálice v akci" – připnuté potraviny s ověřenou slevou
+ * (puvodni_cena drží view jen ze zdrojově ověřené a sanity-checked
+ * původní ceny), jinak kompaktní seznam nejnižších reálných cen.
+ */
+function StaliceWidget() {
+  const dotazStalice = useQuery({ queryKey: ["stalice"], queryFn: nactiStalice });
+  const ids = [...(dotazStalice.data ?? [])].sort();
+  const dotazPotraviny = useQuery({
+    queryKey: ["stalice_potraviny", ids],
+    queryFn: () => nactiPotravinyPodleId(ids),
+    enabled: ids.length > 0,
+  });
+  const potraviny = dotazPotraviny.data ?? [];
+  // ověřená sleva = view drží puvodni_cena jen ze zdrojové slevy
+  const vAkci = potraviny.filter(
+    (p) => p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena,
+  );
+  const ostatni = potraviny
+    .filter((p) => !vAkci.includes(p) && p.aktualniCena > 0 && p.pozorovanoAt !== null)
+    .sort((a, b) => a.aktualniCena - b.aktualniCena);
+  if (ids.length === 0) return null;
+  return (
+    <Card>
+      <div className="mb-3 flex items-baseline justify-between gap-4">
+        <CardNadpis className="mb-0">Moje stálice v akci</CardNadpis>
+        <Link
+          to="/potraviny"
+          className="shrink-0 text-sm font-semibold text-primary hover:underline"
+        >
+          Spravovat stálice
+        </Link>
+      </div>
+      {dotazPotraviny.isLoading ? (
+        <Skeleton className="h-16" />
+      ) : vAkci.length === 0 && ostatni.length === 0 ? (
+        <p className="text-sm text-muted">
+          Stálice zatím nemají živé ceny – čeká se na další cenový průlet.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {vAkci.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
+              <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" inline />
+              <span className="min-w-0 flex-1 truncate font-medium">
+                {p.nazev}
+                {p.obchod !== null && (
+                  <span className="ml-1.5 text-xs text-muted">{p.obchod}</span>
+                )}
+              </span>
+              <span className="whitespace-nowrap text-right tabular-nums">
+                <span className="font-bold text-accent">
+                  {formatujCenu(p.aktualniCena, p.baleniG).hlavni}
+                </span>
+                <span className="ml-1.5 text-xs text-muted line-through">
+                  {formatujCenu(p.puvodniCena ?? 0, p.baleniG).hlavni}
+                </span>
+                {p.slevaProcenta != null && (
+                  <Badge tono="accent" className="ml-1.5">−{p.slevaProcenta} %</Badge>
+                )}
+                <span className="block text-[10px] text-muted">
+                  {formatujKc(p.aktualniCena * 10)}/kg
+                </span>
+              </span>
+            </li>
+          ))}
+          {ostatni.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
+              <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" inline />
+              <span className="min-w-0 flex-1 truncate text-muted">
+                {p.nazev}
+                {p.obchod !== null && (
+                  <span className="ml-1.5 text-xs">{p.obchod}</span>
+                )}
+              </span>
+              <span className="whitespace-nowrap text-right tabular-nums text-xs text-muted">
+                {formatujKc(p.aktualniCena * 10)}/kg
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }

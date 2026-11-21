@@ -1658,3 +1658,80 @@ describe("denní solver – vyvažování jídel", () => {
     }
   });
 });
+
+describe("vygenerujTydenniPlan – počet dní + vaření dopředu", () => {
+  it("pocetDni 1/3/5 → přesný počet dnů plánu", () => {
+    for (const n of [1, 3, 5]) {
+      const t = vygenerujTydenniPlan(KATALOG, CILE, 4, null, { pocetDni: n });
+      expect(Object.keys(t.dny)).toHaveLength(n);
+    }
+  });
+
+  it("1denní plán má součet = součet jednoho dne", () => {
+    const t = vygenerujTydenniPlan(KATALOG, CILE, 4, null, { pocetDni: 1 });
+    const den = t.dny[1]!;
+    expect(t.tyden.kalorie).toBeCloseTo(den.celkem.kalorie, 1);
+  });
+
+  it("vaření dopředu: zdrojový den má davkaDni, další den dovařenou kopii", () => {
+    const t = vygenerujTydenniPlan(KATALOG, CILE, 4, null, {
+      pocetDni: 4,
+      vareniDopredu: true,
+    });
+    // alespoň jedna dávková dvojice vznikla (Oběd/Večeře sloty)
+    let paru = 0;
+    for (let d = 1; d <= 3; d += 2) {
+      const a = t.dny[d];
+      const b = t.dny[d + 1];
+      if (!a || !b) continue;
+      for (const nazev of Object.keys(a.jidelnicek)) {
+        if (!/oběd|večeře/i.test(nazev)) continue;
+        const sa = a.jidelnicek[nazev];
+        const sb = b.jidelnicek[nazev];
+        if (!sa || !sb) continue;
+        if (sa.jidla.some((j) => j.davkaDni === 2)) {
+          paru++;
+          expect(sb.jidla.every((j) => j.dopredu === true)).toBe(true);
+          expect(sb.jidla.every((j) => j.davkaDni === undefined)).toBe(true);
+        }
+      }
+    }
+    expect(paru).toBeGreaterThan(0);
+  });
+
+  it("bez vareniDopredu žádné dávkové značky", () => {
+    const t = vygenerujTydenniPlan(KATALOG, CILE, 4, null, { pocetDni: 4 });
+    for (const den of Object.values(t.dny)) {
+      for (const slot of Object.values(den.jidelnicek)) {
+        for (const j of slot.jidla) {
+          expect(j.davkaDni).toBeUndefined();
+          expect(j.dopredu).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it("týdenní součet = součet finálních dnů (po batch substituci)", () => {
+    const t = vygenerujTydenniPlan(KATALOG, CILE, 4, null, {
+      pocetDni: 5,
+      vareniDopredu: true,
+    });
+    let kcal = 0;
+    for (const den of Object.values(t.dny)) kcal += den.celkem.kalorie;
+    expect(t.tyden.kalorie).toBeCloseTo(kcal, 1);
+  });
+
+  it("výměna jídla zruší dávkové značky u spárovaného dne", () => {
+    const plan = vygenerujTydenniPlan(KATALOG, CILE, 4, null, {
+      pocetDni: 4,
+      vareniDopredu: true,
+    });
+    // den 1 vaří na 2 dny → výměna oběda v den 2 čistí značky v den 1
+    const novy = vymenJidloVTydnu(KATALOG, plan, 2, "Oběd", CILE);
+    if (novy === null) return;
+    const obed1 = novy.dny[1]?.jidelnicek["Oběd"];
+    if (obed1 && plan.dny[1]?.jidelnicek["Oběd"]?.jidla.some((j) => j.davkaDni === 2)) {
+      expect(obed1.jidla.every((j) => j.davkaDni === undefined)).toBe(true);
+    }
+  });
+});

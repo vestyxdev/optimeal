@@ -276,6 +276,10 @@ export interface Jidlo {
   popisekMnozstvi?: string;
   /** stáří zdrojového cenového pozorování – UI ukáže „cena z …" */
   pozorovanoAt?: string | null;
+  /** jídlo uvařené na N dní najednou (batch prep) – badge u zdrojového dne */
+  davkaDni?: number;
+  /** dovařená porce z předchozího dne (batch prep) – badge u kopie */
+  dopredu?: boolean;
 }
 
 export interface SouhrnJidla {
@@ -2059,13 +2063,102 @@ export interface TydenniPlan {
   nakup: NakupniPolozka[];
 }
 
-/** Týdenní plán = 7 dnů, každý s vlastní rotací (denniPosun = 1–7). */
+export interface VolbyTydne {
+  /** kolik dnů má plán pokrýt – 1/3/5/7 (výchozí 7) */
+  pocetDni?: number;
+  /** vařit dopředu: obědy+večeře se po dvou dnech opakují (batch prep) */
+  vareniDopredu?: boolean;
+}
+
+/** Kolik dnů plán pokrývá – jen povolené hodnoty UI, jinak 7. */
+export function bezpecneDny(pocetDni: number | undefined): number {
+  return pocetDni === 1 || pocetDni === 3 || pocetDni === 5 || pocetDni === 7
+    ? pocetDni
+    : 7;
+}
+
+/**
+ * Batch prep: u dvojic dnů (1+2, 3+4, 5+6) zkopíruje Oběd a Večeře
+ * z lichého dne do sudého – jeden hrnec = dvě porce. Lichý poslední
+ * den (3./5./7.) zůstává vlastní.
+ *
+ * Balená synergie: gramáže duplikovaných jídel se o max ±12 % posunou,
+ * aby 2× porce trefila celý prodávaný balíček (500 g masa za 2 dny
+ * = 1 balení místo 600 g a 100 g zbytku v lednici).
+ */
+function aplikujVareniDopredu(dny: Record<number, DenVysledek>, pocetDni: number): void {
+  const soucetDne = (d: DenVysledek): SouhrnJidlaBezJidel => {
+    const s: SouhrnJidlaBezJidel = { kalorie: 0, bilkoviny: 0, sacharidy: 0, tuky: 0, cena: 0, cenaBezna: 0 };
+    for (const souhrn of Object.values(d.jidelnicek)) {
+      s.kalorie += souhrn.kalorie;
+      s.bilkoviny += souhrn.bilkoviny;
+      s.sacharidy += souhrn.sacharidy;
+      s.tuky += souhrn.tuky;
+      s.cena += souhrn.cena;
+      s.cenaBezna += souhrn.cenaBezna;
+    }
+    s.kalorie = Math.round(s.kalorie);
+    s.bilkoviny = Math.round(s.bilkoviny * 10) / 10;
+    s.sacharidy = Math.round(s.sacharidy * 10) / 10;
+    s.tuky = Math.round(s.tuky * 10) / 10;
+    s.cena = Math.round(s.cena * 100) / 100;
+    s.cenaBezna = Math.round(s.cenaBezna * 100) / 100;
+    return s;
+  };
+
+  for (let den = 1; den < pocetDni; den += 2) {
+    const a = dny[den];
+    const b = dny[den + 1];
+    if (!a || !b) continue;
+    for (const slot of Object.keys(a.jidelnicek)) {
+      if (!/oběd|večeře/i.test(slot)) continue;
+      const sa = a.jidelnicek[slot];
+      if (!sa) continue;
+      const jidla = sa.jidla.map((j) => {
+        const kandidat = { ...j, davkaDni: 2 };
+        // balená synergie: 2× porce → nejbližší celý násobek balení
+        if (j.baleniG && j.baleniG > 0 && j.gramy > 0) {
+          const cil = Math.round((j.gramy * 2) / j.baleniG);
+          if (cil >= 1) {
+            const nove = Math.max(5, Math.round(((cil * j.baleniG) / 2) / 5) * 5);
+            const pomer = Math.abs(nove - j.gramy) / j.gramy;
+            if (pomer > 0.001 && pomer <= 0.12) {
+              const f = nove / j.gramy;
+              const m2 = (v: number, d: number) => Math.round(v * f * d) / d;
+              kandidat.gramy = nove;
+              kandidat.kalorie = Math.round(j.kalorie * f);
+              kandidat.bilkoviny = m2(j.bilkoviny, 10);
+              kandidat.sacharidy = m2(j.sacharidy, 10);
+              kandidat.tuky = m2(j.tuky, 10);
+              kandidat.cena = m2(j.cena, 100);
+              kandidat.cenaBezna = m2(j.cenaBezna, 100);
+              // kusový popisek („2 ks · 120 g") už po přeškálování neplatí
+              delete kandidat.popisekMnozstvi;
+            }
+          }
+        }
+        return kandidat;
+      });
+      const nova = souhrnJidla(jidla);
+      a.jidelnicek[slot] = nova;
+      b.jidelnicek[slot] = souhrnJidla(
+        jidla.map(({ davkaDni: _d, ...j }) => ({ ...j, dopredu: true })),
+      );
+    }
+    a.celkem = soucetDne(a);
+    b.celkem = soucetDne(b);
+  }
+}
+
+/** Týdenní plán = N dnů (1/3/5/7), každý s vlastní rotací (denniPosun = 1..N). */
 export function vygenerujTydenniPlan(
   potraviny: Potravina[],
   cile: Cile,
   pocetJidel = 4,
   filtr: FiltrPotraviny | null = null,
+  volby: VolbyTydne = {},
 ): TydenniPlan {
+  const pocetDni = bezpecneDny(volby.pocetDni);
   const dny: Record<number, DenVysledek> = {};
   const tyden: SouhrnJidlaBezJidel = {
     kalorie: 0,
@@ -2079,7 +2172,7 @@ export function vygenerujTydenniPlan(
   // rodiny potravin použité v předchozích dnech – stupňovaný malus,
   // ať se týden skutečně různí (ne 7× sušené maso + křupavý sýr)
   const tydenniKlice = new Map<string, number>();
-  for (let den = 1; den <= 7; den++) {
+  for (let den = 1; den <= pocetDni; den++) {
     const vysledek = vygenerujJidelnicek(potraviny, cile, den, 0.6, pocetJidel, filtr, tydenniKlice);
     dny[den] = vysledek;
     for (const souhrn of Object.values(vysledek.jidelnicek)) {
@@ -2090,7 +2183,13 @@ export function vygenerujTydenniPlan(
         if (rodina !== null) tydenniKlice.set(rodina, (tydenniKlice.get(rodina) ?? 0) + 1);
       }
     }
+  }
 
+  // batch prep přepíše sloty a denní součty – týdenní součet se
+  // počítá až po něm, jinak by seděl na před-batch číslech
+  if (volby.vareniDopredu && pocetDni > 1) aplikujVareniDopredu(dny, pocetDni);
+
+  for (const vysledek of Object.values(dny)) {
     tyden.kalorie += vysledek.celkem.kalorie;
     tyden.bilkoviny += vysledek.celkem.bilkoviny;
     tyden.sacharidy += vysledek.celkem.sacharidy;
@@ -2234,7 +2333,16 @@ export function vymenJidloVTydnu(
   const novyDen = vymenJidlo(potraviny, den, nazevJidla, cile, filtr, 0.85, tydenniKlice);
   if (novyDen === null) return null;
 
-  const dny = { ...plan.dny, [denIndex]: novyDen };
+  const dny: Record<number, DenVysledek> = { ...plan.dny, [denIndex]: novyDen };
+  // spárovaný den batch dvojice už nesmí tvrdit „vaření na 2 dny"
+  // / „dovařené", když se jeho slot právě vyměnil za jiný
+  const soused = denIndex % 2 === 0 ? denIndex - 1 : denIndex + 1;
+  const vs = dny[soused];
+  const ss = vs?.jidelnicek[nazevJidla];
+  if (vs && ss?.jidla.some((j) => j.dopredu || j.davkaDni)) {
+    const ciste = ss.jidla.map(({ dopredu: _dp, davkaDni: _dd, ...j }) => j);
+    dny[soused] = { ...vs, jidelnicek: { ...vs.jidelnicek, [nazevJidla]: souhrnJidla(ciste) } };
+  }
   const spojeny: Record<string, SouhrnJidla> = {};
   const tyden: SouhrnJidlaBezJidel = {
     kalorie: 0,

@@ -58,6 +58,9 @@ export function Jidelnicek() {
   const { uzivatel } = useAuth();
   const navigaceQ = useQueryClient();
   const [typ, setTyp] = useState<"den" | "tyden">("den");
+  // délka plánu + batch prep (jen pro typ „tyden")
+  const [pocetDni, setPocetDni] = useState<1 | 3 | 5 | 7>(7);
+  const [vareniDopredu, setVareniDopredu] = useState(false);
   // cíle držíme jako text – jinak pole nejde vyprázdnit (při mazání
   // by se okamžitě vrátila výchozí hodnota) a české desetinné čárky
   // by se rozbily uprostřed psaní; na čísla se převedou až při použití
@@ -189,7 +192,10 @@ export function Jidelnicek() {
     const novy =
       typ === "den"
         ? vygenerujJidelnicek(potraviny, cile, null, 0.85, pocetJidel, filtr)
-        : vygenerujTydenniPlan(potraviny, cile, pocetJidel, filtr);
+        : vygenerujTydenniPlan(potraviny, cile, pocetJidel, filtr, {
+            pocetDni,
+            vareniDopredu,
+          });
     setVysledek(novy);
     const kcal = "celkem" in novy ? novy.celkem.kalorie : novy.tyden.kalorie;
     if (kcal === 0) {
@@ -276,6 +282,41 @@ export function Jidelnicek() {
             ))}
           </div>
         </div>
+        {typ === "tyden" && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-muted">Dní:</span>
+              <div className="flex rounded-pill border border-border bg-surface-2 p-0.5">
+                {([1, 3, 5, 7] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={pocetDni === d}
+                    onClick={() => setPocetDni(d)}
+                    className={cn(
+                      "min-h-[36px] min-w-[36px] rounded-pill px-2.5 text-sm font-semibold transition-colors",
+                      pocetDni === d
+                        ? "bg-primary text-primary-fg shadow-card"
+                        : "text-muted hover:text-fg",
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={vareniDopredu}
+                onChange={(e) => setVareniDopredu(e.target.checked)}
+                className="size-5 accent-[var(--color-primary)]"
+              />
+              Vařit dopředu
+              <span className="text-xs text-muted">(oběd i večeře na 2 dny)</span>
+            </label>
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <PoleCile id="kcal" nazev="Kalorie" jednotka="kcal" hodnota={cileText.kalorie}
             naZmenu={(v) => setCileText({ ...cileText, kalorie: v })} />
@@ -302,7 +343,9 @@ export function Jidelnicek() {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button onClick={generuj} disabled={dotazPotraviny.isLoading}>
             <Sparkles className="size-4" />
-            {typ === "den" ? "Vygenerovat den" : "Vygenerovat týden"}
+            {typ === "den"
+              ? "Vygenerovat den"
+              : `Vygenerovat ${pocetDni === 1 ? "den" : `${pocetDni} ${pocetDni < 5 ? "dny" : "dní"}`}`}
           </Button>
           {vysledek && uzivatel && (
             <Button
