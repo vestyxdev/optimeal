@@ -209,6 +209,28 @@ export function Nakup() {
     [polozky, obsNaPolozku],
   );
 
+  // účet – sdílený výpočet pro mobilní patu karty i desktopový sticky panel
+  const ucet = useMemo(() => {
+    const maCenu = (p: (typeof polozky)[number]) =>
+      nakupy.get(p.id)?.cenaCelkem != null;
+    const veSleveEfektivne = (p: (typeof polozky)[number]) =>
+      obsNaPolozku.get(p.id)?.jeSleva ?? p.jeSleva;
+    const nekoupenoSCenou = polozky.filter(
+      (p) => maCenu(p) && !p.koupeno && !jeDoma(p),
+    );
+    const kupovane = polozky.filter((p) => !jeDoma(p));
+    const vseKoupeno =
+      kupovane.length > 0 && kupovane.every((p) => p.koupeno);
+    const zaklad = vseKoupeno ? kupovane.filter(maCenu) : nekoupenoSCenou;
+    return {
+      celkem: zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0),
+      usetreno: zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.usetreno ?? 0), 0),
+      veSleve: zaklad.filter(veSleveEfektivne).length,
+      bezCeny: kupovane.filter((p) => !maCenu(p)).length,
+      vseKoupeno,
+    };
+  }, [polozky, nakupy, obsNaPolozku, spiz]);
+
   if (vybrany !== null && aktualniSeznam) {
     // ---------- detail seznamu ----------
     const zbyva = polozky.filter((p) => !p.koupeno).length;
@@ -265,6 +287,9 @@ export function Nakup() {
 
         {dotazPolozky.isLoading && <Skeleton className="h-40" />}
 
+        {/* desktop: dvousloupcové – seznam vlevo, účet sticky vpravo */}
+        <div className="space-y-5 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-5 lg:space-y-0">
+          <div className="space-y-5">
         {/* Cenovka – kde se stejný košík vyplatí nejvíc */}
         {!dotazPolozky.isLoading && optimal.cenitelnych > 0 && (
           <Card className="p-0">
@@ -527,44 +552,24 @@ export function Nakup() {
             </details>
           )}
 
-          {/* účet – součet známých cen, přepočet na gramy */}
-          {(() => {
-            // efektivní cena/sleva = živé pozorování ?? snapshot –
-            // stejná pravidla jako v nakupy (jinak by se řádek a účet
-            // neshodly)
-            const maCenu = (p: (typeof polozky)[number]) =>
-              nakupy.get(p.id)?.cenaCelkem != null;
-            const veSleveEfektivne = (p: (typeof polozky)[number]) =>
-              obsNaPolozku.get(p.id)?.jeSleva ?? p.jeSleva;
-            // položky spíže se do účtu nepočítají – už jsou doma
-            const nekoupenoSCenou = polozky.filter((p) => maCenu(p) && !p.koupeno && !jeDoma(p));
-            const kupovane = polozky.filter((p) => !jeDoma(p));
-            const vseKoupeno = kupovane.length > 0 && kupovane.every((p) => p.koupeno);
-            // po odškrtnutí všeho ukazujeme součet celého nákupu, ne „0 Kč"
-            const zaklad = vseKoupeno ? kupovane.filter(maCenu) : nekoupenoSCenou;
-            const celkem = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.cenaCelkem ?? 0), 0);
-            const usetreno = zaklad.reduce((s, p) => s + (nakupy.get(p.id)?.usetreno ?? 0), 0);
-            const bezCeny = kupovane.filter((p) => !maCenu(p)).length;
-            const veSleve = zaklad.filter(veSleveEfektivne).length;
-            if (polozky.length === 0) return null;
-            return (
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3">
-                <span className="text-sm font-semibold tabular-nums">
-                  {vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {formatujKc(celkem)} Kč
-                  {usetreno > 0 && (
-                    <span className="ml-2 text-xs font-semibold text-accent">
-                      ušetříte {formatujKc(usetreno)} Kč
-                    </span>
-                  )}
-                </span>
-                <span className="text-xs text-muted">
-                  {veSleve > 0 && `${veSleve}× ve slevě`}
-                  {veSleve > 0 && bezCeny > 0 && " · "}
-                  {bezCeny > 0 && `u ${bezCeny} ${sklonuj(bezCeny, "položky", "položek", "položek")} cena chybí`}
-                </span>
-              </div>
-            );
-          })()}
+          {/* účet – mobilní pata karty (na desktopu sticky panel vpravo) */}
+          {polozky.length > 0 && (
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border px-4 py-3 lg:hidden">
+              <span className="text-sm font-semibold tabular-nums">
+                {ucet.vseKoupeno ? "Nákup ≈" : "Zbývá ≈"} {formatujKc(ucet.celkem)} Kč
+                {ucet.usetreno > 0 && (
+                  <span className="ml-2 text-xs font-semibold text-accent">
+                    ušetříte {formatujKc(ucet.usetreno)} Kč
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-muted">
+                {ucet.veSleve > 0 && `${ucet.veSleve}× ve slevě`}
+                {ucet.veSleve > 0 && ucet.bezCeny > 0 && " · "}
+                {ucet.bezCeny > 0 && `u ${ucet.bezCeny} ${sklonuj(ucet.bezCeny, "položky", "položek", "položek")} cena chybí`}
+              </span>
+            </div>
+          )}
 
           {/* ruční doplnění */}
           <div className="flex gap-2 border-t border-border p-4">
@@ -588,6 +593,79 @@ export function Nakup() {
           </div>
         </Card>
         )}
+          </div>
+
+          {/* účet – sticky panel, jen desktop */}
+          {polozky.length > 0 && (
+            <aside className="hidden lg:block lg:sticky lg:top-6">
+              <Card>
+                <h2 className="text-sm font-semibold">Účet</h2>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-muted">
+                      {ucet.vseKoupeno ? "Nákup ≈" : "Zbývá ≈"}
+                    </dt>
+                    <dd className="font-bold tabular-nums">
+                      {formatujKc(ucet.celkem)} Kč
+                    </dd>
+                  </div>
+                  {ucet.usetreno > 0 && (
+                    <div className="flex items-baseline justify-between gap-2">
+                      <dt className="text-muted">Ušetříte</dt>
+                      <dd className="font-semibold tabular-nums text-accent">
+                        {formatujKc(ucet.usetreno)} Kč
+                      </dd>
+                    </div>
+                  )}
+                  {optimal.cenitelnych > 0 && (
+                    <div className="flex items-baseline justify-between gap-2">
+                      <dt className="text-muted">Obchod</dt>
+                      <dd className="text-right font-medium">
+                        {optimal.obchody.join(" + ") || "—"}
+                        <span className="block text-xs font-normal text-muted">
+                          {optimal.pokryti}/{optimal.cenitelnych} položek
+                        </span>
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex items-baseline justify-between gap-2 border-t border-border pt-2 text-xs text-muted">
+                    <dt>Zůstává</dt>
+                    <dd className="tabular-nums">
+                      {polozky.filter((p) => !p.koupeno && !jeDoma(p)).length}/
+                      {polozky.filter((p) => !jeDoma(p)).length} položek
+                    </dd>
+                  </div>
+                  {doma.length > 0 && (
+                    <div className="flex items-baseline justify-between gap-2 text-xs text-muted">
+                      <dt>Už mám doma</dt>
+                      <dd className="tabular-nums">
+                        {sklonuj(doma.length, "1 položka", `${doma.length} položky`, `${doma.length} položek`)}
+                      </dd>
+                    </div>
+                  )}
+                  {ucet.veSleve > 0 && (
+                    <div className="flex items-baseline justify-between gap-2 text-xs text-muted">
+                      <dt>Ve slevě</dt>
+                      <dd className="tabular-nums">{ucet.veSleve}×</dd>
+                    </div>
+                  )}
+                  {ucet.bezCeny > 0 && (
+                    <div className="flex items-baseline justify-between gap-2 text-xs text-muted">
+                      <dt>Bez ceny</dt>
+                      <dd className="tabular-nums">
+                        {sklonuj(ucet.bezCeny, "1 položka", `${ucet.bezCeny} položky`, `${ucet.bezCeny} položek`)}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="mt-3 text-[11px] leading-snug text-muted">
+                  Ceny za celá balení z dnešních pozorování; pokladní účet se
+                  může mírně lišit.
+                </p>
+              </Card>
+            </aside>
+          )}
+        </div>
       </div>
     );
   }
