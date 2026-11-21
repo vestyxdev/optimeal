@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alergenyReceptu, spocitejRecept, type Recept } from "@/lib/data/recepty";
+import { alergenyReceptu, stopyReceptu, spocitejRecept, type Recept } from "@/lib/data/recepty";
 import type { Potravina } from "@/lib/generator/generator";
 
 /* Čisté výpočty receptů – výživa na porci/celkem, cena ze živých cen,
@@ -171,5 +171,33 @@ describe("alergenyReceptu", () => {
       { foodId: "b", nazev: "Banán", gramyNaPorce: 100, poznamka: null, alergeny: [] },
     ]);
     expect(alergenyReceptu(r)).toEqual(["arasidy"]);
+  });
+});
+
+describe("stopyReceptu", () => {
+  it("sjednotí stopy surovin – ingredience jiné suroviny stopu ruší", () => {
+    const r = recept(1, [
+      // čokoláda: stopa mléka a ořechů
+      { foodId: "a", nazev: "Čokoláda", gramyNaPorce: 20, poznamka: null, alergeny: ["mleko", "orisky"], alergenyStopy: ["mleko", "orisky"] },
+      // skutečné mléko jako surovina – stopa mléka už není jen stopa
+      { foodId: "b", nazev: "Mléko", gramyNaPorce: 200, poznamka: null, alergeny: ["mleko"], alergenyStopy: [] },
+      { foodId: "c", nazev: "Mouka", gramyNaPorce: 60, poznamka: null, alergeny: ["lepek"], alergenyStopy: [] },
+    ]);
+    expect(stopyReceptu(r)).toEqual(["orisky"]);
+  });
+
+  it("jmenná síť také ruší stopu (jogurt jako surovina → mleko je ingredience)", () => {
+    const r = recept(1, [
+      { foodId: "a", nazev: "Čokoláda", gramyNaPorce: 20, poznamka: null, alergeny: ["mleko"], alergenyStopy: ["mleko"] },
+      { foodId: "b", nazev: "Jogurt bílý", gramyNaPorce: 150, poznamka: null, alergeny: [], alergenyStopy: [] },
+    ]);
+    expect(stopyReceptu(r)).toEqual([]);
+  });
+
+  it("recept bez stop → prázdné pole", () => {
+    const r = recept(1, [
+      { foodId: "a", nazev: "Rýže", gramyNaPorce: 100, poznamka: null, alergeny: [] },
+    ]);
+    expect(stopyReceptu(r)).toEqual([]);
   });
 });

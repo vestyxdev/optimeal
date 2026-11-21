@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { PotvrdDialog } from "@/components/ui/Dialog";
 import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
-import { alergenyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
+import { alergenyReceptu, stopyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
@@ -61,9 +61,13 @@ export function ReceptDetail() {
   const ceny = dotazCeny.data ?? null;
   const vlastni = recept !== null && uzivatel !== null && recept.userId === uzivatel.id;
   const alergeny = recept ? alergenyReceptu(recept) : [];
-  const mojeAlergeny = alergeny.filter((a) =>
-    efektivniAlergieProfilu(dotazProfil.data).includes(a),
-  );
+  const stopy = recept ? stopyReceptu(recept) : [];
+  const stopySet = new Set(stopy);
+  // „alergeny" řádek = jen skutečné ingredience; stopové jsou zvlášť
+  const obsahAlergeny = alergeny.filter((a) => !stopySet.has(a));
+  const moje = efektivniAlergieProfilu(dotazProfil.data);
+  const mojeAlergeny = obsahAlergeny.filter((a) => moje.includes(a));
+  const mojeStopy = stopy.filter((a) => moje.includes(a));
 
   const kroky = recept
     ? recept.postup
@@ -98,13 +102,22 @@ export function ReceptDetail() {
               </span>
             )}
             <span>zdroj: {recept?.zdroj}</span>
-            {alergeny.length > 0 && (
-              <span>alergeny: {alergeny.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}</span>
+            {obsahAlergeny.length > 0 && (
+              <span>alergeny: {obsahAlergeny.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}</span>
+            )}
+            {stopy.length > 0 && (
+              <span>může obsahovat stopy: {stopy.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}</span>
             )}
             {mojeAlergeny.length > 0 && (
               <Badge tono="danger">
                 <TriangleAlert className="size-3" aria-hidden />
                 obsahuje vaše alergeny: {mojeAlergeny.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+              </Badge>
+            )}
+            {mojeStopy.length > 0 && (
+              <Badge tono="warning">
+                <TriangleAlert className="size-3" aria-hidden />
+                může obsahovat stopy vašeho alergenu: {mojeStopy.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
               </Badge>
             )}
           </div>

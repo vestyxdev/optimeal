@@ -23,6 +23,8 @@ export interface Surovina {
   gramyNaPorce: number;
   poznamka: string | null;
   alergeny?: string[];
+  /** podmnožina alergeny = jen stopy („může obsahovat", ne ingredience) */
+  alergenyStopy?: string[];
   obrazek?: string | null;
 }
 
@@ -54,7 +56,7 @@ interface RadkaReceptu {
     food_id: string;
     gramy_na_porce: number;
     poznamka: string | null;
-    potravina: { nazev: string; alergeny?: string[]; obrazek?: string | null } | null;
+    potravina: { nazev: string; alergeny?: string[]; alergeny_stopy?: string[]; obrazek?: string | null } | null;
   }[];
 }
 
@@ -77,6 +79,7 @@ function naRecept(r: RadkaReceptu): Recept {
         gramyNaPorce: Number(s.gramy_na_porce),
         poznamka: s.poznamka,
         alergeny: s.potravina?.alergeny ?? [],
+        alergenyStopy: s.potravina?.alergeny_stopy ?? [],
         obrazek: s.potravina?.obrazek ?? null,
       })),
   };
@@ -94,9 +97,26 @@ export function alergenyReceptu(recept: Recept): string[] {
   return [...vysledek];
 }
 
+/** Stopové alergeny receptu – sjednocení alergeny_stopy surovin mínus
+ *  alergeny, které jsou skutečnou ingrediencí některé suroviny
+ *  (stopa mléka v čokoládě u receptu s mlékem je stále „obsahuje"). */
+export function stopyReceptu(recept: Recept): string[] {
+  const stopy = new Set(recept.suroviny.flatMap((s) => s.alergenyStopy ?? []));
+  const obsah = new Set(
+    recept.suroviny.flatMap((s) =>
+      (s.alergeny ?? []).filter((a) => !(s.alergenyStopy ?? []).includes(a)),
+    ),
+  );
+  // jmenná síť – stejná jako v alergenyReceptu – také znamená ingredienci
+  for (const klic of Object.keys(ALERGEN_Z_NAZVU)) {
+    if (recept.suroviny.some((s) => nazevNasvedcujeAlergenu(s.nazev, klic))) obsah.add(klic);
+  }
+  return [...stopy].filter((t) => !obsah.has(t));
+}
+
 /** Select receptů vč. miniatur surovin; před migrací 0009 fallback bez obrazku. */
 const RECEPT_SELECT =
-  "id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny, obrazek))";
+  "id, user_id, nazev, popis, kategorie, porce, cas_minuty, postup, zdroj, suroviny:recipe_ingredients(food_id, gramy_na_porce, poznamka, potravina:foods(nazev, alergeny, alergeny_stopy, obrazek))";
 const RECEPT_SELECT_BEZ_OBRAZKU = RECEPT_SELECT.replace(", obrazek)", ")");
 
 /** Spustí dotaz; když DB ještě nemá foods.obrazek, zkusí select bez něj. */
