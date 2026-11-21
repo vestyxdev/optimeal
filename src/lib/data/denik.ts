@@ -75,6 +75,10 @@ export interface PoznamkaDeniku extends Makra100 {
   zapsanoDne: string;
   /** ISO timestamp přesného času zápisu */
   zapsanoAt: string;
+  /** alergeny napojené potraviny (join přes food_id) – pro varování v deníku */
+  alergeny?: string[];
+  /** podmnožina jen ze stop – „může obsahovat", jemnější varování */
+  alergenyStopy?: string[];
 }
 
 /** Položka formuláře před zápisem (z výběru z katalogu). */
@@ -262,6 +266,7 @@ interface RadkaDeniku {
   tuky: number | string;
   zapsano_dne: string;
   zapsano_at: string;
+  potravina?: { alergeny?: string[] | null; alergeny_stopy?: string[] | null } | null;
 }
 
 function naPoznamku(r: RadkaDeniku): PoznamkaDeniku {
@@ -278,11 +283,14 @@ function naPoznamku(r: RadkaDeniku): PoznamkaDeniku {
     tuky: Number(r.tuky),
     zapsanoDne: r.zapsano_dne,
     zapsanoAt: r.zapsano_at,
+    alergeny: r.potravina?.alergeny ?? [],
+    alergenyStopy: r.potravina?.alergeny_stopy ?? [],
   };
 }
 
 const SLOUPCE_DENIKU =
-  "id, food_id, nazev, obrazek, typ_jidla, mnozstvi_g, kalorie, bilkoviny, sacharidy, tuky, zapsano_dne, zapsano_at";
+  "id, food_id, nazev, obrazek, typ_jidla, mnozstvi_g, kalorie, bilkoviny, sacharidy, tuky, zapsano_dne, zapsano_at," +
+  " potravina:foods(alergeny, alergeny_stopy)";
 
 /** Všechny záznamy deníku pro daný den (ISO YYYY-MM-DD). */
 export async function nactiDenik(datum: string): Promise<PoznamkaDeniku[]> {
@@ -295,7 +303,7 @@ export async function nactiDenik(datum: string): Promise<PoznamkaDeniku[]> {
     .eq("zapsano_dne", datum)
     .order("zapsano_at", { ascending: true });
   if (error) throw new Error(`Deník se nepodařilo načíst: ${error.message}`);
-  return (data ?? []).map((r) => naPoznamku(r as RadkaDeniku));
+  return (data ?? []).map((r) => naPoznamku(r as unknown as RadkaDeniku));
 }
 
 /** Záznamy za rozsah dnů včetně krajů (trend posledních N dnů). */
@@ -314,7 +322,7 @@ export async function nactiDenikRozsah(
     .order("zapsano_dne", { ascending: true })
     .order("zapsano_at", { ascending: true });
   if (error) throw new Error(`Deník se nepodařilo načíst: ${error.message}`);
-  return (data ?? []).map((r) => naPoznamku(r as RadkaDeniku));
+  return (data ?? []).map((r) => naPoznamku(r as unknown as RadkaDeniku));
 }
 
 /**

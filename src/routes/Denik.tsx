@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, NotebookPen, Plus, Repeat, Target, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { GramazPill } from "@/components/ui/GramazPill";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -28,7 +28,8 @@ import {
   type PoznamkaDeniku,
   type TypJidla,
 } from "@/lib/data/denik";
-import { nactiKatalogPotravin } from "@/lib/data/potraviny";
+import { ALERGEN_NAZVY, nactiKatalogPotravin } from "@/lib/data/potraviny";
+import { obsahujeAlergen } from "@/lib/generator/generator";
 import { efektivniAlergieProfilu, nactiAktivniCile, nactiProfil } from "@/lib/data/profil";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
 import { lazyKomponenta } from "@/lib/lazyRoute";
@@ -63,6 +64,10 @@ export function Denik() {
   });
   const dotazCile = useQuery({ queryKey: ["cile"], queryFn: nactiAktivniCile });
   const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
+  const mojeAlergie = useMemo(
+    () => efektivniAlergieProfilu(dotazProfil.data),
+    [dotazProfil.data],
+  );
   // trend – 7 dnů končících zvoleným dnem (lazy graf pod souhrnem)
   const dotazTyden = useQuery({
     queryKey: ["denik", "tyden", datum],
@@ -334,6 +339,28 @@ export function Denik() {
                         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-12" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-fg">{p.nazev}</p>
+                          {(() => {
+                            const stopySet = new Set(p.alergenyStopy ?? []);
+                            const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
+                            const obsah = shoda.filter((a) => !stopySet.has(a));
+                            const stopy = shoda.filter((a) => stopySet.has(a));
+                            return (
+                              <>
+                                {obsah.length > 0 && (
+                                  <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger">
+                                    <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                                    obsahuje {obsah.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                                  </p>
+                                )}
+                                {stopy.length > 0 && (
+                                  <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warning">
+                                    <TriangleAlert className="size-3 shrink-0" aria-hidden />
+                                    může obsahovat stopy: {stopy.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                           <p className="text-xs tabular-nums text-muted">
                             {formatujKcal(m.kalorie)} kcal · B {formatujMakro(m.bilkoviny)} · S{" "}
                             {formatujMakro(m.sacharidy)} · T {formatujMakro(m.tuky)}
@@ -376,7 +403,7 @@ export function Denik() {
             cile={cile}
             typPocatecni={zapisOtevren}
             datumPocatecni={datum}
-            mojeAlergie={efektivniAlergieProfilu(dotazProfil.data)}
+            mojeAlergie={mojeAlergie}
             naZavreni={() => setZapisOtevren(null)}
           />
         ))}
