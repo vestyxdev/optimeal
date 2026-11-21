@@ -12,6 +12,7 @@ import {
   type TydenniPlan,
 } from "@/lib/generator/generator";
 import { formatujCastku, formatujKcal, formatujKc, formatujMakro, formatujStariCeny } from "@/lib/cena";
+import { sklonuj } from "@/lib/sklonovani";
 import { formatujMnozstvi, spocitejNakupniBaleni } from "@/lib/nakupniBaleni";
 
 /**
@@ -53,6 +54,11 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
       return min === null || p < min ? p : min;
     }, null),
   );
+  // položky s cenou ale bez pozorování = jen typická (bezna_cena),
+  // ne živá cena obchodu – poctivě zmínit
+  const jenTypicke = polozky.filter(
+    (x) => x.cenaZa100g !== null && !x.pozorovanoAt,
+  ).length;
 
   return (
     <Card className="p-0">
@@ -148,12 +154,14 @@ export function KartaNakupu({ polozky, soucetPopisek }: { polozky: NakupniPolozk
         </tfoot>
       </table>
       </div>
-      {(bezCeny > 0 || stariSouctu) && (
+      {(bezCeny > 0 || stariSouctu || jenTypicke > 0) && (
         <div className="border-t border-border bg-surface-2 px-5 py-2 text-xs text-muted">
           {bezCeny > 0 &&
             `${bezCeny} ${tvarPolozka} nemá známou cenu – součet zahrnuje jen oceněné položky.`}
           {stariSouctu &&
             `${bezCeny > 0 ? " " : ""}Ceny pozorovány ${stariSouctu} – ověřte aktuálnost v obchodě.`}
+          {jenTypicke > 0 &&
+            `${bezCeny > 0 || stariSouctu ? " " : ""}U ${jenTypicke} ${sklonuj(jenTypicke, "položky", "položek", "položek")} jde o typickou cenu.`}
         </div>
       )}
     </Card>

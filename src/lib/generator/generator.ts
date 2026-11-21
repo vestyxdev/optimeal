@@ -1007,7 +1007,10 @@ export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
     cenaBezna: cenaOk
       ? Math.round((puvodni ?? p.aktualniCena) * k * 100) / 100
       : 0,
-    obchod: slevaOk ? p.obchod : null,
+    // obchod držíme u každé reálné ceny (nej.cena z view), ne jen u
+    // slevy – nákupní seznam jinak nenajde živé pozorování
+    // běžné ceny a zůstane na zastaralém snapshotu
+    obchod: cenaOk ? p.obchod : null,
     sleva: slevaOk,
     obrazek: p.obrazek ?? null,
     baleniG: p.baleniG ?? null,

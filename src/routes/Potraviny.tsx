@@ -544,9 +544,12 @@ function RadekPotraviny({
           </span>
         )}
         {(() => {
+          // bez pozorování ukazuje aktualniCena jen typickou (bezna_cena)
+          // – poctivě odlišit od živé ceny obchodu
           const podtitulek = [
             p.obchod && !p.sleva ? p.obchod : null,
-            formatujStariCeny(p.pozorovanoAt),
+            formatujStariCeny(p.pozorovanoAt) ??
+              (p.pozorovanoAt == null && p.aktualniCena > 0 ? "typická cena" : null),
           ]
             .filter(Boolean)
             .join(" · ");
@@ -629,7 +632,8 @@ function KartaPotraviny({
               {(() => {
                 const podtitulek = [
                   p.obchod && !p.sleva ? p.obchod : null,
-                  formatujStariCeny(p.pozorovanoAt),
+                  formatujStariCeny(p.pozorovanoAt) ??
+                    (p.pozorovanoAt == null && p.aktualniCena > 0 ? "typická cena" : null),
                 ]
                   .filter(Boolean)
                   .join(" · ");

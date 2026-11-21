@@ -45,7 +45,9 @@ function mapAktualniCeny(r: RadkaAktualniCeny): Potravina {
     kalorie: Number(r.kalorie),
     beznaCena: Number(r.bezna_cena),
     aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
-    obchod: r.sleva ? r.obchod : null,
+    // obchod držíme i u běžné ceny – je to reálný zdroj ceny
+    // a bez něj jídlo nemůže najít své živé pozorování (Cenovka)
+    obchod: r.obchod ?? null,
     sleva: Boolean(r.sleva),
     alergeny: r.alergeny ?? [],
     alergenyStopy: r.alergeny_stopy ?? [],
