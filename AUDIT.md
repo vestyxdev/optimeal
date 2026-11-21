@@ -270,3 +270,13 @@ Ověřeno: tsc clean · 373/373 testů · git strom čistý.
 - Testy: +2 (mapování traces→stopy, dedupe ingredience/stopa).
 
 Ověřeno: tsc clean · 374/374 testů · build clean · git strom čistý.
+
+
+## Kolo: stopy - recepty + invariant + fantom-kalorie oprava (21. 11. 2026)
+
+- **stopyReceptu** (recepty.ts): union alergeny_stopy surovin minus skutecne ingredience (tagy i jmenna sit). ReceptDetail/Recepty/Mealprep karty vari zvlast: danger "obsahuje" vs warning "muze obsahovat stopy".
+- **Picker**: radek s kolizi "stopy" ukazuje jemnejsi warning text; "obsahuje" zustava danger. plany.ts mapuje alergeny_stopy do Potravina.
+- **Invariant stopy subsetof alergeny**: --stopy rezim backfillu zapisoval stopy bez unionu do alergeny - opraveno, zpetne sjednoceno u 47 radku; kvalita_dat.mjs hlasi poruseni jako novou sekci (0).
+- **Fantom-kalorie re-fetch**: oprav_fantom_kalorie_off.mjs - pro 73 EAN fantomu stahne cerstve OFF nutriments, prepise jen vnitrne konzistentni odpovedi (3 opraveny, 33 OFF-nekonzistentni zustavaji karantenou, 12 stejnych/nenalezenych).
+
+Overeno: tsc clean - 377/377 testu - git strom cisty.
