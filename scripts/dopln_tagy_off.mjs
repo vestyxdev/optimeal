@@ -15,8 +15,11 @@ const pool = new pg.Pool({
 });
 
 const DRY = process.argv.includes("--dry");
+const STOPY = process.argv.includes("--stopy");
 const LIM = +(process.argv.find((a) => a.startsWith("--limit"))?.split("=")[1] ?? 0);
-const STATE = "scripts/.dopln_tagy_off.state.json";
+const STATE = STOPY
+  ? "scripts/.dopln_stopy_off.state.json"
+  : "scripts/.dopln_tagy_off.state.json";
 
 /** OFF alergeny → naše EU-14 klíče (kopie z ingest_off.mjs). */
 const MAPA_ALERGENU = {
@@ -29,16 +32,18 @@ const MAPA_ALERGENU = {
 };
 
 function tagyZ(prod) {
-  const alergeny = new Set(
-    [...(prod.allergens_tags ?? []), ...(prod.traces_tags ?? [])]
-      .map((t) => MAPA_ALERGENU[t]).filter(Boolean));
+  const mapuj = (t) => t.map((x) => MAPA_ALERGENU[x]).filter(Boolean);
+  const ingredience = new Set(mapuj(prod.allergens_tags ?? []));
+  // stopy ⊆ alergeny – co je ingredience, není „jen stopa"
+  const stopy = new Set(mapuj(prod.traces_tags ?? []).filter((t) => !ingredience.has(t)));
+  const alergeny = new Set([...ingredience, ...stopy]);
   const anal = new Set(prod.ingredients_analysis_tags ?? []);
   const labels = new Set(prod.labels_tags ?? []);
   const diety = new Set();
   if (anal.has("en:vegan") || labels.has("en:vegan")) { diety.add("vegansky"); diety.add("vegetariansky"); }
   else if (anal.has("en:vegetarian") || labels.has("en:vegetarian")) diety.add("vegetariansky");
   if (labels.has("en:gluten-free") && !alergeny.has("lepek")) diety.add("bezlepkovy");
-  return { alergeny, diety };
+  return { alergeny, stopy, diety };
 }
 
 const hotovo = new Set();
@@ -46,11 +51,20 @@ try {
   for (const ean of JSON.parse(fs.readFileSync(STATE, "utf8"))) hotovo.add(ean);
 } catch { /* nový běh */ }
 
-const { rows } = await pool.query(`
-  select id, nazev, ean, alergeny, diety from public.foods
-  where ean is not null
-    and (cardinality(alergeny) = 0 or cardinality(diety) = 0)
-  order by id`);
+const { rows } = await pool.query(
+  STOPY
+    ? // --stopy: zpětně doplnit alergeny_stopy u všech EAN řádků,
+      //   které ještě stopová data nemají (starší backfill sloučil
+      //   traces do alergeny bez rozlišení)
+      `select id, nazev, ean, alergeny, diety from public.foods
+       where ean is not null
+         and cardinality(alergeny_stopy) = 0
+       order by id`
+    : `select id, nazev, ean, alergeny, diety from public.foods
+       where ean is not null
+         and (cardinality(alergeny) = 0 or cardinality(diety) = 0)
+       order by id`,
+);
 const fronta = rows.filter((r) => !hotovo.has(r.ean)).slice(0, LIM || undefined);
 console.log(`K dotázání: ${fronta.length} EAN (celkem ${rows.length}, hotovo ${hotovo.size})`);
 
@@ -88,18 +102,36 @@ for (const [i, row] of fronta.entries()) {
   }
   if (prod) {
     nalezeno++;
-    const { alergeny, diety } = tagyZ(prod);
-    const noveAlg = [...alergeny].filter((a) => !(row.alergeny ?? []).includes(a));
-    const noveDiet = [...diety].filter((d) => !(row.diety ?? []).includes(d));
-    if (noveAlg.length > 0 || noveDiet.length > 0) {
-      const alg = [...new Set([...(row.alergeny ?? []), ...noveAlg])];
-      const diet = [...new Set([...(row.diety ?? []), ...noveDiet])];
-      for (const a of noveAlg) statAlg.set(a, (statAlg.get(a) ?? 0) + 1);
-      for (const d of noveDiet) statDiet.set(d, (statDiet.get(d) ?? 0) + 1);
-      if (!DRY) {
-        await pool.query("update public.foods set alergeny=$2, diety=$3 where id=$1", [row.id, alg, diet]);
+    const { alergeny, stopy, diety } = tagyZ(prod);
+    if (STOPY) {
+      // doplň jen stopové pole; alergeny/diety se nemění
+      if (stopy.size > 0) {
+        if (!DRY) {
+          await pool.query(
+            "update public.foods set alergeny_stopy=$2 where id=$1",
+            [row.id, [...stopy]],
+          );
+        }
+        for (const a of stopy) statAlg.set(a, (statAlg.get(a) ?? 0) + 1);
+        aktualizovano++;
       }
-      aktualizovano++;
+    } else {
+      const noveAlg = [...alergeny].filter((a) => !(row.alergeny ?? []).includes(a));
+      const noveDiet = [...diety].filter((d) => !(row.diety ?? []).includes(d));
+      const noveStopy = [...stopy];
+      if (noveAlg.length > 0 || noveDiet.length > 0 || noveStopy.length > 0) {
+        const alg = [...new Set([...(row.alergeny ?? []), ...noveAlg])];
+        const diet = [...new Set([...(row.diety ?? []), ...noveDiet])];
+        for (const a of noveAlg) statAlg.set(a, (statAlg.get(a) ?? 0) + 1);
+        for (const d of noveDiet) statDiet.set(d, (statDiet.get(d) ?? 0) + 1);
+        if (!DRY) {
+          await pool.query(
+            "update public.foods set alergeny=$2, alergeny_stopy=$3, diety=$4 where id=$1",
+            [row.id, alg, noveStopy, diet],
+          );
+        }
+        aktualizovano++;
+      }
     }
   }
   // checkpoint podle iterace – i při nízkém výnosu je postup trvale uložen

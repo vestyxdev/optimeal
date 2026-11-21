@@ -24,6 +24,7 @@ describe("parsujOffProdukty", () => {
       tuky: 0.2,
       obrazek: "https://images.off.org/skyr.jpg",
       alergeny: [],
+      stopy: [],
       diety: [],
     });
   });
@@ -38,9 +39,25 @@ describe("parsujOffProdukty", () => {
         ingredients_analysis_tags: ["en:vegetarian"],
       },
     ]);
-    // traces („může obsahovat") bereme konzervativně jako alergen
+    // traces („může obsahovat") bereme konzervativně jako alergen,
+    // ale v `stopy` jsou označené jako stopové (subset alergeny)
     expect(v?.alergeny.sort()).toEqual(["lepek", "mleko", "orisky"]);
+    expect(v?.stopy.sort()).toEqual(["lepek", "orisky"]);
     expect(v?.diety).toEqual(["vegetariansky"]);
+  });
+
+  it("alergen v ingrediencích se do stop nepropíše – stopy ⊆ alergeny \\ ingredience", () => {
+    const v = parsujOffProdukty([
+      {
+        product_name: "Čokoláda",
+        nutriments: { "energy-kcal_100g": 500 },
+        // OFF někdy listuje stejný alergen v obou polích – ingredience vítězí
+        allergens_tags: ["en:milk"],
+        traces_tags: ["en:milk", "en:soybeans"],
+      },
+    ]);
+    expect(v?.alergeny.sort()).toEqual(["mleko", "soja"]);
+    expect(v?.stopy).toEqual(["soja"]);
   });
 
   it("en:vegan znamená vegansky + vegetariansky; gluten-free label bez lepku → bezlepkovy", () => {

@@ -208,10 +208,12 @@ function mapuj(p) {
 
   const ean = normalizujEan(p.code);
   // allergens_tags = obsahuje; traces_tags = „může obsahovat stopy" –
-  // pro alergika se počítá obojí (en:none se mapováním zahodí).
-  const alergeny = [...new Set([...(p.allergens_tags ?? []), ...(p.traces_tags ?? [])]
-    .map((t) => MAPA_ALERGENU[t])
-    .filter(Boolean))];
+  // alergeny zůstává unionem (varování konzervativní), stopy navíc
+  // označí, co je jen stopa (en:none se mapováním zahodí).
+  const mapujA = (t) => (t ?? []).map((x) => MAPA_ALERGENU[x]).filter(Boolean);
+  const ingredience = new Set(mapujA(p.allergens_tags));
+  const stopy = new Set(mapujA(p.traces_tags).filter((t) => !ingredience.has(t)));
+  const alergeny = [...new Set([...ingredience, ...stopy])];
 
   const anal = new Set(p.ingredients_analysis_tags ?? []);
   const labels = new Set(p.labels_tags ?? []);
@@ -232,6 +234,7 @@ function mapuj(p) {
     zdroj: "openfoodfacts",
     schvaleno: true,
     alergeny,
+    alergeny_stopy: [...stopy],
     diety,
     obrazek: p.image_front_small_url || p.image_small_url || p.image_front_url || p.image_url || null,
     baleni_g: baleniG(p),
@@ -259,14 +262,14 @@ async function nactiExistujici() {
 
 async function vlozDavku(radky) {
   if (radky.length === 0) return 0;
-  const cols = ["nazev", "kategorie", "bilkoviny", "sacharidy", "tuky", "kalorie", "bezna_cena", "ean", "zdroj", "schvaleno", "alergeny", "diety", "obrazek", "baleni_g"];
+  const cols = ["nazev", "kategorie", "bilkoviny", "sacharidy", "tuky", "kalorie", "bezna_cena", "ean", "zdroj", "schvaleno", "alergeny", "alergeny_stopy", "diety", "obrazek", "baleni_g"];
   const vals = [];
   const params = [];
   radky.forEach((r, i) => {
     const o = i * cols.length;
     vals.push(`(${cols.map((_, j) => `$${o + j + 1}`).join(",")})`);
     params.push(r.nazev, r.kategorie, r.bilkoviny, r.sacharidy, r.tuky, r.kalorie,
-      r.bezna_cena, r.ean, r.zdroj, r.schvaleno, r.alergeny, r.diety, r.obrazek, r.baleni_g);
+      r.bezna_cena, r.ean, r.zdroj, r.schvaleno, r.alergeny, r.alergeny_stopy, r.diety, r.obrazek, r.baleni_g);
   });
   // EAN konflikt = aktualizace dat (novější OFF info); jiný konflikt (název) = přeskoč
   const q = `
@@ -275,7 +278,7 @@ async function vlozDavku(radky) {
     on conflict (ean) where ean is not null do update set
       bilkoviny = excluded.bilkoviny, sacharidy = excluded.sacharidy,
       tuky = excluded.tuky, kalorie = excluded.kalorie,
-      alergeny = excluded.alergeny, diety = excluded.diety,
+      alergeny = excluded.alergeny, alergeny_stopy = excluded.alergeny_stopy, diety = excluded.diety,
       obrazek = coalesce(excluded.obrazek, foods.obrazek),
       kategorie = excluded.kategorie,
       baleni_g = coalesce(excluded.baleni_g, foods.baleni_g)

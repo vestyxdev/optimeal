@@ -26,7 +26,7 @@ export const ALERGEN_NAZVY: Record<string, string> = {
 export const SLOUPCE_AKTUALNI_CENY =
   "food_id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie," +
   " bezna_cena, aktualni_cena, obchod, sleva, platnost_do, zdroj_ceny," +
-  " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, diety, ean," +
+  " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, alergeny_stopy, diety, ean," +
   " obrazek, baleni_g, puvodni_cena, sleva_procenta, puvodni_zdroj";
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
@@ -58,6 +58,7 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     vytvoril: (r.vytvoril ?? null) as string | null,
     zdroj: (r.zdroj_potraviny as string) ?? "manual",
     alergeny: (r.alergeny as string[]) ?? [],
+    alergenyStopy: (r.alergeny_stopy as string[]) ?? [],
     diety: (r.diety as string[]) ?? [],
     obrazek: (r.obrazek ?? null) as string | null,
     ean: (r.ean ?? null) as string | null,
@@ -100,6 +101,7 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
     vytvoril: (r.vytvoril ?? null) as string | null,
     zdroj: (r.zdroj_potraviny as string) ?? "manual",
     alergeny: (r.alergeny as string[]) ?? [],
+    alergenyStopy: (r.alergeny_stopy as string[]) ?? [],
     diety: (r.diety as string[]) ?? [],
     obrazek: (r.obrazek ?? null) as string | null,
     ean: (r.ean ?? null) as string | null,
@@ -193,6 +195,8 @@ export async function upravPotravinu(
     baleniG?: number | null;
     /** tagy dohledané z OFF – prázdné/undefined = stávající neměnit */
     alergeny?: string[];
+    /** „může obsahovat stopy" (OFF traces_tags) – subset alergeny */
+    stopy?: string[];
     diety?: string[];
   },
 ): Promise<void> {
@@ -212,6 +216,7 @@ export async function upravPotravinu(
   };
   if (p.obrazek !== undefined) payload.obrazek = p.obrazek;
   if (p.alergeny?.length) payload.alergeny = p.alergeny;
+  if (p.stopy !== undefined) payload.alergeny_stopy = p.stopy;
   if (p.diety?.length) payload.diety = p.diety;
 
   let { error } = await klient.from("foods").update(payload).eq("id", id);
@@ -258,6 +263,8 @@ export async function pridejPotravinu(p: {
   baleniG?: number | null;
   /** tagy dohledané z OFF – prázdné/undefined = nevyplňovat */
   alergeny?: string[];
+  /** „může obsahovat stopy" (OFF traces_tags) – subset alergeny */
+  stopy?: string[];
   diety?: string[];
 }): Promise<string> {
   const klient = supabase;
@@ -285,6 +292,7 @@ export async function pridejPotravinu(p: {
   };
   if (p.obrazek != null) payload.obrazek = p.obrazek;
   if (p.alergeny?.length) payload.alergeny = p.alergeny;
+  if (p.stopy !== undefined) payload.alergeny_stopy = p.stopy;
   if (p.diety?.length) payload.diety = p.diety;
 
   let { data, error } = await klient
@@ -330,6 +338,9 @@ export interface OffNalezenaPotravina {
   obrazek: string | null;
   /** EU-14 klíče alergenů z OFF allergens+traces (prázdné = OFF nic nemá). */
   alergeny: string[];
+  /** podmnožina alergeny, která pochází jen z OFF traces_tags –
+   *  „může obsahovat stopy", ne skutečná ingredience. */
+  stopy: string[];
   /** dietní klíče z OFF analysis/labels (prázdné = OFF nic nemá). */
   diety: string[];
 }
@@ -356,14 +367,17 @@ const OFF_ALERGEN_MAPA: Record<string, string> = {
   "en:molluscs": "vodnany",
 };
 
-/** OFF allergens+traces+analysis+labels → naše alergeny/diety.
- *  „may contain" (traces) bereme konzervativně jako alergen. */
-function tagyZOff(p: OffProdukt): { alergeny: string[]; diety: string[] } {
-  const alergeny = new Set(
-    [...(p.allergens_tags ?? []), ...(p.traces_tags ?? [])]
-      .map((t) => OFF_ALERGEN_MAPA[t])
-      .filter((t): t is string => Boolean(t)),
-  );
+/** OFF allergens+traces+analysis+labels → naše alergeny/stopy/diety.
+ *  „may contain" (traces) bereme konzervativně jako alergen, ale
+ *  evidujeme je v `stopy`, aby UI umělo odlišit „obsahuje" od
+ *  „může obsahovat stopy". Stopy ⊆ alergeny – item, který je
+ *  současně ingrediencí, jako stopa nefiguruje. */
+function tagyZOff(p: OffProdukt): { alergeny: string[]; stopy: string[]; diety: string[] } {
+  const mapuj = (t: string[]) =>
+    t.map((x) => OFF_ALERGEN_MAPA[x]).filter((x): x is string => Boolean(x));
+  const ingredience = new Set(mapuj(p.allergens_tags ?? []));
+  const stopy = new Set(mapuj(p.traces_tags ?? []).filter((t) => !ingredience.has(t)));
+  const alergeny = new Set([...ingredience, ...stopy]);
   const anal = new Set(p.ingredients_analysis_tags ?? []);
   const labels = new Set(p.labels_tags ?? []);
   const diety = new Set<string>();
@@ -374,7 +388,7 @@ function tagyZOff(p: OffProdukt): { alergeny: string[]; diety: string[] } {
     diety.add("vegetariansky");
   }
   if (labels.has("en:gluten-free") && !alergeny.has("lepek")) diety.add("bezlepkovy");
-  return { alergeny: [...alergeny], diety: [...diety] };
+  return { alergeny: [...alergeny], stopy: [...stopy], diety: [...diety] };
 }
 
 const cisloOff = (v: unknown) => {
@@ -397,7 +411,7 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
   if (!Number.isFinite(kcal) || kcal <= 0) return null;
   const nazev = (p.product_name_cs ?? p.product_name ?? "").trim();
   if (!nazev) return null;
-  const { alergeny, diety } = tagyZOff(p);
+  const { alergeny, stopy, diety } = tagyZOff(p);
   return {
     nazev,
     kalorie: Math.round(kcal),
@@ -406,6 +420,7 @@ function parsujOffProdukt(p: OffProdukt): OffNalezenaPotravina | null {
     tuky: cisloOff(n.fat_100g),
     obrazek: (p.image_small_url ?? p.image_front_small_url ?? "").trim() || null,
     alergeny,
+    stopy,
     diety,
   };
 }

@@ -432,6 +432,53 @@ function AkcePotraviny({
   );
 }
 
+/** Alergeny potraviny – rozlišuje „obsahuje" (ingredience) od
+ *  „může obsahovat stopy" (OFF traces_tags). Kolize s uživatelovou
+ *  alergií se ukáže jako varování; stopová kolize dostane jemnější
+ *  text, ale varuje taky – pro alergika je informace relevantní. */
+function AlergenInfo({
+  p,
+  shoda,
+  className = "",
+}: {
+  p: KatalogPotravina;
+  shoda: string[];
+  className?: string;
+}) {
+  const stopySet = new Set(p.alergenyStopy ?? []);
+  const nazvy = (a: string) => ALERGEN_NAZVY[a] ?? a;
+  const obsahShoda = shoda.filter((a) => !stopySet.has(a));
+  const stopyShoda = shoda.filter((a) => stopySet.has(a));
+  const obsah = (p.alergeny ?? []).filter((a) => !stopySet.has(a));
+  const stopy = [...stopySet];
+  return (
+    <>
+      {obsahShoda.length > 0 && (
+        <span className={`block text-xs font-semibold text-danger ${className}`}>
+          <TriangleAlert className="mr-1 inline size-3" aria-hidden />
+          obsahuje váš alergen: {obsahShoda.map(nazvy).join(", ")}
+        </span>
+      )}
+      {stopyShoda.length > 0 && (
+        <span className={`block text-xs font-semibold text-warning ${className}`}>
+          <TriangleAlert className="mr-1 inline size-3" aria-hidden />
+          může obsahovat stopy vašeho alergenu: {stopyShoda.map(nazvy).join(", ")}
+        </span>
+      )}
+      {shoda.length === 0 && obsah.length > 0 && (
+        <span className={`block text-xs text-muted ${className}`}>
+          alergeny: {obsah.map(nazvy).join(", ")}
+        </span>
+      )}
+      {shoda.length === 0 && stopy.length > 0 && (
+        <span className={`block text-xs text-muted ${className}`}>
+          může obsahovat stopy: {stopy.map(nazvy).join(", ")}
+        </span>
+      )}
+    </>
+  );
+}
+
 function RadekPotraviny({
   p,
   uzivatelId,
@@ -467,18 +514,7 @@ function RadekPotraviny({
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
           ))}
         </span>
-        {shoda.length > 0 ? (
-          <span className="block text-xs font-semibold text-danger">
-            <TriangleAlert className="mr-1 inline size-3" aria-hidden />
-            obsahuje váš alergen: {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
-          </span>
-        ) : (
-          (p.alergeny ?? []).length > 0 && (
-            <span className="block text-xs text-muted">
-              alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
-            </span>
-          )
-        )}
+        <AlergenInfo p={p} shoda={shoda} />
         <PasekMakro p={p} />
       </td>
       <td className="px-4 py-2.5 text-muted">
@@ -567,18 +603,7 @@ function KartaPotraviny({
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
             ))}
           </p>
-          {shoda.length > 0 ? (
-            <p className="mt-0.5 text-xs font-semibold text-danger">
-              <TriangleAlert className="mr-1 inline size-3" aria-hidden />
-              obsahuje váš alergen: {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
-            </p>
-          ) : (
-            (p.alergeny ?? []).length > 0 && (
-              <p className="mt-0.5 text-xs text-muted">
-                alergeny: {(p.alergeny ?? []).map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
-              </p>
-            )
-          )}
+          <AlergenInfo p={p} shoda={shoda} className="mt-0.5" />
           <PasekMakro p={p} />
           <div className="mt-2 flex items-baseline justify-between text-sm">
             <span className="tabular-nums text-muted">
@@ -634,7 +659,7 @@ function FormNovePotraviny({
   // undefined = nebylo dohledáno (u editace ponechat stávající obrázek)
   const [obrazek, setObrazek] = useState<string | null | undefined>(undefined);
   // tagy dohledané z OFF – ukládat jen když je OFF skutečně vrátilo
-  const [offTagy, setOffTagy] = useState<{ alergeny: string[]; diety: string[] } | null>(null);
+  const [offTagy, setOffTagy] = useState<{ alergeny: string[]; stopy: string[]; diety: string[] } | null>(null);
 
   // Při editaci dotáhnout uložený EAN (v aktualni_ceny sloupec není).
   const detail = useQuery({
@@ -702,8 +727,8 @@ function FormNovePotraviny({
     }));
     setObrazek(nalezena.obrazek);
     setOffTagy(
-      nalezena.alergeny.length > 0 || nalezena.diety.length > 0
-        ? { alergeny: nalezena.alergeny, diety: nalezena.diety }
+      nalezena.alergeny.length > 0 || nalezena.stopy.length > 0 || nalezena.diety.length > 0
+        ? { alergeny: nalezena.alergeny, stopy: nalezena.stopy, diety: nalezena.diety }
         : null,
     );
     setOffKandidati([]);
@@ -771,8 +796,8 @@ function FormNovePotraviny({
       }));
       setObrazek(nalezena.obrazek);
       setOffTagy(
-        nalezena.alergeny.length > 0 || nalezena.diety.length > 0
-          ? { alergeny: nalezena.alergeny, diety: nalezena.diety }
+        nalezena.alergeny.length > 0 || nalezena.stopy.length > 0 || nalezena.diety.length > 0
+          ? { alergeny: nalezena.alergeny, stopy: nalezena.stopy, diety: nalezena.diety }
           : null,
       );
       toast.success(`„${nalezena.nazev}" nalezen – kategorii a cenu doplňte ručně.`);

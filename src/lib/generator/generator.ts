@@ -56,8 +56,12 @@ export interface Potravina {
   pozorovanoAt?: string | null;
   /** kategorie z katalogu (maso_ryby, mlecne_vyrobky, …) */
   kategorie?: string;
-  /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) */
+  /** alergeny EU-14 (lepek, mleko, vejce, ryby, arasidy, …) – union
+   *  ingrediencí i stop, takže varování zůstává konzervativní */
   alergeny?: string[];
+  /** podmnožina alergeny pocházející jen z OFF traces_tags –
+   *  „může obsahovat stopy", ne skutečná ingredience */
+  alergenyStopy?: string[];
   /** vhodné pro diety (vegetariansky, vegansky, bezlepkovy) */
   diety?: string[];
   /** URL náhledu z OpenFoodFacts (migrace 0009) */
