@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Minus, Pencil, Plus, Printer, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, Minus, Pencil, Plus, Printer, ShoppingCart, Tag, Trash2, TriangleAlert, UtensilsCrossed } from "lucide-react";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
@@ -12,6 +12,7 @@ import { SkeletonText } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { alergenyReceptu, stopyReceptu, nactiRecept, smazRecept, spocitejRecept, KATEGORIE_NAZVY } from "@/lib/data/recepty";
 import { nactiPotravinyPodleId } from "@/lib/data/plany";
+import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
 import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
@@ -50,6 +51,33 @@ export function ReceptDetail() {
       toast.success("Recept byl smazán.");
       void klientQ.invalidateQueries({ queryKey: ["recepty"] });
       naviguj("/recepty");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const mutaceNakup = useMutation({
+    mutationFn: () => {
+      const r = recept!;
+      return ulozNakupniSeznam(
+        `Recept – ${r.nazev} (${effektivniPorce} ${sklonuj(effektivniPorce, "porce", "porce", "porcí")})`,
+        r.suroviny.map((s) => {
+          const p = ceny?.find((x) => x.id === s.foodId);
+          return {
+            foodId: s.foodId,
+            nazev: s.nazev,
+            gramy: Math.round(s.gramyNaPorce * effektivniPorce),
+            cenaZa100g: p?.aktualniCena ?? null,
+            obchod: p?.obchod ?? null,
+            jeSleva: p?.sleva ?? false,
+            kategorie: p?.kategorie ?? "ostatni",
+            baleniG: p?.baleniG ?? null,
+          };
+        }),
+      );
+    },
+    onSuccess: () => {
+      toast.success("Nákupní seznam uložen – najdete ho v sekci Nákup.");
+      void klientQ.invalidateQueries({ queryKey: ["me_nakupni_seznamy"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -152,6 +180,15 @@ export function ReceptDetail() {
                 destruktivni
               />
             </>
+          )}
+          {uzivatel !== null && recept !== null && (
+            <Button
+              varianta="outline"
+              onClick={() => mutaceNakup.mutate()}
+              disabled={mutaceNakup.isPending}
+            >
+              <ShoppingCart className="size-4" /> Do seznamu
+            </Button>
           )}
           <Button varianta="outline" onClick={() => window.print()}>
             <Printer className="size-4" /> Tisk
