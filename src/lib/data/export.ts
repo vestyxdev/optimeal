@@ -22,8 +22,9 @@ export async function exportujMujData(): Promise<Record<string, unknown>> {
     klient.from("shopping_list_items").select("*"),
     klient.from("recipes").select("*").eq("user_id", uid),
     klient.from("foods").select("*").eq("vytvoril", uid),
+    klient.from("weight_logs").select("*"),
   ]);
-  const [profil, cile, plany, denik, seznamy, polozky, recepty, potraviny] =
+  const [profil, cile, plany, denik, seznamy, polozky, recepty, potraviny, vahy] =
     dotazy;
   for (const r of dotazy) {
     if (r.error) throw new Error(`Export selhal: ${r.error.message}`);
@@ -53,6 +54,7 @@ export async function exportujMujData(): Promise<Record<string, unknown>> {
     vlastni_recepty: recepty.data,
     suroviny_receptu: suroviny,
     vlastni_potraviny: potraviny.data,
+    zaznamy_vahy: vahy.data,
   };
 }
 
