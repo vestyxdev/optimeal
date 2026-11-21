@@ -16,7 +16,7 @@ import { ulozNakupniSeznam } from "@/lib/data/nakup";
 import { dnesISO, receptNaPoznamku, zapisDoDeniku, type TypJidla } from "@/lib/data/denik";
 import { ALERGEN_NAZVY } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
-import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo } from "@/lib/cena";
+import { formatujCastku, formatujKcal, formatujMakro, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
 import { sklonuj } from "@/lib/sklonovani";
 
 /**
@@ -111,6 +111,15 @@ export function ReceptDetail() {
   });
 
   const ceny = dotazCeny.data ?? null;
+  // nejstarší cenové pozorování mezi surovinami – součet receptu
+  // stojí na cenách maximálně tohoto stáří
+  const stariCen = formatujStariCeny(
+    (ceny ?? []).reduce<string | null>((min, p) => {
+      const t = p.pozorovanoAt;
+      if (!t) return min;
+      return min === null || t < min ? t : min;
+    }, null),
+  );
   const effektivniPorce = Math.max(
     1,
     Math.min(20, Math.round(porci ?? recept?.porce ?? 1)),
@@ -410,6 +419,11 @@ export function ReceptDetail() {
                       {sklonuj(rozbor.pocetSurovin, "surovinu", "suroviny", "surovin")} – zatím
                       neznáme cenu u: {rozbor.chybejiciCeny.join(", ")} (čeká na scraper).
                     </Card>
+                  )}
+                  {stariCen && (
+                    <p className="px-1 text-xs text-muted">
+                      Ceny surovin pozorovány {stariCen} – ověřte aktuálnost v obchodě.
+                    </p>
                   )}
                   {rozbor.podezreleKalorie.length > 0 && (
                     <p className="px-1 text-xs text-muted">
