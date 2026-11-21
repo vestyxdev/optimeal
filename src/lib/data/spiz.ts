@@ -82,8 +82,28 @@ export async function odeberZeSpize(p: PolozkaSpize): Promise<void> {
   const {
     data: { user },
   } = await klient.auth.getUser();
+  // food_id je stabilní klíč – název je jen snapshot, může se přejmenovat;
+  // hostův záznam odebíráme po stejné pravidlu jako jeVeSpizi
   if (!user) {
-    zapisHost(K_SPIZ, ctiHost(K_SPIZ).filter((x) => x.nazev !== p.nazev));
+    zapisHost(
+      K_SPIZ,
+      ctiHost(K_SPIZ).filter(
+        (x) =>
+          !(
+            (p.foodId != null && x.foodId === p.foodId) ||
+            x.nazev.trim().toLowerCase() === p.nazev.trim().toLowerCase()
+          ),
+      ),
+    );
+    return;
+  }
+  if (p.foodId != null) {
+    const { error } = await klient
+      .from("pantry_items")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("food_id", p.foodId);
+    if (error) throw new Error(`Ze spíže se nepodařilo odebrat: ${error.message}`);
     return;
   }
   const { error } = await klient
