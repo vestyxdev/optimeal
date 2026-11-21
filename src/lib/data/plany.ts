@@ -30,6 +30,7 @@ interface RadkaAktualniCeny {
   platnost_do?: string | null;
   obrazek?: string | null;
   alergeny?: string[] | null;
+  alergeny_stopy?: string[] | null;
   diety?: string[] | null;
 }
 
@@ -47,6 +48,7 @@ function mapAktualniCeny(r: RadkaAktualniCeny): Potravina {
     obchod: r.sleva ? r.obchod : null,
     sleva: Boolean(r.sleva),
     alergeny: r.alergeny ?? [],
+    alergenyStopy: r.alergeny_stopy ?? [],
     diety: r.diety ?? [],
     obrazek: r.obrazek ?? null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
