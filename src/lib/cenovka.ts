@@ -128,6 +128,20 @@ export function optimalizujNakup(
       cenaBeznaZa100g: c.puvodniCena ?? null,
     }).cenaCelkem ?? 0;
 
+  // Přiřazení minimalizuje CENU ZA CELÁ BALENÍ, ne Kč/100 g –
+  // baleni_g se liší obchod od obchodu, takže nejnižší jednotková
+  // cena může znamenat dražší pokladní účet (1×500 g za 65 Kč vs.
+  // 1×250 g za 35 Kč u potřeby 150 g).
+  const nejlevnejsiBaleni = (
+    p: OptimalizovatelnaPolozka,
+    nabidka: CenaObchodu[] | undefined,
+  ): CenaObchodu | null => {
+    if (!nabidka || nabidka.length === 0) return null;
+    return nabidka.reduce((min, c) =>
+      balenkovaCena(p, c) < balenkovaCena(p, min) ? c : min,
+    );
+  };
+
   const ocenitelne = polozky.filter(
     (p) => p.foodId != null && (ceny.get(p.foodId)?.length ?? 0) > 0,
   );
@@ -137,7 +151,7 @@ export function optimalizujNakup(
     const pocty = new Map<string, number>();
     let celkem = 0;
     for (const p of ocenitelne) {
-      const nej = nejlevnejsiObchod(ceny.get(p.foodId as string));
+      const nej = nejlevnejsiBaleni(p, ceny.get(p.foodId as string));
       prirazeni.set(p.id, nej);
       if (nej) {
         celkem += balenkovaCena(p, nej);
@@ -168,9 +182,7 @@ export function optimalizujNakup(
       const nabidka = (ceny.get(p.foodId as string) ?? []).filter((c) =>
         skupina.includes(c.obchodId),
       );
-      const nej = nabidka.length
-        ? nabidka.reduce((m, c) => (c.cena < m.cena ? c : m))
-        : null;
+      const nej = nejlevnejsiBaleni(p, nabidka);
       if (nej) {
         pokryti++;
         celkem += balenkovaCena(p, nej);
@@ -209,9 +221,7 @@ export function optimalizujNakup(
       const nabidka = (ceny.get(p.foodId as string) ?? []).filter((c) =>
         best.skupina.includes(c.obchodId),
       );
-      const nej = nabidka.length
-        ? nabidka.reduce((m, c) => (c.cena < m.cena ? c : m))
-        : null;
+      const nej = nejlevnejsiBaleni(p, nabidka);
       prirazeni.set(p.id, nej);
       if (nej) {
         pokryti++;

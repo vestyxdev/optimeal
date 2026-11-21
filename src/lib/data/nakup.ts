@@ -81,18 +81,22 @@ export function deduplikujPolozky<
       vysledek.push(p);
       continue;
     }
-    stavajici.gramy += p.gramy;
-    // levnější nabídka vyhrává (oba řádky jsou reálné ceny z katalogu)
-    if (
+    // merge do NOVÉHO objektu – mutace stavajici by tiše měnila i
+    // položku ve volajícího poli (sdílená reference)
+    const levnejsi =
       stavajici.cenaZa100g === null ||
-      (p.cenaZa100g !== null && p.cenaZa100g < stavajici.cenaZa100g)
-    ) {
-      stavajici.cenaZa100g = p.cenaZa100g;
-      stavajici.obchod = p.obchod;
-      stavajici.jeSleva = p.jeSleva;
-    }
-    // gramáž balení přežije merge – vezmeme první známou
-    if (stavajici.baleniG == null && p.baleniG != null) stavajici.baleniG = p.baleniG;
+      (p.cenaZa100g !== null && p.cenaZa100g < stavajici.cenaZa100g);
+    const sloucena: T = {
+      ...stavajici,
+      gramy: stavajici.gramy + p.gramy,
+      ...(levnejsi
+        ? { cenaZa100g: p.cenaZa100g, obchod: p.obchod, jeSleva: p.jeSleva }
+        : {}),
+      // gramáž balení přežije merge – vezmeme první známou
+      baleniG: stavajici.baleniG ?? p.baleniG ?? null,
+    };
+    mapa.set(klic, sloucena);
+    vysledek[vysledek.indexOf(stavajici)] = sloucena;
   }
   return vysledek;
 }
@@ -232,22 +236,34 @@ export async function nactiCenoveHladiny(
     .eq("podezrele", false)
     .gte("pozorovano_at", new Date(Date.now() - 30 * 86400e3).toISOString())
     // expirované letákové slevy nikdy nepovrchují jako aktivní –
-    // stejné pravidlo jako view aktualni_ceny
-    .or("je_sleva.eq.false,platnost_do.is.null,platnost_do.gte." + new Date().toISOString().slice(0, 10))
+    // stejné pravidlo jako view aktualni_ceny. Datum LOKÁLNĚ
+    // (en-CA = ISO YYYY-MM-DD): UTC řez by po půlnoci na českém
+    // čase ještě hodinu dvě ukazoval včera prošlé akce.
+    .or("je_sleva.eq.false,platnost_do.is.null,platnost_do.gte." + new Date().toLocaleDateString("en-CA"))
     .order("pozorovano_at", { ascending: false });
   if (error) throw new Error(`Ceny obchodů se nenačetly: ${error.message}`);
 
-  // redukce na 1 obs na (potravina, obchod) – stejné preference jako
-  // view: aktivní sleva před běžnou cenou, v rámci nich nejnovější.
-  // sort je stabilní, data už přišla seřazená desc podle pozorovano_at.
-  const radky = [...(data ?? [])].sort(
-    (a, b) => Number(b.je_sleva) - Number(a.je_sleva),
-  );
-  const videno = new Set<string>();
-  for (const r of radky) {
+  // redukce na 1 obs na (potravina, obchod): preferujeme aktivní
+  // slevu, ale jen ČERSTVOU – slevové pozorování starší než týden
+  // (letáky běží týdně, slevy bez platnost_do nemají konec) už je
+  // mrtvá akce; místo ní vyhrává nejnovější běžná cena. Data přišla
+  // desc podle pozorovano_at → [0] je vždy nejnovější obs.
+  const CERSTVOST_SLEVY_MS = 7 * 86400e3;
+  const podleKlice = new Map<string, NonNullable<typeof data>>();
+  for (const r of data ?? []) {
     const klic = `${r.food_id}:${r.retailer_id}`;
-    if (videno.has(klic)) continue;
-    videno.add(klic);
+    const arr = podleKlice.get(klic) ?? [];
+    arr.push(r);
+    podleKlice.set(klic, arr);
+  }
+  for (const arr of podleKlice.values()) {
+    const r =
+      arr.find(
+        (s) =>
+          s.je_sleva &&
+          Date.now() - new Date(s.pozorovano_at as string).getTime() <=
+            CERSTVOST_SLEVY_MS,
+      ) ?? arr[0]!;
     const naz = r.obchod as { nazev?: string } | { nazev?: string }[] | null;
     const obchod = (Array.isArray(naz) ? naz[0]?.nazev : naz?.nazev) ?? "Obchod";
     const bal = r.potravina as

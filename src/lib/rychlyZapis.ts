@@ -23,7 +23,7 @@ export interface RychlaPolozka {
 /** Hmotnostní/objemové jednotky → faktor na gramy (ml ≈ g, hustota ~1). */
 const JEDNOTKY: Record<string, number> = {
   g: 1, gram: 1, gramy: 1, gramu: 1,
-  kg: 1000, kilo: 1000, kilogram: 1000,
+  kg: 1000, kilo: 1000, kilogram: 1000, kila: 1000, kilu: 1000, kilogramu: 1000,
   dkg: 10, dekagram: 10,
   ml: 1, mililitr: 1,
   l: 1000, litr: 1000, litru: 1000,
@@ -85,7 +85,7 @@ const NORM_ODMERKA: Record<string, string> = {
 
 // jednotky jako alternace pro regex – delší před kratšími („lžička" před „lžíce")
 const RE_JEDNOTKY =
-  "kilogram|kilo|kg|dekagram|dkg|gramy|gramu|gram|g|mililitr|ml|litru|litr|dl|dcl|cl|l|" +
+  "kilogramu|kilogram|kila|kilu|kilo|kg|dekagram|dkg|gramy|gramu|gram|g|mililitr|ml|litru|litr|dl|dcl|cl|l|" +
   "kus|ks|x|lzicka|lzice|lzic|hrnicek|hrnek|hrnky|hrnku|sklenice|sklenicky|salek|salku|" +
   "kelimek|kelimku|platek|platku|platky|hrst|hrsti|spetka|spetky|strouzek|strouzku|strouzky|" +
   "balicek|baleni|balicky";
@@ -110,7 +110,13 @@ function ksGramy(fraze: string): number {
 function parsujKlauzuli(surova: string): RychlaPolozka | null {
   const vstup = surova.trim();
   if (vstup === "") return null;
-  const norm = bezDiakritiky(vstup);
+  // české slovní zlomky → čísla, ať „půl litru mléka" a „čtvrt kila
+  // mouky" projdou běžnou jednotkovou větví (bez náhrady by slovo
+  // „pul" zůstalo v dotazu a potravina se nenašla)
+  const norm = bezDiakritiky(vstup)
+    .replace(/\btri ctvrte\b/g, "0.75")
+    .replace(/\b(?:ctvrtka|ctvrtky|ctvrti|ctvrt|ctyrka|ctyrku)\b/g, "0.25")
+    .replace(/\b(?:polovinu|polovina|polovin|pulka|pulku|pul)\b/g, "0.5");
 
   let gramy: number | null = null;
   let jednotka: string | null = null;

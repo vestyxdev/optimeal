@@ -56,6 +56,21 @@ describe("parsujRychlyZapis – kusy a odměrky (odhad)", () => {
   });
 });
 
+describe("parsujRychlyZapis – české slovní zlomky", () => {
+  it.each([
+    ["půl litru mléka", "mleka", 500],
+    ["půl kila mouky", "mouky", 500],
+    ["čtvrt litru mléka", "mleka", 250],
+    ["tři čtvrtě litru mléka", "mleka", 750],
+    ["pul litru mleka", "mleka", 500], // bez diakritiky
+  ])("%s → %s g", (vstup, dotaz, gramy) => {
+    const p = p1(vstup);
+    expect(p?.dotaz).toBe(dotaz);
+    expect(p?.gramy).toBe(gramy);
+    expect(p?.odhad).toBe(false);
+  });
+});
+
 describe("parsujRychlyZapis – balení a nerozpoznané množství", () => {
   it("balení tvarohu → jednotka baleni, gramáž null (dohodí baleniG)", () => {
     const p = p1("balení tvarohu");

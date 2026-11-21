@@ -135,6 +135,16 @@ describe("deduplikujPolozky", () => {
     expect(v[0]).toMatchObject({ nazev: "Sůl", gramy: 80 });
   });
 
+  it("regrese: vstupní pole se nemutuje – gramy sečte do kopie", () => {
+    const a = pol("f1", "Kuřecí prsa", 200, 10, "Lidl");
+    const b = pol("f1", "Kuřecí prsa", 300, 8, "Kaufland");
+    const v = deduplikujPolozky([a, b]);
+    expect(v[0]?.gramy).toBe(500);
+    // původní objekty zůstaly netknuté (dřív se a.gramy přepsalo na 500)
+    expect(a.gramy).toBe(200);
+    expect(b.gramy).toBe(300);
+  });
+
   it("různé potraviny zůstanou oddělené", () => {
     const v = deduplikujPolozky([
       pol("f1", "A", 100),
@@ -213,6 +223,28 @@ describe("optimalizujNakup", () => {
     );
     // 1 × 500 g balení à 50 Kč (ne 25 Kč za 250 g)
     expect(v.celkem).toBe(50);
+  });
+
+  it("regrese: přiřazení řeší cenu ZA CELÁ BALENÍ, ne Kč/100 g", () => {
+    // potřeba 150 g másla: Lidl levnější za 100 g, ale prodává jen
+    // 500 g kostky (65 Kč) – Rohlík 250 g kostka vyjde na 35 Kč.
+    // Dřív se přiřadilo podle jednotkové ceny → pokladna přeplatila.
+    const mapaBaleni = new Map<string, CenaObchodu[]>([
+      [
+        "f1",
+        [
+          { ...cena("r1", "Rohlík", 14), baleniG: 250 },
+          { ...cena("r2", "Lidl", 13), baleniG: 500 },
+        ],
+      ],
+    ]);
+    const p = [{ id: "p1", foodId: "f1", nazev: "Máslo", gramy: 150, baleniG: null }];
+    const kusove = optimalizujNakup(p, mapaBaleni, "kusove");
+    expect(kusove.prirazeni.get("p1")?.obchod).toBe("Rohlík");
+    expect(kusove.celkem).toBe(35);
+    const dva = optimalizujNakup(p, mapaBaleni, "dva");
+    expect(dva.prirazeni.get("p1")?.obchod).toBe("Rohlík");
+    expect(dva.celkem).toBe(35);
   });
 
   it("prázdné nabídky – žádný obchod, nulový účet", () => {

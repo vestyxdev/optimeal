@@ -77,3 +77,17 @@ describe("formatujMnozstvi", () => {
     expect(formatujMnozstvi(250, "ml")).toBe("250 ml");
   });
 });
+
+describe("nulová potřeba – regrese", () => {
+  it("potreba 0 g → 0 ks / 0 balení / 0 Kč (dřív se platilo 1 balení)", () => {
+    const ks = spocitejNakupniBaleni({ nazev: "Rohlík", gramy: 0, cenaZa100g: 6 });
+    expect(ks.pocet).toBe(0);
+    expect(ks.cenaCelkem).toBe(0);
+    const baleni = spocitejNakupniBaleni({ nazev: "Máslo", gramy: 0, baleniG: 250, cenaZa100g: 14 });
+    expect(baleni.pocet).toBe(0);
+    expect(baleni.cenaCelkem).toBe(0);
+    const vazene = spocitejNakupniBaleni({ nazev: "Brokolice", gramy: 0, cenaZa100g: 4 });
+    expect(vazene.nakoupeno).toBe(0);
+    expect(vazene.cenaCelkem).toBe(0);
+  });
+});

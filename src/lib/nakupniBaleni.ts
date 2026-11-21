@@ -136,7 +136,8 @@ export function spocitejNakupniBaleni(v: Vstup): NakupniBaleni {
     if (!re.test(v.nazev)) continue;
     // DB baleni_g kusovky bývá váha kusu (~40–150 g); jiné použij jen když sedí
     const kusG = baleniDB !== null && baleniDB <= 200 ? baleniDB : typickaVaha;
-    const ks = Math.max(1, Math.ceil(potreba / kusG));
+    // potreba 0 → 0 ks (nulová potřeba nesmí zaplatit celé balení)
+    const ks = potreba === 0 ? 0 : Math.max(1, Math.ceil(potreba / kusG));
     return vysledek({
       druh: "ks",
       pocet: ks,
@@ -151,7 +152,7 @@ export function spocitejNakupniBaleni(v: Vstup): NakupniBaleni {
 
   // 2) skutečná gramáž balení z DB
   if (baleniDB !== null) {
-    const pocet = Math.max(1, Math.ceil(potreba / baleniDB));
+    const pocet = potreba === 0 ? 0 : Math.max(1, Math.ceil(potreba / baleniDB));
     return vysledek({
       druh: "baleni",
       pocet,
@@ -167,7 +168,7 @@ export function spocitejNakupniBaleni(v: Vstup): NakupniBaleni {
   // 3) typická retail balení podle názvu
   for (const [re, velikost, jednotka] of BALENI_TYPICKE) {
     if (!re.test(v.nazev)) continue;
-    const pocet = Math.max(1, Math.ceil(potreba / velikost));
+    const pocet = potreba === 0 ? 0 : Math.max(1, Math.ceil(potreba / velikost));
     return vysledek({
       druh: "baleni",
       pocet,
@@ -181,7 +182,7 @@ export function spocitejNakupniBaleni(v: Vstup): NakupniBaleni {
   }
 
   // 4) vážené zboží – čisté kroky po 50 g
-  const koupeno = Math.max(50, Math.ceil(potreba / 50) * 50);
+  const koupeno = potreba === 0 ? 0 : Math.max(50, Math.ceil(potreba / 50) * 50);
   return vysledek({
     druh: "vazene",
     pocet: 1,
