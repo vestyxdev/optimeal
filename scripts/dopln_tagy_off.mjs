@@ -104,12 +104,14 @@ for (const [i, row] of fronta.entries()) {
     nalezeno++;
     const { alergeny, stopy, diety } = tagyZ(prod);
     if (STOPY) {
-      // doplň jen stopové pole; alergeny/diety se nemění
+      // doplň stopové pole; alergeny se UNIONí se stopami –
+      // invariant stopy ⊆ alergeny musí platit (varování konzervativní)
       if (stopy.size > 0) {
+        const alg = [...new Set([...(row.alergeny ?? []), ...stopy])];
         if (!DRY) {
           await pool.query(
-            "update public.foods set alergeny_stopy=$2 where id=$1",
-            [row.id, [...stopy]],
+            "update public.foods set alergeny_stopy=$2, alergeny=$3 where id=$1",
+            [row.id, [...stopy], alg],
           );
         }
         for (const a of stopy) statAlg.set(a, (statAlg.get(a) ?? 0) + 1);

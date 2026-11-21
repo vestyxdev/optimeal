@@ -26,7 +26,7 @@ const c = new pg.Client({
 });
 await c.connect();
 const { rows } = await c.query(
-  "select id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie, alergeny, diety from foods order by nazev",
+  "select id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie, alergeny, alergeny_stopy, diety from foods order by nazev",
 );
 await c.end();
 
@@ -42,6 +42,7 @@ const NEJIDLO =
 const fantomy = [];
 const dietySpatne = [];
 const mlekoChybi = [];
+const stopyMimoAlergeny = [];
 
 for (const r of rows) {
   const nazev = r.nazev ?? "";
@@ -65,6 +66,10 @@ for (const r of rows) {
   if (!(r.alergeny ?? []).includes("mleko") && nazevNasvedcujeAlergenu(nazev, "mleko")) {
     mlekoChybi.push({ id: r.id, nazev });
   }
+  // invariant: stopy ⊆ alergeny – stopa mimo union pole = chyba zápisu
+  for (const s of r.alergeny_stopy ?? []) {
+    if (!(r.alergeny ?? []).includes(s)) stopyMimoAlergeny.push({ id: r.id, nazev, s });
+  }
 }
 
 if (CSV) {
@@ -72,6 +77,7 @@ if (CSV) {
   for (const x of fantomy) console.log(`fantom;${x.id};${x.nazev};dekl ${x.dekl} vs makra ${x.odhad} (${x.smer})`);
   for (const x of dietySpatne) console.log(`dieta;${x.id};${x.nazev};${x.tag}`);
   for (const x of mlekoChybi) console.log(`mleko;${x.id};${x.nazev};chybi tag mleko`);
+  for (const x of stopyMimoAlergeny) console.log(`stopy;${x.id};${x.nazev};stopa ${x.s} není v alergeny`);
 } else {
   console.log(`== Fantomové kalorie u jídel (vyloučeno z plánů): ${fantomy.length} ==`);
   for (const x of fantomy) {
@@ -81,4 +87,6 @@ if (CSV) {
   for (const x of dietySpatne) console.log(`  ${x.nazev} | ${x.tag} | #${x.id}`);
   console.log(`\n== Chybějící tag „mleko" (jmenná síť by ho poznala): ${mlekoChybi.length} ==`);
   for (const x of mlekoChybi) console.log(`  ${x.nazev} | #${x.id}`);
+  console.log(`\n== Stopy mimo alergeny (porušený invariant stopy ⊆ alergeny): ${stopyMimoAlergeny.length} ==`);
+  for (const x of stopyMimoAlergeny) console.log(`  ${x.nazev} | ${x.s} | #${x.id}`);
 }
