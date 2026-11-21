@@ -34,3 +34,6 @@ scripts/dopln_tagy_off.log
 __pycache__/
 scripts/.dopln_tagy_off.state.json  
 data/katalog_snapshot.json  
+
+# dočasné skripty a audit nástroje
+scripts/_tmp_*
