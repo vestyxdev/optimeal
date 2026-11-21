@@ -148,6 +148,7 @@ export function Denik() {
         obrazek: k.obrazek,
         baleniG: k.baleniG ?? null,
         alergeny: k.alergeny ?? [],
+        alergenyStopy: k.alergenyStopy ?? [],
       })),
     [dotazKatalog.data],
   );

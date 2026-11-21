@@ -39,6 +39,8 @@ export interface PolozkaVyberu {
   baleniG?: number | null;
   /** alergenové tagy – s mojeAlergie prop ukážeme varování */
   alergeny?: string[];
+  /** podmnožina alergeny = jen stopy („může obsahovat") – varujeme jemněji */
+  alergenyStopy?: string[];
 }
 
 const norm = bezDiakritiky;
@@ -415,6 +417,9 @@ function Radek({
   mojeAlergie?: string[];
 }) {
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
+  const stopySet = new Set(p.alergenyStopy ?? []);
+  const obsahShoda = shoda.filter((a) => !stopySet.has(a));
+  const stopyShoda = shoda.filter((a) => stopySet.has(a));
   return (
     <li>
       <button
@@ -427,10 +432,16 @@ function Radek({
         <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-14" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-fg">{p.nazev}</span>
-          {shoda.length > 0 && (
+          {obsahShoda.length > 0 && (
             <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger">
               <TriangleAlert className="size-3 shrink-0" aria-hidden />
-              obsahuje {shoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+              obsahuje {obsahShoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
+            </span>
+          )}
+          {stopyShoda.length > 0 && (
+            <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-warning">
+              <TriangleAlert className="size-3 shrink-0" aria-hidden />
+              může obsahovat stopy: {stopyShoda.map((a) => ALERGEN_NAZVY[a] ?? a).join(", ")}
             </span>
           )}
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
