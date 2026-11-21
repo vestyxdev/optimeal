@@ -3,7 +3,7 @@
 # Kupi.cz i eshopy občas IP-blokují GitHub datacenter – celý matrix leg
 # pak chytá 403 na každý request (retry/backoff nepomůže, blok je na IP).
 # `gh run rerun --failed` dostane NOVÉ runnery = nové IP, takže druhý
-# pokus typicky projde. Pojistka: max 2 rerun pokusy (run_attempt < 4).
+# pokus typicky projde. Pojistka: max 2 rerun pokusy (stop při run_attempt >= 3).
 name: ScraperRetry
 
 on:
@@ -31,4 +31,4 @@ jobs:
             exit 0
           fi
           echo "Run $RUN_ID, pokus $ATTEMPT → rerun --failed (nové runner IP)"
-          gh run rerun "$RUN_ID" --failed
+          gh run rerun "$RUN_ID" --failed -R "${{ github.repository }}"
