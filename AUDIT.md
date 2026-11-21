@@ -321,3 +321,15 @@ Overeno: tsc clean – 388/388 testu – RPC top_akce ověřeno proti prod (nov�
 - **Sweep auth flow**: Prihlaseni/Registrace/ObnoveniHesla/NoveHeslo clean; Kalibrace (weight_logs trigger) ma min 10-dni rozpeta + TDEE 800-6000 bounds; Layout focus mgmt clean.
 
 Overeno: tsc clean – 388/388 testu.
+
+
+## Kolo: scraper pipeline audit + platnost_do edge (21. 11. 2026)
+
+- **kupi.platnost_do edge case**: datum sparsovane 60+ dni dopredu = ve skutecnosti minuly vypis (leden + "do 30. 12." → lonsky prosinec). Jinak by prosla nabidka zila ~11 mesicu bez expirace – falesna sleva. Opraveno + test.
+- **db.zapis_asortiment docstring**: schvaleno=false → true (odpovidalo kodu vytvor_potravinu).
+- **SkenovaniEan**: naKod pres ref – inline callback rodice jinak restartoval kameru pri kazdem renderu (realny bug ve skenovani EAN).
+- **SetupGate**: clipboard.writeText .catch (unhandled rejection pri odmitnem opravneni).
+- **Audited clean**: normalizace.py (KILOGRAM/UNIT, CZK/EUR guard, None propagace), base.py (_nabidka odmava nenormalizovatelne, multiplikatory 3+1 zdarma / 2x 250g, sane bounds 2g–30kg, NEPOTRAVINA filtr), db.py (platna_puvodni 1.01x–2.5x sanity pri zapisu + zdroj jen u overene puvodni, dedupe nejnizsi cena/behn, batch 500 + row fallback, purge jen uspesnych zdroju), kupi.py (strukturovany DOM parser, price_per_unit preferovan, session warmup), asortiment.py (purge disablovana pri nizkem pokryti leafs → IP blokace nemaze data), open_prices.py (CZ filter, retry, OFF rate-limit).
+- **Zdroje pozorovani (prod)**: asortiment:rohlik 4560, asortiment:kosik 753, 16 Kupi scraperu ~1400; open-prices = 0 (workflow bezi, ale vetsina CZ produktu neni v katalogu → preskocena pri parovani).
+
+Overeno: tsc clean – 388/388 testu – 103/103 scraper testu.
