@@ -288,4 +288,12 @@ Overeno: tsc clean - 377/377 testu - git strom cisty.
 - **ReceptDetail**: krokovac porci (1-20) – Celkem sloupec, mobilni radky (nove i celkem g), ceny i souhrn Cely recept se skaluji; Na porci karty zustavaji. Tlacitka Do seznamu (ulozNakupniSeznam, gramy podle krokovace, nazev nese porce) a Do deniku (zapise 1 porci, kategorie->typ jidla).
 - **DenikZapis**: akordeon Z receptu – lazy nacteni receptu, hledani (skoreShody), alergenova varovani receptu (obsahuje/stopy). receptNaPoznamku: makra surovin za porci normovana na 100 g; suroviny mimo katalog se preskoci, >40% neznamych -> null (zadny podhodnoceny zapis).
 
-Overeno: tsc clean - 382/382 testu (+5 receptNaPoznamku) - git strom cisty.
+Overeno: tsc clean - 382/382 testu (+5 receptNaPoznamku) - git strom cisty.## Kolo: scraper + cenovka konzistence (21. 11. 2026)
+
+- **PriceScraper oprava**: obohaceni_puvodni volalo _get(headers=), ale _get parametr nemela – TypeError na prvni strance, puvodni job padal od 17. 11. Parametr doplnen (propousti do session.get).
+- **ScraperRetry oprava**: gh run rerun bez checkoutu repa selhaval na not-a-git-repository – automaticke retry IP-blokovanych retezcu nikdy nefungovalo. Pridano -R repository slug.
+- **Cenovka ranking**: porovnejObchody radilo podle souctu – obchod s 1 ocenenou polozkou porazil kompletni kosik. Nyni pokryti desc, celkem asc. neznamych pocita jen z cenitelnych polozek.
+- **nactiCenoveHladiny sjednoceno s view**: puvodni cap ze stareho 4x na 2,5x akcni + max 2x bezna_cena (view 0052); redukce preferuje aktivni slevu pred cerstvejsi beznou cenou – shodne s ordering view.
+- **GDPR export**: doplnena weight_logs (historie vahy, adaptivni TDEE) do exportu.
+
+Overeno: tsc clean – 383/383 testu – git strom cisty.
