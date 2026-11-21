@@ -230,8 +230,8 @@ function SekceData() {
       <CardNadpis>Moje data</CardNadpis>
       <p className="text-sm text-muted">
         Stáhněte si všechna svá data – profil, výživové cíle, jídelní plány,
-        deník, nákupní seznamy, vlastní recepty i potraviny – jako JSON
-        (právo na přenositelnost dle GDPR).
+        deník, nákupní seznamy, vlastní recepty i potraviny, záznamy váhy –
+        jako JSON (právo na přenositelnost dle GDPR).
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button varianta="outline" onClick={() => void stahnoutExport()} disabled={exportuje}>
