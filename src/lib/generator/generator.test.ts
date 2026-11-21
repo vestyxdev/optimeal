@@ -1554,6 +1554,45 @@ describe("živý katalog – audit 7denního plánu", () => {
     expect(nazevVylucujeDietu("Cottage Cheese", "bezlepkovy")).toBe(false);
   });
 
+  it("dietní veto – cizojazyčné názvy (DE/FR/IT/NL/SK působí v českém sortimentu)", () => {
+    // mléko/vejce/sýr → jen veganské veto
+    for (const n of [
+      "Sahne",
+      "Vollmilch 3,5%",
+      "Lait frais demi écrémé",
+      "Yaourt à la grecque nature",
+      "Fromage blanc 0%",
+      "Maasdamer (Leckerrom)",
+      "Emmentaler",
+      "Grana Padano",
+      "Raclette",
+      "Œufs brouillés",
+      "Eier Freiland",
+      "Huevos camperos",
+      "Caffè latte",
+      "Kräuter der Provence cremig",
+    ]) {
+      expect(nazevVylucujeDietu(n, "vegansky"), n).toBe(true);
+      expect(nazevVylucujeDietu(n, "vegetariansky"), n).toBe(false);
+    }
+    // maso/ryby → veto pro obě
+    for (const n of [
+      "Thunfisch in Olivenöl",
+      "Tuniak v olivovom oleji",
+      "Poulet fermier",
+      "Tonno sott'olio",
+      "Boeuf bourguignon",
+      "Kip filet",
+      "Kabeljau filet",
+    ]) {
+      expect(nazevVylucujeDietu(n, "vegansky"), n).toBe(true);
+      expect(nazevVylucujeDietu(n, "vegetariansky"), n).toBe(true);
+    }
+    // hranice: ne-názvy se nesmí chytit
+    expect(nazevVylucujeDietu("Hofmeier Bauernbrot", "vegansky")).toBe(false);
+    expect(nazevVylucujeDietu("Latte fresco nuovo", "vegansky")).toBe(true); // latte = mléko
+  });
+
   it("dietní veto – falešné shody: značky, krutony, příchuť, podstatná jména", () => {
     // regrese z reportu kvalita_dat: tyto názvy veto nesmí vyloučit
     for (const n of [
