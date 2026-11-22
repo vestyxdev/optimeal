@@ -27,6 +27,8 @@ import time
 
 import requests
 
+from .proxy import aplikuj_proxy
+
 log = logging.getLogger("scraper.obohaceni_eshop")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
@@ -236,6 +238,7 @@ def main() -> int:
 
     session = requests.Session()
     session.headers.update(UA)
+    aplikuj_proxy(session, "obohaceni_eshop")
 
     stat = {"rohlik": 0, "kosik": 0, "bez_dat": 0, "chyby": 0, "alergeny": 0}
     for i, f in enumerate(kandidati):

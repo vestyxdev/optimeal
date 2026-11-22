@@ -21,6 +21,8 @@ from typing import Iterator, Optional
 
 import requests
 
+from scraper.proxy import aplikuj_proxy  # absolutní – unittest discover
+
 log = logging.getLogger("scraper.retailers")
 
 UA_POOL = [
@@ -185,6 +187,9 @@ class BaseScraper:
     def __init__(self, pauza: float = PAUZA):
         self.pauza = pauza
         self.session = requests.Session()
+        # volitelná rezidenční proxy (env PROXY_URL) – proti IP blokům
+        # datacenter runnerů; nevyplněná = přímé spojení jako doteď
+        aplikuj_proxy(self.session, self.obchod)
         self.nalezeno = 0
         self.fetched = False  # aspoň jedna stránka skutečně načtena
         # poslední terminalní selhání byl WAF/rate-limit (403/429) –

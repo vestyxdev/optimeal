@@ -25,6 +25,8 @@ import time
 
 import requests
 
+from .proxy import aplikuj_proxy
+
 log = logging.getLogger("scraper.obohaceni_puvodni")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
@@ -132,6 +134,7 @@ def main() -> int:
 
     session = requests.Session()
     session.headers.update(UA)
+    aplikuj_proxy(session, "obohaceni_puvodni")
     # ohřátí session – stejná taktika jako kupi scraper (403 na studený request)
     _get(session, f"{KUPI}/", ) or _get(session, f"{KUPI}/")
 

@@ -57,6 +57,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # volitelná rezidenční proxy proti IP blokům – nevyplněný
+          # secret = prázdná hodnota = přímé spojení (viz scraper/proxy.py)
+          PROXY_URL: ${{ secrets.PROXY_URL }}
         run: python -m scraper.ceniky --obchod "${{ matrix.obchod }}"
 
   # Obohacení původních cen je v puvodni.yml (workflow_run trigger) –

@@ -64,6 +64,25 @@ class SupabaseWriter:
         r.raise_for_status()
         return r.json()
 
+    def pocet_zdroje(self, zdroj: str) -> int | None:
+        """Aktuální počet pozorování daného zdroje – baseline pro
+        health-check (>50 % meziběhový pokles scraped počtu znamená
+        spíš rozbitý parser/výpadek zdroje než hubený leták)."""
+        try:
+            r = requests.get(
+                f"{self.url}/rest/v1/price_observations",
+                headers={**self._hlavicky, "Prefer": "count=exact"},
+                params={"zdroj": f"eq.{zdroj}", "select": "id", "limit": 0},
+                timeout=30,
+            )
+            if not r.ok:
+                return None
+            # content-range: "0-0/123" nebo "*/123"
+            casti = (r.headers.get("content-range") or "").rsplit("/", 1)
+            return int(casti[1]) if len(casti) == 2 and casti[1].isdigit() else None
+        except (requests.RequestException, ValueError):
+            return None
+
     def nacti_potraviny(self) -> list[dict]:
         if self._potraviny is None:
             # PostgREST vrací max ~1000 řádků na dotaz – stránkujeme,

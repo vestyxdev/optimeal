@@ -45,7 +45,7 @@ def main() -> int:
         return 2
 
     vsechny = []
-    vysledky: dict[str, str] = {}
+    info: dict[str, dict] = {}  # obchod → {scraped, status, blocked, fetched}
     uspesne_zdroje: list[str] = []  # řetězce, co stáhly ≥1 stránku
     zablokovane: list[str] = []     # řetězce, jejichž zdroj vracel jen 403/429
     for cls in scrapery:
@@ -53,19 +53,34 @@ def main() -> int:
         try:
             nabidky = list(s.stahni_slevy())
             vsechny.extend(nabidky)
-            if not nabidky and getattr(s, "blocked", False):
-                vysledky[s.obchod] = "BLOKOVÁNO (WAF)"
+            st = {
+                "scraped": len(nabidky),
+                "blocked": getattr(s, "blocked", False),
+                "fetched": s.fetched,
+            }
+            if not nabidky and st["blocked"]:
+                st["status"] = "BLOKOVÁNO (WAF)"
                 zablokovane.append(s.obchod)
+            elif not nabidky:
+                # stažená stránka bez nabídek = pravděpodobně změněná
+                # šablona (parser regression) – má zůstat viditelné
+                st["status"] = ("0 nabídek (parser?)" if s.fetched
+                                else "0 nabídek (nic nestaženo)")
             else:
-                vysledky[s.obchod] = f"{len(nabidky)} nabídek"
+                st["status"] = "ok"
+            info[s.obchod] = st
             log.info("%s: %d nabídek", s.obchod, len(nabidky))
             if s.fetched:
                 uspesne_zdroje.append(f"scraper:{s.obchod.lower()}")
         except Exception as e:  # noqa: BLE001 – jeden řetězec nesmí shodit běh
-            vysledky[s.obchod] = f"CHYBA: {e.__class__.__name__}"
+            info[s.obchod] = {
+                "scraped": 0, "blocked": False, "fetched": False,
+                "status": f"CHYBA: {e.__class__.__name__}",
+            }
             log.exception("%s: scraper selhal – pokračuji dalším", s.obchod)
 
-    log.info("Celkem %d nabídek | %s", len(vsechny), vysledky)
+    log.info("Celkem %d nabídek | %s", len(vsechny),
+             {o: st["status"] for o, st in info.items()})
 
     if args.dry_run:
         for n in vsechny[:20]:
@@ -79,6 +94,20 @@ def main() -> int:
     from .db import SupabaseWriter
 
     writer = SupabaseWriter()
+    # health-check baseline PŘED zápisem/purgí – po ní už počty
+    # v tabulce odpovídají tomuto běhu, ne minulému
+    for obchod, st in info.items():
+        if st.get("status") != "ok":
+            continue
+        baseline = writer.pocet_zdroje(f"scraper:{obchod.lower()}")
+        if baseline and st["scraped"] < baseline * 0.5:
+            zprava = (f"{obchod}: scraped {st['scraped']} vs baseline "
+                      f"{baseline} (>50 % meziběhový pokles – podezřelý "
+                      "výpadek zdroje nebo rozbitý parser)")
+            log.warning(zprava)
+            print(f"::warning::{zprava}")
+            st["status"] = "ok – ⚠ pokles >50 %"
+
     stat = writer.zapis_nabidky(vsechny, start)
     log.info(
         "Zapsáno %d pozorování (spárováno %d, přeskočeno %d)",
@@ -101,15 +130,25 @@ def main() -> int:
     )
 
     # Souhrn pro GitHub Actions – matrix job jinak ukáže jen „failure"
-    # i když zapsal stovky pozorování.
+    # i když zapsal stovky pozorování. Per-leg tabulka + run totals.
     souhrn = os.environ.get("GITHUB_STEP_SUMMARY")
     if souhrn:
-        radky = ["## PriceScraper", "", "| Obchod | Výsledek |", "|---|---|"]
-        radky += [f"| {o} | {v} |" for o, v in vysledky.items()]
+        trvani = (datetime.now(timezone.utc) - start).total_seconds()
+        radky = [
+            "## PriceScraper", "",
+            "| Obchod | Stav | Staženo nabídek |",
+            "|---|---|---:|",
+        ]
+        radky += [f"| {o} | {st['status']} | {st['scraped']} |"
+                  for o, st in info.items()]
         radky += [
             "",
-            f"**Zapsáno:** {stat['vlozeno']} pozorování "
-            f"(spárováno {stat['sparovano']}, přeskočeno {stat['preskoceno']})",
+            "| Zapsáno | Spárováno | Ověřené slevy | Zahozené artefakty | Trvání |",
+            "|---:|---:|---:|---:|---:|",
+            f"| {stat['vlozeno']} | {stat['sparovano']} | {overene} "
+            f"| {artefakty} | {trvani:.0f} s |",
+            "",
+            f"**Přeskočeno (nespárováno + anomálie):** {stat['preskoceno']}",
         ]
         if stat.get("nesparovano_nazvy"):
             radky += ["", "**Nespárováno (vzorek):** " + ", ".join(stat["nesparovano_nazvy"])]
