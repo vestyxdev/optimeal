@@ -204,12 +204,20 @@ class SupabaseWriter:
         if radky:
             r = requests.post(
                 f"{self.url}/rest/v1/price_observations",
-                headers={**self._hlavicky, "Prefer": "resolution=ignore-duplicates"},
+                headers={
+                    **self._hlavicky,
+                    "Prefer": "resolution=ignore-duplicates,return=representation",
+                },
                 json=radky,
                 timeout=60,
             )
             r.raise_for_status()
-        stat["vlozeno"] = len(radky)
+            # len(radky) by přepočítávalo – ignore-duplicates tiše
+            # zahodí záznamy, co už v tabulce jsou (opakovaný scrape
+            # téhož dne); representation vrátí jen skutečně vložené
+            stat["vlozeno"] = len(r.json())
+        else:
+            stat["vlozeno"] = 0
         return stat
 
     # ------------------------------------------------------------------
@@ -405,12 +413,17 @@ class SupabaseWriter:
             davka = radky_list[i : i + 500]
             r = requests.post(
                 f"{self.url}/rest/v1/price_observations",
-                headers={**self._hlavicky, "Prefer": "resolution=ignore-duplicates"},
+                headers={
+                    **self._hlavicky,
+                    "Prefer": "resolution=ignore-duplicates,return=representation",
+                },
                 json=davka,
                 timeout=60,
             )
             if r.ok:
-                vlozeno += len(davka)
+                # skutečně vložené řádky – ignore-duplicates tiše
+                # zahazuje konflikty (stejný food×retailer×timestamp)
+                vlozeno += len(r.json())
                 continue
             # otravná řádka nesmí shodit celý letákový běh – logni
             # detail PostgREST (constraint + klíč) a projdi po řádkách
@@ -420,12 +433,13 @@ class SupabaseWriter:
                 rr = requests.post(
                     f"{self.url}/rest/v1/price_observations",
                     headers={**self._hlavicky,
-                             "Prefer": "resolution=ignore-duplicates"},
+                             "Prefer": "resolution=ignore-duplicates,"
+                                       "return=representation"},
                     json=[radek],
                     timeout=30,
                 )
                 if rr.ok:
-                    vlozeno += 1
+                    vlozeno += len(rr.json())
                 else:
                     log.error("Odmítnuta řádka %s: %d %s",
                               radek.get("food_id"), rr.status_code,

@@ -2,6 +2,7 @@
 
 import unittest
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 from scraper.normalizace import cesky_stem, stem_nazev
 from scraper.retailers.base import BaseScraper, ceny_na_100g, gramaje_z_nazvu
@@ -153,6 +154,53 @@ class TestCeskyStem(unittest.TestCase):
         self.assertEqual(
             stem_nazev("Kuřecí čtvrtky"), "kur ctvrt"
         )
+
+
+def _resp(status: int) -> MagicMock:
+    r = MagicMock()
+    r.status_code = status
+    return r
+
+
+class TestBlockedFlag(unittest.TestCase):
+    """`blocked` = poslední terminalní selhání byl WAF (403/429);
+
+    ceniky.py jím odlišuje infra blok od chyby parseru."""
+
+    def _scraper(self) -> BaseScraper:
+        s = BaseScraper()
+        s.obchod = "Test"
+        return s
+
+    @patch("scraper.retailers.base.time.sleep", lambda *_: None)
+    def test_403_po_vsech_pokusech_nastavi_blocked(self):
+        s = self._scraper()
+        s.session.get = MagicMock(return_value=_resp(403))
+        self.assertIsNone(s._get("https://x.cz/"))
+        self.assertTrue(s.blocked)
+
+    @patch("scraper.retailers.base.time.sleep", lambda *_: None)
+    def test_429_nastavi_blocked(self):
+        s = self._scraper()
+        s.session.get = MagicMock(return_value=_resp(429))
+        self.assertIsNone(s._get("https://x.cz/"))
+        self.assertTrue(s.blocked)
+
+    @patch("scraper.retailers.base.time.sleep", lambda *_: None)
+    def test_200_resetuje_blocked(self):
+        s = self._scraper()
+        s.session.get = MagicMock(side_effect=[_resp(403)] * 5 + [_resp(200)])
+        s._get("https://x.cz/")
+        self.assertTrue(s.blocked)
+        s._get("https://x.cz/")
+        self.assertFalse(s.blocked)
+
+    @patch("scraper.retailers.base.time.sleep", lambda *_: None)
+    def test_404_neni_blocked(self):
+        s = self._scraper()
+        s.session.get = MagicMock(return_value=_resp(404))
+        self.assertIsNone(s._get("https://x.cz/"))
+        self.assertFalse(s.blocked)
 
 
 if __name__ == "__main__":

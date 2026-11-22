@@ -187,6 +187,10 @@ class BaseScraper:
         self.session = requests.Session()
         self.nalezeno = 0
         self.fetched = False  # aspoň jedna stránka skutečně načtena
+        # poslední terminalní selhání byl WAF/rate-limit (403/429) –
+        # ceniky.py tím odliší „zdroj nás zablokoval" (infra, neřeší
+        # retry kódu) od „parser nic nevytěžil" (chyba, má zůstat červené)
+        self.blocked = False
         self._rotuj_ua()
 
     def _rotuj_ua(self) -> None:
@@ -217,6 +221,7 @@ class BaseScraper:
             try:
                 r = self.session.get(url, timeout=30, **kw)
                 if r.status_code == 200:
+                    self.blocked = False
                     time.sleep(self.pauza + random.uniform(0, 1.2))
                     return r
                 if r.status_code in (403, 429, 500, 502, 503, 504) and pokus < POKUSY:
@@ -232,6 +237,8 @@ class BaseScraper:
                     time.sleep(cekani)
                     continue
                 log.warning("%s: HTTP %d na %s", self.obchod, r.status_code, url)
+                if r.status_code in (403, 429):
+                    self.blocked = True
                 return None
             except requests.RequestException as e:
                 if pokus == POKUSY:

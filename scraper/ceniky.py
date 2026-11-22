@@ -9,6 +9,10 @@ python -m scraper.ceniky [--dry-run] [--obchod Kaufland]
 - Exit 0 i při částečných selháních (denní cron nesmí padat kvůli
   jednomu řetězci); při TOTÁLNÍM selhání (0 nabídek ze všech) → 1,
   aby byl problém vidět v Actions.
+- Výjimka: 0 nabídek čistě proto, že všechny zdroje odmítly požadavky
+  WAFem (403/429 po všech retrycích) = infrastrukturní blok, ne chyba
+  kódu → exit 0 + ::warning:: anotace. Druhý denní cron běh přinese
+  jinou IP runneru; červený job by tu byl jen falešný poplach.
 """
 
 from __future__ import annotations
@@ -43,12 +47,17 @@ def main() -> int:
     vsechny = []
     vysledky: dict[str, str] = {}
     uspesne_zdroje: list[str] = []  # řetězce, co stáhly ≥1 stránku
+    zablokovane: list[str] = []     # řetězce, jejichž zdroj vracel jen 403/429
     for cls in scrapery:
         s = cls()
         try:
             nabidky = list(s.stahni_slevy())
             vsechny.extend(nabidky)
-            vysledky[s.obchod] = f"{len(nabidky)} nabídek"
+            if not nabidky and getattr(s, "blocked", False):
+                vysledky[s.obchod] = "BLOKOVÁNO (WAF)"
+                zablokovane.append(s.obchod)
+            else:
+                vysledky[s.obchod] = f"{len(nabidky)} nabídek"
             log.info("%s: %d nabídek", s.obchod, len(nabidky))
             if s.fetched:
                 uspesne_zdroje.append(f"scraper:{s.obchod.lower()}")
@@ -110,8 +119,18 @@ def main() -> int:
         except OSError as e:
             log.warning("GITHUB_STEP_SUMMARY zápis selhal: %s", e)
 
-    # 0 nabídek ze všech řetězců = něco je špatně (síť/WAF změny) → fail
-    return 0 if vsechny else 1
+    # 0 nabídek ze všech řetězců = něco je špatně (síť/parsování) → fail;
+    # čistá WAF blokace všech zdrojů ale není chyba kódu → warning, ne fail
+    if vsechny:
+        return 0
+    if zablokovane and len(zablokovane) == len(scrapery):
+        print(
+            "::warning::PriceScraper: všechny zdroje zablokovány WAFem "
+            f"({', '.join(zablokovane)}) – nic se nezapsalo, zkusí "
+            "to další cron běh z jiné IP."
+        )
+        return 0
+    return 1
 
 
 if __name__ == "__main__":
