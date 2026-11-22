@@ -131,12 +131,45 @@ export function Denik() {
       );
       return { predchozi };
     },
-    onError: (e, _v, ctx) => {
-      dotazovak.setQueryData(["denik", datum], ctx?.predchozi);
+    onError: (e) => {
+      // refetch ze serveru místo snapshotu – u debouncované série by
+      // rollback vracel mezistav série, ne pravý stav řádku
+      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
       toast.error(e instanceof Error ? e.message : "Úprava gramáže selhala.");
     },
     onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
+
+  // gramáž se debouncuje (400 ms klid): každý krok pilule by jinak
+  // vystřelil vlastní UPDATE a nezávislé zápisy na stejném řádku se
+  // můžou vykonat v jiném pořadí, než uživatel klepal – DB by skončila
+  // na hodnotě, kterou uživatel neviděl. Optimistický přepis běží hned,
+  // síť až po ustálení; poslední cílová hodnota vyhrává.
+  const gramTimer = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const gramCil = useRef(new Map<string, number>());
+  useEffect(
+    () => () => {
+      for (const t of gramTimer.current.values()) clearTimeout(t);
+    },
+    [],
+  );
+  const naplanujZmenuGramu = (id: string, gramy: number) => {
+    dotazovak.setQueryData<PoznamkaDeniku[]>(["denik", datum], (stare) =>
+      (stare ?? []).map((x) => (x.id === id ? { ...x, mnozstviG: gramy } : x)),
+    );
+    gramCil.current.set(id, gramy);
+    const stary = gramTimer.current.get(id);
+    if (stary) clearTimeout(stary);
+    gramTimer.current.set(
+      id,
+      setTimeout(() => {
+        gramTimer.current.delete(id);
+        const g = gramCil.current.get(id);
+        gramCil.current.delete(id);
+        if (g != null) mutaceGramy.mutate({ id, gramy: g });
+      }, 400),
+    );
+  };
 
   // „zopakovat předchozí den" – zdroj je nejbližší předchozí den se záznamy
   // v načteném 7denním okně (typ jídla i čas zápisu se zachovají)
@@ -547,7 +580,7 @@ export function Denik() {
                         <GramazPill
                           className="w-24 shrink-0"
                           hodnota={p.mnozstviG}
-                          onZmena={(gramy) => mutaceGramy.mutate({ id: p.id, gramy })}
+                          onZmena={(gramy) => naplanujZmenuGramu(p.id, gramy)}
                           ariaLabel={`Množství ${p.nazev}: ${formatujMakro(p.mnozstviG)} g – změnit`}
                         />
                         <button
