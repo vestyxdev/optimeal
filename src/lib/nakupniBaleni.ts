@@ -62,9 +62,15 @@ const KS_VAHY: [RegExp, number][] = [
   // jednoporcové produkty – tyčinka 45 g, kelímkový pudink ~150 g.
   // DB baleni_g ≤200 g (skutečná váha kusu) má přednost, 500 g artefakt
   // z normalizace se ignoruje a vezme se typická váha kusu.
-  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|protein.{0,10}bar/i, 45],
+  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|protein.{0,10}bar|raw\s*energy/i, 45],
   [/pudink|puding|kr[ée]m.*kel[íi]m|kel[íi]mek|dezert.*sklenič/i, 150],
 ];
+
+/** Zboží V oleji/nálevu není lahvový olej – „tuňák v rostlinném
+ *  oleji" je konzerva 160 g, ne láhev 1 l. Regex oleje by na
+ *  „v … oleji" zareagoval falešně, proto se řádky oleje přeskočí. */
+const V_OLEJI_NALEV_RE =
+  /\bv\s+(?:rostlinn[ée]m|olivov[ée]m|slune[čc]nicov[ée]m|slunečnicovým|rostlinném|olivovém)\s+oleji|\bv\s+n[áa]levu|n[áa]lev|nakl[áa]dan|sterilovan|tu[ňn][aá]k|sardink|makrel|kapar/i;
 
 /** Typické velikosti českého retail balení podle názvu. */
 const BALENI_TYPICKE: [RegExp, number, "g" | "ml"][] = [
@@ -89,6 +95,7 @@ const BALENI_TYPICKE: [RegExp, number, "g" | "ml"][] = [
   [/med\b/i, 500, "g"],
   [/d[žz]em|marmel[áa]d/i, 220, "g"],
   [/tu[ňn][aá]k/i, 160, "g"],
+  [/sardink|sardel|sprat|makrel.*(konzerv|nálev|olej)/i, 110, "g"],
   [/passata|loupan[ée] raj[čc]ata|raj[čc]ata konzerva|konzervovan[ée] raj[čc]/i, 400, "g"],
   [/fazol|cizrn|[čc]o[čc]k/i, 400, "g"],
   [/toast/i, 500, "g"],
@@ -171,7 +178,10 @@ export function spocitejNakupniBaleni(v: Vstup): NakupniBaleni {
   }
 
   // 3) typická retail balení podle názvu
+  const vOleji = V_OLEJI_NALEV_RE.test(v.nazev);
   for (const [re, velikost, jednotka] of BALENI_TYPICKE) {
+    // lahvové řádky (olej 500 ml/1 l) nesmí chytit konzervu v oleji
+    if (vOleji && jednotka === "ml" && /olej|olivov/i.test(re.source)) continue;
     if (!re.test(v.nazev)) continue;
     const pocet = potreba === 0 ? 0 : Math.max(1, Math.ceil(potreba / velikost));
     return vysledek({

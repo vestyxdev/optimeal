@@ -1205,6 +1205,21 @@ describe("ceny jídel – realistický výpočet", () => {
     expect(jeCenaSpolehliva(p("k", "Mléko trvanlivé", 3.3, 4.8, 1.5, 44, 2.2))).toBe(true);
     expect(jeCenaSpolehliva(p("l", "Krabí tyčky", 10, 12, 1, 95, 3))).toBe(true);
   });
+
+  it("sušené maso/jerky pod 60 Kč/100 g = artefakt, reálná cena projde", () => {
+    // „Sušené maso Pepper“ za 15 Kč/100 g – reálný jerky je ~100–180 Kč
+    expect(jeCenaSpolehliva(p("m", "Sušené maso Pepper", 55, 5, 4, 280, 15))).toBe(false);
+    expect(jeCenaSpolehliva(p("n", "Jerky hovězí", 55, 5, 4, 280, 20))).toBe(false);
+    expect(jeCenaSpolehliva(p("o", "Biltong", 60, 2, 3, 290, 15))).toBe(false);
+    // reálná cena jerky projde
+    expect(jeCenaSpolehliva(p("p", "Sušené maso hovězí jerky", 60, 5, 4, 300, 110))).toBe(true);
+    expect(jeCenaSpolehliva(p("q", "Sušené maso hovězí jerky", 60, 5, 4, 300, 65))).toBe(true);
+  });
+
+  it("raw-energy snack pod 10 Kč/100 g = artefakt", () => {
+    // „Raw energy peanuts & dates“ za 2,53 Kč/100 g → 1,26 Kč za 50 g kus
+    expect(jeCenaSpolehliva(p("r", "Raw energy peanuts & dates", 8, 45, 20, 390, 2.53))).toBe(false);
+  });
 });
 
 describe("reálný katalog – cukrovinky, nepotraviny, cizí názvy", () => {
@@ -1286,6 +1301,23 @@ describe("reálný katalog – cukrovinky, nepotraviny, cizí názvy", () => {
     // u ostatních rolí/typů jídla platí pravidlo poloviny minima –
     // maso 80 g min (svačina) → krácené nejvýš na 40 g, ne na 10 g nitě
     expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "svacina", true)).toBe(40);
+  });
+
+  it("kaše má podlahu 30 g – 10 g suché kaše není porce ani při krácení", () => {
+    // svačina při podMin krácení: dřív spadlo na 10 g
+    expect(zaokrouhliGramaz({ nazev: "Kaše šestizrnná" }, 8, "sacharid", "svacina", true)).toBe(30);
+    expect(zaokrouhliGramaz({ nazev: "Ovesné vločky" }, 10, "sacharid", "svacina", true)).toBe(30);
+    // snídaně: 30 g i bez krácení
+    expect(zaokrouhliGramaz({ nazev: "Kaše rýžová" }, 12, "sacharid", "snidane", false)).toBe(30);
+  });
+
+  it("energy tyčinka se zaokrouhlí na celý kus, ne na 15 g úlomek", () => {
+    // kusová gramáž: 50 g kus
+    expect(kusovaGramaz("Raw energy peanuts & dates")).toBe(50);
+    // 15 g poptávky → 1 ks (50 g), nikdy frakční úsek
+    expect(zaokrouhliGramaz({ nazev: "Raw energy peanuts & dates" }, 15, "sacharid", "svacina", true)).toBe(50);
+    // obyčejná tyčinka 45 g – taky celý kus, ne úlomek
+    expect(zaokrouhliGramaz({ nazev: "Energy bar" }, 15, "sacharid", "svacina", true)).toBe(45);
   });
 });
 
@@ -1769,6 +1801,26 @@ describe("cizojazyčné OFF importy – regrese", () => {
     expect(jeCiziNazev("Müsli s ovocem")).toBe(false);
     expect(jeCiziNazev("Pšenično-žitný chléb")).toBe(false);
     expect(jeCiziNazev("Kuřecí prsa")).toBe(false);
+  });
+
+  it("německé a anglické OFF názvy bez cizí diakritiky se poznají", () => {
+    for (const nazev of [
+      "Haselnusskerne ganz",
+      "Raw energy peanuts & dates",
+      "Haferflocken",
+      "Vollkornbrot",
+      "Almonds and cashews",
+      "Roasted peanuts with sea salt",
+      "Getrocknete Aprikosen",
+      "Milch Vollkorn",
+    ]) {
+      expect(jeCiziNazev(nazev), nazev).toBe(true);
+    }
+    // české produkty s běžnými slovy nesmí padnout
+    expect(jeCiziNazev("Pikantní kuřecí nugety")).toBe(false);
+    expect(jeCiziNazev("Müsli s ovocem a ořechy")).toBe(false);
+    expect(jeCiziNazev("Datle sušené")).toBe(false);
+    expect(jeCiziNazev("Mandle natural")).toBe(false);
   });
 
   it("cizojazyčné položky se do vygenerovaného plánu nedostanou", () => {

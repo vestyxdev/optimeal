@@ -723,6 +723,7 @@ const KUSOVA_PORCE: [RegExp, number][] = [
   [/kiwi/i, 75],
   [/avok[áa]d/i, 150],
   [/ty[čc]ink|\bbar\b|k[řr]upav[aá].?ty[čc]/i, 45],
+  [/raw\s*energy|energy\s+(?:bar|balls?|bites?)/i, 50],
 ];
 
 /** Váha jednoho kusu kusové potraviny (null u vážených). Kusové
@@ -795,11 +796,16 @@ export function zaokrouhliGramaz(
     }
   } else if (role === "sacharid") {
     if (SUCHE_SACH_RE.test(p.nazev)) {
+      // kaše/vločky/müsli mají podlahu 30 g i mimo hlavní jídlo –
+      // 10 g kaše ke svačině není porce
+      const jeKase =
+        /ka[šs](?!tan|mír|el)|vlo[čc]k|ovsen|krupič|müsli|musli|granola/i.test(p.nazev);
       krok = 10;
-      min = typJ === "obedVecere" ? 50 : typJ === "snidane" ? 30 : 20;
+      min = typJ === "obedVecere" ? 50 : typJ === "snidane" ? 30 : jeKase ? 30 : 20;
       max = typJ === "obedVecere" ? 160 : 120;
-      // suchá příloha hlavního jídla nikdy pod 50 g suché váhy
-      podlahaNelamatelna = typJ === "obedVecere";
+      // suchá příloha hlavního jídla nikdy pod 50 g suché váhy;
+      // kaše a vločky nikdy pod 30 g ani při krácení solveru
+      podlahaNelamatelna = typJ === "obedVecere" || jeKase;
     } else {
       krok = 10; min = 20; max = 250; // brambory, pečivo, ovoce
     }
@@ -1022,7 +1028,10 @@ export function jeCenaSpolehliva(p: Potravina): boolean {
  */
 export const CENOVE_PODMERY: [RegExp, number][] = [
   // tyčinky a snacky – 45 g tyčinka za <10 Kč/100 g (<4,5 Kč/ks)
-  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|protein.{0,10}bar/i, 10],
+  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|raw\s*energy|energy.{0,10}balls?|protein.{0,10}bar/i, 10],
+  // sušené maso/jerky – reálně ~100–180 Kč/100 g; cokoliv pod 60 Kč
+  // je artefakt katalogové paušály, ne česká maloobchodní cena
+  [/su[šs]en[éeýy].{0,5}maso|jerky|biltong|pemikan|pemmican|dried.{0,5}meat/i, 60],
   // ořechy a semínka – ani výprodej lískových neklesne pod ~100 Kč/kg
   [/o[řr]ech|o[řr][íi][šs]k|mandel|mandl|l[íi]sk|ke[šs]u|kesu|pist[áa]c|pekan|vla[šs]sk|makadam|para ?o[řr]ech|slune[čc]nic|chia|ln[ěe]n/i, 10],
   // sušené ovoce – 50 g sušeného ananasu za 2,75 Kč je artefakt
@@ -1365,7 +1374,7 @@ export function jeNutrienceSpolehliva(p: {
  */
 const CIZI_ZNAKY_RE = /[àâãäåæçèêëìîïðñòôõøùûÿþßłńśźżąęćőűЀ-ӿ]/i;
 const CIZI_SLOVA_RE =
-  /kever[eé]k|noisette|hach[eé]e?s?\b|grill[eé]e?s?\b|m[eé]lange|d[ée]gustation|mieszank|pra[zż]on|sma[zż]on|ger[öo]stet|gesalzen|gemahlen|gebraten|mischung|knusprig|karmelizow|aromatyzow|w[ęe]dzon|p[öo]rk[öo]lt|pir[íi]tott|s[oó]zott|[íi]zes[ií]tett|s[üu]ss|d[üu]nn?m?|integrale\b|naturale\b|fum[ée]\b/i;
+  /kever[eé]k|noisette|hach[eé]e?s?\b|grill[eé]e?s?\b|m[eé]lange|d[ée]gustation|mieszank|pra[zż]on|sma[zż]on|ger[öo]stet|gesalzen|gemahlen|gebraten|mischung|knusprig|karmelizow|aromatyzow|w[ęe]dzon|p[öo]rk[öo]lt|pir[íi]tott|s[oó]zott|[íi]zes[ií]tett|s[üu]ss|d[üu]nn?m?|integrale\b|naturale\b|fum[ée]\b|haselnuss|hazelnut|walnuss|mandeln|almonds?|peanuts?|cashews?|kerne|n[üu]sse?|milch|k[äa]se|fleisch|zucker|hafer|brot|br[öo]tchen|schokolade|sonnenblumen|erdnuss|vollkorn|roggen|dinkel|eier|nudel|apfel|birne|kirsche|pflaume|wasser|getrocknet|entsteint|ungeschwefelt|\bpikant\b|\bmit\b|\bund\b|\bohne\b|\bwith\b|\band\b|\bganz\b|\bfruits?\b|\bnuts?\b|\bseeds?\b|\bdates?\b|\bsalted\b|\broasted\b|\braw\b.{0,15}(?:\bnuts?\b|\bdates?\b|\bfruit)/i;
 
 /** Název potraviny je cizojazyčný (OFF import bez českého názvu). */
 export function jeCiziNazev(nazev: string): boolean {

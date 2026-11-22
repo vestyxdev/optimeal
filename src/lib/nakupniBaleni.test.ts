@@ -99,6 +99,51 @@ describe("kusové jednoporcovky – regrese balenkových artefaktů", () => {
   });
 });
 
+describe("konzervy v oleji – regrese", () => {
+  it("tuňák v oleji je konzerva 160 g, ne láhev oleje 1 l", () => {
+    const b = spocitejNakupniBaleni({
+      nazev: "Tuňák v rostlinném oleji a slaném nálevu (Giana)",
+      gramy: 130,
+      cenaZa100g: 35,
+    });
+    expect(b.druh).toBe("baleni");
+    expect(b.jednotka).toBe("g");
+    expect(b.velikost).toBe(160);
+    expect(b.pocet).toBe(1);
+    expect(b.popisek).toBe("1× 160 g");
+  });
+
+  it("sardinky v olivovém oleji jsou konzerva, ne 500 ml olej", () => {
+    const b = spocitejNakupniBaleni({
+      nazev: "Sardinky v olivovém oleji",
+      gramy: 100,
+    });
+    expect(b.druh).toBe("baleni");
+    expect(b.jednotka).toBe("g");
+    expect(b.velikost).toBe(110);
+  });
+
+  it("samotný olivový olej zůstává lahví 500 ml", () => {
+    const b = spocitejNakupniBaleni({
+      nazev: "Olivový olej extra virgin",
+      gramy: 100,
+    });
+    expect(b.druh).toBe("baleni");
+    expect(b.jednotka).toBe("ml");
+    expect(b.velikost).toBe(500);
+  });
+
+  it("slunečnicový olej zůstává lahví 1 l", () => {
+    const b = spocitejNakupniBaleni({
+      nazev: "Slunečnicový olej",
+      gramy: 200,
+    });
+    expect(b.druh).toBe("baleni");
+    expect(b.jednotka).toBe("ml");
+    expect(b.velikost).toBe(1000);
+  });
+});
+
 describe("formatujMnozstvi", () => {
   it("g → kg, ml → l, desetiny česky", () => {
     expect(formatujMnozstvi(500, "g")).toBe("500 g");
