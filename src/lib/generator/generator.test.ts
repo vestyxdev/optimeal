@@ -6,7 +6,9 @@ import {
   nazevVylucujeDietu,
   obsahujeAlergen,
   jeCenaSpolehliva,
+  jeCiziNazev,
   jeJunk,
+  jeKorumpovanaNutrience,
   jeNepotravinovy,
   jePrisada,
   jeSuplement,
@@ -1055,10 +1057,12 @@ describe("suplementy – zákaz v hlavních jídlech", () => {
 });
 
 describe("reálné porce – zaokrouhliGramaz", () => {
-  it("maso/ryby: krok 10 g, porce 80–250 g", () => {
+  it("maso/ryby: krok 10 g, porce 120–250 g u hlavního jídla", () => {
     expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 137, "kotva", "obedVecere")).toBe(140);
-    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 40, "kotva", "obedVecere")).toBe(80);
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 40, "kotva", "obedVecere")).toBe(120);
     expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 800, "kotva", "obedVecere")).toBe(250);
+    // svačina: masová porce může být menší
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 40, "kotva", "svacina")).toBe(80);
   });
 
   it("suché sacharidy: krok 10 g, hlavní jídlo min 50 g – žádná 30 g rýže", () => {
@@ -1092,9 +1096,10 @@ describe("reálné porce – zaokrouhliGramaz", () => {
 });
 
 describe("reálné porce – v generovaném plánu", () => {
-  it("všechny gramáže jsou čisté (krok 5 g nebo celé kusy) a maso ≥ 80 g", () => {
+  it("všechny gramáže jsou čisté (krok 5 g nebo celé kusy) a maso ≥ 80 g (oběd/večeře ≥ 120 g)", () => {
     const den = vygenerujJidelnicek(KATALOG_REALNY, CILE, 3);
-    for (const souhrn of Object.values(den.jidelnicek)) {
+    for (const [nazevJidla, souhrn] of Object.entries(den.jidelnicek)) {
+      const hlavni = /oběd|večeře/i.test(nazevJidla);
       for (const j of souhrn.jidla) {
         if (j.popisekMnozstvi) {
           // kusová položka: „N ks · M g" a gramy = N × váha kusu
@@ -1105,8 +1110,16 @@ describe("reálné porce – v generovaném plánu", () => {
           expect(j.gramy % 5, `${j.nazev} ${j.gramy}`).toBe(0);
         }
         if (j.role === "kotva" && /maso|kuřec|krůt|losos|tuňák|prsa|prso/i.test(j.nazev)) {
-          expect(j.gramy).toBeGreaterThanOrEqual(80);
+          expect(j.gramy).toBeGreaterThanOrEqual(hlavni ? 120 : 80);
           expect(j.gramy).toBeLessThanOrEqual(250);
+        }
+        // suchá příloha hlavního jídla nikdy pod 50 g suché váhy
+        if (
+          hlavni &&
+          j.role === "sacharid" &&
+          /rýž|těstovin|spaget|penne|fusilli|nudl|kuskus|bulgur|quino|tarhoň|pohank|vločk|ovsen/i.test(j.nazev)
+        ) {
+          expect(j.gramy).toBeGreaterThanOrEqual(50);
         }
       }
     }
@@ -1263,11 +1276,16 @@ describe("reálný katalog – cukrovinky, nepotraviny, cizí názvy", () => {
     }
   });
 
-  it("povolitPodMin: krácení solveru končí na půlce servírovacího minima", () => {
-    // maso 80 g min → krácené nejvýš na 40 g, ne na 10 g nitě
-    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere", true)).toBe(40);
-    // běžné volání drží servírovací minimum 80 g
-    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere")).toBe(80);
+  it("povolitPodMin: krácení solveru končí na půlce minima, hlavní složky talíře jsou nelamatelné", () => {
+    // maso oběda/večeře: podlaha 120 g se neprolomuje ani při krácení –
+    // 70 g krůtího není oběd, solver má doladit jinde
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere", true)).toBe(120);
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "obedVecere")).toBe(120);
+    // suchá příloha hlavního jídla: podlaha 50 g taky nelamatelná
+    expect(zaokrouhliGramaz({ nazev: "Rýže basmati" }, 20, "sacharid", "obedVecere", true)).toBe(50);
+    // u ostatních rolí/typů jídla platí pravidlo poloviny minima –
+    // maso 80 g min (svačina) → krácené nejvýš na 40 g, ne na 10 g nitě
+    expect(zaokrouhliGramaz({ nazev: "Kuřecí prsa" }, 5, "kotva", "svacina", true)).toBe(40);
   });
 });
 
@@ -1733,5 +1751,87 @@ describe("vygenerujTydenniPlan – počet dní + vaření dopředu", () => {
     if (obed1 && plan.dny[1]?.jidelnicek["Oběd"]?.jidla.some((j) => j.davkaDni === 2)) {
       expect(obed1.jidla.every((j) => j.davkaDni === undefined)).toBe(true);
     }
+  });
+});
+
+describe("cizojazyčné OFF importy – regrese", () => {
+  it("francouzské a maďarské názvy se poznají jako cizí", () => {
+    expect(jeCiziNazev("Noisettes hachées et grillées")).toBe(true);
+    expect(jeCiziNazev("Diákmix keveréke")).toBe(true);
+    expect(jeCiziNazev("Mieszanka bakaliowa")).toBe(true);
+    expect(jeCiziNazev("Geröstete Erdnüsse")).toBe(true);
+    expect(jeCiziNazev("Орехи жареные")).toBe(true);
+  });
+
+  it("české názvy prochází – včetně müsli (ü je v katalogu české)", () => {
+    expect(jeCiziNazev("Lískové ořechy")).toBe(false);
+    expect(jeCiziNazev("Sušený ananas")).toBe(false);
+    expect(jeCiziNazev("Müsli s ovocem")).toBe(false);
+    expect(jeCiziNazev("Pšenično-žitný chléb")).toBe(false);
+    expect(jeCiziNazev("Kuřecí prsa")).toBe(false);
+  });
+
+  it("cizojazyčné položky se do vygenerovaného plánu nedostanou", () => {
+    const katalog = [
+      ...KATALOG,
+      p("fr1", "Noisettes hachées et grillées", 15, 10, 60, 650, 30),
+      p("hu1", "Diákmix keveréke", 18, 30, 40, 550, 25),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE, 3);
+    const nazvy = Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => j.nazev));
+    expect(nazvy).not.toContain("Noisettes hachées et grillées");
+    expect(nazvy).not.toContain("Diákmix keveréke");
+  });
+});
+
+describe("poškozená makra čerstvého masa – regrese „Krůtí natural“", () => {
+  it("čerstvé maso nad 35 g bílkovin/100 g je korumpované", () => {
+    expect(jeKorumpovanaNutrience({ nazev: "Krůtí natural", bilkoviny: 77 })).toBe(true);
+    expect(jeKorumpovanaNutrience({ nazev: "Kuřecí prsa", bilkoviny: 23 })).toBe(false);
+    expect(jeKorumpovanaNutrience({ nazev: "Vepřová plec", bilkoviny: 19 })).toBe(false);
+  });
+
+  it("sušené maso/jerky má vyšší strop – 65 g B/100 g je reálných", () => {
+    expect(jeKorumpovanaNutrience({ nazev: "Sušené maso krůtí", bilkoviny: 65 })).toBe(false);
+    expect(jeKorumpovanaNutrience({ nazev: "Beef jerky", bilkoviny: 62 })).toBe(false);
+  });
+
+  it("korumpovaná položka nemůže ukotvit oběd 70 g porcí", () => {
+    const katalog = [
+      ...KATALOG,
+      // „Krůtí natural" s nereálnými makry – dřív solver oběd ukotvil 70 g
+      p("kr1", "Krůtí natural", 77, 0, 3, 340, 15),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE, 3);
+    const nazvy = Object.values(den.jidelnicek).flatMap((s) => s.jidla.map((j) => j.nazev));
+    expect(nazvy).not.toContain("Krůtí natural");
+  });
+});
+
+describe("kategoriové cenové podlahy – regrese „5 Kč/100 g“", () => {
+  it("paušální katalogová cena je u ořechů/tyčinek/sušeného ovoce nespolehlivá", () => {
+    expect(jeCenaSpolehliva(p("o1", "Lískové ořechy", 15, 10, 60, 650, 5))).toBe(false);
+    expect(jeCenaSpolehliva(p("t1", "Proteinová tyčinka Monsters", 35, 30, 10, 350, 5))).toBe(false);
+    expect(jeCenaSpolehliva(p("s1", "Sušený ananas", 1, 70, 0.5, 300, 5.5))).toBe(false);
+    // reálné ceny prochází
+    expect(jeCenaSpolehliva(p("o2", "Lískové ořechy", 15, 10, 60, 650, 25))).toBe(true);
+    expect(jeCenaSpolehliva(p("t2", "Proteinová tyčinka", 35, 30, 10, 350, 30))).toBe(true);
+    // levné položky mimo podlahy nezasáhne
+    expect(jeCenaSpolehliva(p("b1", "Brambory", 2, 17, 0.1, 77, 2))).toBe(true);
+    expect(jeCenaSpolehliva(p("m1", "Mléko", 3.3, 4.8, 1.5, 44, 2.2))).toBe(true);
+  });
+
+  it("položky s paušální cenou jdou do seznamu jako „bez ceny“ (null), ne za 4,25 Kč", () => {
+    const katalog = [
+      ...KATALOG,
+      p("sn1", "Proteinová tyčinka Monsters", 35, 30, 10, 350, 5),
+      p("sn2", "Lískové ořechy", 15, 10, 60, 650, 5),
+    ];
+    const den = vygenerujJidelnicek(katalog, CILE, 3);
+    const seznam = sestavNakupniSeznam(den.jidelnicek);
+    const tycinka = seznam.find((x) => x.nazev === "Proteinová tyčinka Monsters");
+    const orechy = seznam.find((x) => x.nazev === "Lískové ořechy");
+    if (tycinka) expect(tycinka.cenaZa100g).toBeNull();
+    if (orechy) expect(orechy.cenaZa100g).toBeNull();
   });
 });

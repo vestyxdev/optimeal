@@ -415,6 +415,9 @@ export function skorePotraviny(p: Potravina, kategorie: Kategorie, vychoziCena?:
 
   let skore = hodnota / cena;
   if (p.sleva) skore *= BONUS_SLEVY;
+  // živé cenové pozorování váží víc než katalogová typická cena –
+  // plán má preferovat potraviny, za které se opravdu nakoupí
+  if (p.pozorovanoAt) skore *= 1.15;
   if (!nacenena) skore *= 0.7;
   return skore;
 }
@@ -680,8 +683,10 @@ const ZELENINA_ANTI_RE =
 
 /** Luštěniny jako zeleninová strana – jedí se, ale na talíři
  * strany prohrávají s opravdovou zeleninou (rajče, okurka,
- * salát). Měkký malus, ne zákaz – na chudém katalogu zůstanou. */
-const ZELENINA_LUSK_RE = /fazol|[čc]očk|cizrn|hrach|hr[áa][šs]ek|urid|lentil|edamame/i;
+ * salát). Kukuřice – typicky konzervovaná – sem patří taky:
+ * není to zeleninová strana, jen sacharidový doplněk. Měkký
+ * malus, ne zákaz – na chudém katalogu zůstanou. */
+const ZELENINA_LUSK_RE = /fazol|[čc]očk|cizrn|hrach|hr[áa][šs]ek|urid|lentil|edamame|kuku[řr]ic/i;
 
 /** Minimální obsah bílkovin pro kotvu jídla (g/100 g) – listová
  * zelenina a nálevy (špenát ~3 g, kysané zelí ~1 g, banánový květ)
@@ -772,6 +777,10 @@ export function zaokrouhliGramaz(
   let krok = 10;
   let min = 20;
   let max = 300;
+  // „nelamatelná" podlaha hlavního jídla – krácení solveru nesmí
+  // pod servírovací minimum: 70 g masa nebo 30 g těstovin není
+  // oběd, makra se tehdy doladí volbou jiné potraviny.
+  let podlahaNelamatelna = false;
   if (role === "zelenina") {
     krok = 10; min = 50; max = 150;
   } else if (role === "suplement") {
@@ -789,6 +798,8 @@ export function zaokrouhliGramaz(
       krok = 10;
       min = typJ === "obedVecere" ? 50 : typJ === "snidane" ? 30 : 20;
       max = typJ === "obedVecere" ? 160 : 120;
+      // suchá příloha hlavního jídla nikdy pod 50 g suché váhy
+      podlahaNelamatelna = typJ === "obedVecere";
     } else {
       krok = 10; min = 20; max = 250; // brambory, pečivo, ovoce
     }
@@ -797,7 +808,10 @@ export function zaokrouhliGramaz(
     if (/sušen[éáa]\s+(maso|ryb|tuň|hov[ěe]z|kr[ůu]t|vep[řr]|jehn[ěe])|jerky|biltong|pemikan|pemmican/i.test(p.nazev)) {
       krok = 10; min = 30; max = 60;  // jerky ~70 g B/100 g – 80 g porce = 56 g bílkovin
     } else if (MASO_RYBA_RE.test(p.nazev)) {
-      krok = 10; min = 80; max = 250;
+      // hlavní libová bílkovina oběda/večeře: 120–250 g čerstvého
+      // masa – 70 g krůtího na talíři není oběd
+      krok = 10; min = typJ === "obedVecere" ? 120 : 80; max = 250;
+      podlahaNelamatelna = typJ === "obedVecere";
     } else if (MLECNE_RE.test(p.nazev)) {
       krok = 50; min = 100; max = 300;
     } else {
@@ -806,8 +820,9 @@ export function zaokrouhliGramaz(
   }
   // krácení solveru smí jít pod servírovací minimum, ne však pod
   // jeho polovinu – 60 g sušeného masa je pořád jídlo, 10 g nitě
-  // jako „kotva oběda" ne
-  if (povolitPodMin) min = Math.max(krok, Math.round(min / 2 / krok) * krok);
+  // jako „kotva oběda" ne. Nelamatelná podlaha hlavních složek
+  // talíře (maso 120 g, suchá příloha 50 g) se ale neprolomuje.
+  if (povolitPodMin && !podlahaNelamatelna) min = Math.max(krok, Math.round(min / 2 / krok) * krok);
   return Math.max(min, Math.min(Math.round(gramy / krok) * krok, max));
 }
 
@@ -984,8 +999,35 @@ export function jeCenaSpolehliva(p: Potravina): boolean {
   ) {
     return false;
   }
+  // kategoriové cenové podlahy – katalogová „běžná cena" z OFF importu
+  // bývá paušální ~5 Kč/100 g, což je pro ořechy, sušené ovoce či
+  // tyčinky fyzikálně nemožné (lískové ořechy za 50 Kč/kg, sušený
+  // ananas za 55 Kč/kg, 45 g proteinová tyčinka za 2,25 Kč). Cena pod
+  // podlahou = artefakt → položka se tváří jako neceněná („bez ceny"),
+  // ne jako lákavě levná vítězka celého generátoru.
+  // Nápoje a mléčné alternativy podlahu ořechu/sušeného ovoce
+  // nedotýká – mandlový nápoj za ~4 Kč/100 ml je reálná cena.
+  const jeTekuta = /nápoj|ml[eé]k|drink|džus|juice|sirup| smoothie/i.test(p.nazev);
+  for (const [re, podlaha] of CENOVE_PODMERY) {
+    if (!jeTekuta && re.test(p.nazev) && c < podlaha) return false;
+  }
   return true;
 }
+
+/**
+ * Kategoriové cenové podlahy (Kč / 100 g) – konzervativní minima
+ * českého retailu, pod kterými ani katalogová typická cena nemůže
+ * být skutečná. Arašídy záměrně nejsou v ořechové podlaze –
+ * levné buráky se pod 100 Kč/kg skutečně prodávají.
+ */
+export const CENOVE_PODMERY: [RegExp, number][] = [
+  // tyčinky a snacky – 45 g tyčinka za <10 Kč/100 g (<4,5 Kč/ks)
+  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|protein.{0,10}bar/i, 10],
+  // ořechy a semínka – ani výprodej lískových neklesne pod ~100 Kč/kg
+  [/o[řr]ech|o[řr][íi][šs]k|mandel|mandl|l[íi]sk|ke[šs]u|kesu|pist[áa]c|pekan|vla[šs]sk|makadam|para ?o[řr]ech|slune[čc]nic|chia|ln[ěe]n/i, 10],
+  // sušené ovoce – 50 g sušeného ananasu za 2,75 Kč je artefakt
+  [/su[šs]en[éeýy].?(ovoce|ananas|mango|ban[áa]n|datl|rozink|brusink|meruňk|f[íi]k|švestk|brosk|jahod|malin|bor[ůu]vk|hrozink|vinn[ée]|pap[áa]j|goji)|rozink|datl(?!ov)/i, 10],
+];
 
 /** Vytvoří položku jídelníčku z potraviny a počtu gramů. */
 export function vytvorJidlo(p: Potravina, gramy: number): Jidlo {
@@ -1310,14 +1352,73 @@ export function jeNutrienceSpolehliva(p: {
   return p.bilkoviny + p.sacharidy + p.tuky <= 105;
 }
 
+/**
+ * Cizojazyčné názvy z OpenFoodFacts – katalog obsahuje tisíce
+ * neczechizovaných importů („Noisettes hachées et grillées",
+ * „Diákmix keveréke"), které v českém jídelníčku nemají co dělat.
+ * Detekce dvěma stopami:
+ *   1) diakritika, kterou čeština nepoužívá (à, è, õ, ł, ő…; záměrně
+ *      BEZ ü a ó – „müsli" a „gól" jsou v katalogu běžné a české)
+ *      + cyrilice,
+ *   2) cizojazyčná klíčová slova (hachée, grillée, keverék,
+ *      geröstet, mieszanka…).
+ */
+const CIZI_ZNAKY_RE = /[àâãäåæçèêëìîïðñòôõøùûÿþßłńśźżąęćőűЀ-ӿ]/i;
+const CIZI_SLOVA_RE =
+  /kever[eé]k|noisette|hach[eé]e?s?\b|grill[eé]e?s?\b|m[eé]lange|d[ée]gustation|mieszank|pra[zż]on|sma[zż]on|ger[öo]stet|gesalzen|gemahlen|gebraten|mischung|knusprig|karmelizow|aromatyzow|w[ęe]dzon|p[öo]rk[öo]lt|pir[íi]tott|s[oó]zott|[íi]zes[ií]tett|s[üu]ss|d[üu]nn?m?|integrale\b|naturale\b|fum[ée]\b/i;
+
+/** Název potraviny je cizojazyčný (OFF import bez českého názvu). */
+export function jeCiziNazev(nazev: string): boolean {
+  return CIZI_ZNAKY_RE.test(nazev) || CIZI_SLOVA_RE.test(nazev);
+}
+
+/**
+ * Čerstvé maso/drůbež/ryby mají horní fyzikální mez ~31 g bílkovin
+ * na 100 g (kuřecí prsa ~23 g). Položka „Krůtí natural" se 77 g B
+ * je poškozená zdrojová data – solver pak oběd ukotví 70 g masa
+ * a zbytek talíře se rozsype. Výjimka: sušené maso/jerky, kde
+ * 60–70 g B/100 g je skutečných.
+ */
+export const MAX_B_CERSTVE_MASO = 35;
+const CERSTVE_MASO_RE =
+  /maso|ku[řr]ec|kr[ůu]t|vep[řr]|hov[ěe]z|telec|jehn[ěe]|prso|prsa|steak|file|mlet[éeý]|dr[ůu]be[žz]|losos|tu[ňn][aá]k|tresk|pstruh|kapr|sle[ďd]|makrel|tilapi|sardink|krevet|kalam[aá]r|krab|pangas|kachn|hus[ay]/i;
+const SUSENE_MASO_RE = /su[šs]en|jerky|biltong|pemikan|pemmican|dried/i;
+
+/** Poškozená makra u čerstvého masa – bílkoviny nad fyzikální mez. */
+export function jeKorumpovanaNutrience(p: {
+  nazev: string;
+  bilkoviny: number;
+}): boolean {
+  if (
+    CERSTVE_MASO_RE.test(p.nazev) &&
+    !SUSENE_MASO_RE.test(p.nazev) &&
+    p.bilkoviny > MAX_B_CERSTVE_MASO
+  ) {
+    return true;
+  }
+  // pečivo a krekry nad ~30 g B/100 g – proteinový chléb sahá max.
+  // ~25 g, „krekry se semínky" se 46,7 g jsou poškozená data
+  return (
+    /krekr|pe[čc]iv|chleb[íi][čc]|rohl[íi]k|housk|chl[ée]b(?!íč)|toast|veka|baget|kn[aä]cke|tortill/i.test(
+      p.nazev,
+    ) && p.bilkoviny > 30
+  );
+}
+
 /** Seřadí potraviny dle skóre a vrátí kategorie kandidátů. */
 function pripravKategorie(potraviny: Potravina[]): KategorieMap {
   const kategorie: KategorieMap = { bilkovinova: [], sacharidova: [], tukova: [] };
   const median = medianCeny(potraviny);
 
-  // nemožné nutriční hodnoty z OFF (chybně zadané za 100 g) nesmí do výběru
-  const spolehlive = potraviny.filter(jeNutrienceSpolehliva);
-  const zaklad = spolehlive.length > 0 ? spolehlive : potraviny;
+  // nemožné nutriční hodnoty z OFF (chybně zadané za 100 g) nesmí do
+  // výběru – ani poškozená makra čerstvého masa (Krůtí natural 77 g B)
+  const spolehlive = potraviny.filter(
+    (p) => jeNutrienceSpolehliva(p) && !jeKorumpovanaNutrience(p),
+  );
+  // cizojazyčné OFF importy nemají v českém jídelníčku co dělat;
+  // fallback na plný pool jen kdyby český katalog vyšel naprázdno
+  const ceske = spolehlive.filter((p) => !jeCiziNazev(p.nazev));
+  const zaklad = ceske.length > 0 ? ceske : spolehlive.length > 0 ? spolehlive : potraviny;
 
   for (const p of zaklad) {
     const k = kategoriePotraviny(p);

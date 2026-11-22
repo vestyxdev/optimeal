@@ -59,6 +59,11 @@ const KS_VAHY: [RegExp, number][] = [
   [/rožek|rozek/i, 45],
   [/dalam[aá]nek/i, 45],
   [/vejce|vejci/i, 60],
+  // jednoporcové produkty – tyčinka 45 g, kelímkový pudink ~150 g.
+  // DB baleni_g ≤200 g (skutečná váha kusu) má přednost, 500 g artefakt
+  // z normalizace se ignoruje a vezme se typická váha kusu.
+  [/ty[čc]ink|m[üu]sli.?bar|granola.?bar|energy.?bar|protein.{0,10}bar/i, 45],
+  [/pudink|puding|kr[ée]m.*kel[íi]m|kel[íi]mek|dezert.*sklenič/i, 150],
 ];
 
 /** Typické velikosti českého retail balení podle názvu. */

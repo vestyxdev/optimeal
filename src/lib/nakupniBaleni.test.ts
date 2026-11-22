@@ -68,6 +68,37 @@ describe("spocitejNakupniBaleni – balení a kusy", () => {
   });
 });
 
+describe("kusové jednoporcovky – regrese balenkových artefaktů", () => {
+  it("45 g proteinové tyčinky → 1 ks, NIKDY „1× 500 g“", () => {
+    const b = spocitejNakupniBaleni({ nazev: "Proteinová tyčinka Monsters", gramy: 45 });
+    expect(b.druh).toBe("ks");
+    expect(b.pocet).toBe(1);
+    expect(b.popisek).toBe("1 ks");
+    expect(b.nakoupeno).toBe(45);
+  });
+
+  it("artefakt baleniG=500 u tyčinky se ignoruje – kusová váha vyhraje", () => {
+    const b = spocitejNakupniBaleni({ nazev: "Proteinová tyčinka Monsters", gramy: 45, baleniG: 500, cenaZa100g: 44 });
+    expect(b.druh).toBe("ks");
+    expect(b.pocet).toBe(1);
+    expect(b.nakoupeno).toBe(45);
+  });
+
+  it("skutečná váha kusu z DB (baleniG ≤200) má přednost", () => {
+    const b = spocitejNakupniBaleni({ nazev: "Tyčinka oříšková", gramy: 50, baleniG: 60 });
+    expect(b.druh).toBe("ks");
+    expect(b.velikost).toBe(60);
+    expect(b.pocet).toBe(1); // 50/60 → 1 ks
+  });
+
+  it("130 g pudinku → 1 ks (kelímek ~150 g)", () => {
+    const b = spocitejNakupniBaleni({ nazev: "Pudink vanilkový", gramy: 130 });
+    expect(b.druh).toBe("ks");
+    expect(b.pocet).toBe(1);
+    expect(b.nakoupeno).toBe(150);
+  });
+});
+
 describe("formatujMnozstvi", () => {
   it("g → kg, ml → l, desetiny česky", () => {
     expect(formatujMnozstvi(500, "g")).toBe("500 g");
