@@ -355,7 +355,7 @@ export function ReceptEditace() {
                         aria-label="Méně porcí"
                         disabled={field.value <= 1}
                         onClick={() => field.onChange(Math.max(1, field.value - 1))}
-                        className="grid size-9 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
+                        className="grid size-11 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
                       >
                         <Minus className="size-4" />
                       </button>
@@ -368,7 +368,7 @@ export function ReceptEditace() {
                         aria-label="Více porcí"
                         disabled={field.value >= 12}
                         onClick={() => field.onChange(Math.min(12, field.value + 1))}
-                        className="grid size-9 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
+                        className="grid size-11 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-30"
                       >
                         <Plus className="size-4" />
                       </button>
@@ -470,7 +470,7 @@ export function ReceptEditace() {
                       onClick={() => remove(i)}
                       disabled={fields.length <= 1}
                       aria-label={`Odebrat surovinu ${i + 1}`}
-                      className="col-start-4 row-start-1 grid size-9 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30 sm:col-start-5"
+                      className="col-start-4 row-start-1 grid size-11 place-items-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-30 sm:col-start-5"
                       title="Odebrat surovinu"
                     >
                       <Trash2 className="size-4" />

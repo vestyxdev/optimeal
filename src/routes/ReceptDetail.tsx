@@ -258,7 +258,7 @@ export function ReceptDetail() {
                     aria-label="Méně porcí"
                     disabled={effektivniPorce <= 1}
                     onClick={() => setPorci(Math.max(1, effektivniPorce - 1))}
-                    className="grid size-7 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
+                    className="grid size-11 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
                   >
                     <Minus className="size-3.5" />
                   </button>
@@ -270,7 +270,7 @@ export function ReceptDetail() {
                     aria-label="Více porcí"
                     disabled={effektivniPorce >= 20}
                     onClick={() => setPorci(Math.min(20, effektivniPorce + 1))}
-                    className="grid size-7 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
+                    className="grid size-11 place-items-center rounded-full border border-border text-muted transition-colors hover:bg-surface-2 disabled:opacity-40"
                   >
                     <Plus className="size-3.5" />
                   </button>

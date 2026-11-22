@@ -393,13 +393,17 @@ export function Nakup() {
                 <ul className="divide-y divide-border">
             {seznam.map((p) => (
               <li key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={p.koupeno}
-                  onChange={(e) => mutaceKoupeno.mutate({ id: p.id, koupeno: e.target.checked })}
-                  className="size-5 shrink-0 accent-primary"
-                  aria-label={`Označit ${p.nazev} jako koupené`}
-                />
+                {/* label roztahuje tap target na celou výšku řádku
+                    (~48+ px) – odškrtávání v obchodě jednou rukou */}
+                <label className="-my-3 -ml-4 flex cursor-pointer items-center self-stretch pl-4 pr-1">
+                  <input
+                    type="checkbox"
+                    checked={p.koupeno}
+                    onChange={(e) => mutaceKoupeno.mutate({ id: p.id, koupeno: e.target.checked })}
+                    className="size-5 shrink-0 accent-primary"
+                    aria-label={`Označit ${p.nazev} jako koupené`}
+                  />
+                </label>
                 <MiniaturaPotraviny obrazek={p.obrazek} velikost="size-8" />
                 <span className={p.koupeno ? "flex-1 text-muted line-through" : "flex-1 font-medium"}>
                   {p.nazev}
@@ -500,7 +504,7 @@ export function Nakup() {
                 </span>
                 <button
                   onClick={() => mutaceSpiz.mutate({ foodId: p.foodId ?? null, nazev: p.nazev, doSpize: true })}
-                  className="rounded-lg p-2.5 text-muted transition-colors hover:bg-ok-soft hover:text-ok"
+                  className="rounded-lg p-3.5 text-muted transition-colors hover:bg-ok-soft hover:text-ok"
                   title="Mám doma – přesunout do spíže"
                   aria-label={`${p.nazev} mám doma`}
                 >
@@ -508,7 +512,7 @@ export function Nakup() {
                 </button>
                 <button
                   onClick={() => mutaceSmazatPolozku.mutate(p.id)}
-                  className="rounded-lg p-2.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                  className="rounded-lg p-3.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                   title="Smazat položku"
                   aria-label={`Smazat ${p.nazev}`}
                 >

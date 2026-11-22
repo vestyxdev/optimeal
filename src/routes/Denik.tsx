@@ -12,6 +12,7 @@ import { Prstenec } from "@/components/ui/Prstenec";
 import { VyberPotraviny, type PolozkaVyberu } from "@/components/ui/VyberPotraviny";
 import { DenikZapis } from "@/components/denik/DenikZapis";
 import { SerieKarta } from "@/components/denik/SerieKarta";
+import { TydnySouhrn } from "@/components/denik/TydnySouhrn";
 import {
   dnesISO,
   dnyVTextu,
@@ -286,11 +287,11 @@ export function Denik() {
             type="button"
             onClick={() => setDatum((d) => posunDen(d, -1))}
             aria-label="Předchozí den"
-            className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+            className="grid size-11 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg"
           >
             <ChevronLeft className="size-5" />
           </button>
-          <label className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-semibold tabular-nums text-fg has-focus:outline-2 has-focus:outline-primary">
+          <label className="flex h-11 cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-semibold tabular-nums text-fg has-focus:outline-2 has-focus:outline-primary">
             <CalendarDays className="size-4 text-muted" />
             <span className="sr-only">Vybrat den</span>
             <input
@@ -306,7 +307,7 @@ export function Denik() {
             onClick={() => setDatum((d) => posunDen(d, 1))}
             disabled={jeDnes}
             aria-label="Následující den"
-            className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:pointer-events-none disabled:opacity-40"
+            className="grid size-11 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:pointer-events-none disabled:opacity-40"
           >
             <ChevronRight className="size-5" />
           </button>
@@ -510,6 +511,11 @@ export function Denik() {
         </Suspense>
       )}
 
+      {/* ---- týdenní souhrn: Ø kcal/bílkoviny vs cíl + odhad výdaje ---- */}
+      {dotazTyden.data && (
+        <TydnySouhrn poznamky={dotazTyden.data} cile={cile} />
+      )}
+
       {/* ---- záznamy podle jídel ---- */}
       {dotazDenik.isError ? (
         <p className="rounded-2xl bg-surface px-4 py-6 text-center text-sm text-danger">
@@ -588,7 +594,7 @@ export function Denik() {
                           onClick={() => mutaceSmaz.mutate(p.id)}
                           disabled={mutaceSmaz.isPending}
                           aria-label={`Smazat ${p.nazev}`}
-                          className="grid size-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                          className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                         >
                           <Trash2 className="size-4" />
                         </button>

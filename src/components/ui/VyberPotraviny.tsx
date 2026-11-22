@@ -591,7 +591,7 @@ function KartaPotraviny({
           aria-label={pripnuta ? `${p.nazev} – odebrat ze stálic` : `${p.nazev} – připnout do stálic`}
           aria-pressed={pripnuta}
           className={cn(
-            "absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full bg-bg/80 backdrop-blur transition-colors",
+            "absolute right-1.5 top-1.5 grid size-11 place-items-center rounded-full bg-bg/80 backdrop-blur transition-colors",
             pripnuta ? "text-accent" : "text-muted hover:text-accent",
           )}
         >

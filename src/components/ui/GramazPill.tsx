@@ -64,7 +64,7 @@ export function GramazPill({
         aria-expanded={otevreno}
         aria-label={ariaLabel ?? `Množství: ${formatujMakro(hodnota)} g – změnit`}
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-full border bg-bg px-4 text-sm font-semibold tabular-nums text-fg transition-colors",
+          "flex h-11 w-full items-center justify-between rounded-full border bg-bg px-4 text-sm font-semibold tabular-nums text-fg transition-colors",
           chyba ? "border-danger" : "border-border hover:border-primary/60",
         )}
       >
