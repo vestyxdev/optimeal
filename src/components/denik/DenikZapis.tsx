@@ -25,6 +25,7 @@ import {
   TYPY_JIDLA,
   zapisDoDeniku,
   type NovaPoznamka,
+  type PoznamkaDeniku,
   type TypJidla,
 } from "@/lib/data/denik";
 import { alergenyReceptu, nactiRecepty, stopyReceptu, type Recept } from "@/lib/data/recepty";
@@ -168,14 +169,43 @@ export function DenikZapis({
 
   const zapis = useMutation({
     mutationFn: () => zapisDoDeniku(typJidla, datum, cas, polozky),
+    // optimisticky: položky se ukážou v deníku hned a sheet se zavře –
+    // na slabém mobilním spojení uživatel nečeká na INSERT; při chybě
+    // se cache vrátí do předchozího stavu a toast vysvětlí důvod
+    onMutate: async () => {
+      await dotazovak.cancelQueries({ queryKey: ["denik", datum] });
+      const predchozi = dotazovak.getQueryData<PoznamkaDeniku[]>(["denik", datum]);
+      const zapsanoAt = new Date(`${datum}T${cas || "12:00"}:00`).toISOString();
+      dotazovak.setQueryData<PoznamkaDeniku[]>(["denik", datum], (stare) => [
+        ...(stare ?? []),
+        ...polozky.map((p) => ({
+          id: `optim-${p.klic}`,
+          foodId: p.foodId,
+          nazev: p.nazev,
+          obrazek: p.obrazek,
+          typJidla,
+          mnozstviG: p.mnozstviG,
+          kalorie: p.kalorie,
+          bilkoviny: p.bilkoviny,
+          sacharidy: p.sacharidy,
+          tuky: p.tuky,
+          zapsanoDne: datum,
+          zapsanoAt,
+        })),
+      ]);
+      naZavreni();
+      return { predchozi };
+    },
     onSuccess: () => {
       toast.success(
         polozky.length === 1 ? "Zapsáno do deníku." : `${polozky.length} položky zapsány do deníku.`,
       );
-      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
-      naZavreni();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis selhal."),
+    onError: (e, _v, ctx) => {
+      if (ctx?.predchozi) dotazovak.setQueryData(["denik", datum], ctx.predchozi);
+      toast.error(e instanceof Error ? e.message : "Zápis selhal.");
+    },
+    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
 
   const muzeZapsat = polozky.length > 0 && !zapis.isPending;
