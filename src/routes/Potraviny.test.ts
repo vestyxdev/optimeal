@@ -19,6 +19,7 @@ function p(nazev: string, ean: string | null = null, kategorie = "ostatni"): Kat
     zdroj: "seed-v1",
     obrazek: null,
     ean,
+    baleniLabel: null,
   };
 }
 

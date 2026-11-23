@@ -1,8 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Apple, Beef, Carrot, Cookie, Milk, Package, Pencil, Plus, ScanBarcode, Search,
-  Sparkles, Star, Tag, Trash2, TriangleAlert, Wheat, X,
+  Apple, Beef, Carrot, Check, Cookie, CupSoda, Milk, Package, Pencil, Plus,
+  ScanBarcode, Search, Sparkles, Star, Tag, Trash2, TriangleAlert, Wheat, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -34,6 +34,7 @@ import {
   type OffNalezenaPotravina,
 } from "@/lib/data/potraviny";
 import { efektivniAlergieProfilu, nactiProfil } from "@/lib/data/profil";
+import { zapisDoDeniku, type NovaPoznamka } from "@/lib/data/denik";
 import { nactiStalice, prepnoutStalici } from "@/lib/data/spiz";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 
@@ -48,6 +49,7 @@ const KATEGORIE: Record<string, string> = {
   ovoce_zelenina: "Ovoce a zelenina",
   peckoviny_obily: "Pečivo a obiloviny",
   suchary_testoviny: "Suchary a těstoviny",
+  napoje: "Nápoje",
   ostatni: "Ostatní",
 };
 
@@ -59,10 +61,13 @@ const DAVKA_ZOBRAZENI = 100;
 
 const RAZENI_MOZNOSTI: Record<RazeniKatalogu, string> = {
   relevance: "Relevance",
+  nazev: "Název A–Z",
   cena: "Nejnižší cena",
   jednotkova: "Nejnižší Kč/kg",
   sleva: "Největší sleva",
   bilkovinyCena: "Nejvíc bílkovin za Kč",
+  bilkoviny: "Nejvíc bílkovin / 100 g",
+  kcal: "Nejnižší kcal / 100 g",
 };
 
 const RAZENI_PLATNA = new Set<string>(Object.keys(RAZENI_MOZNOSTI));
@@ -81,8 +86,24 @@ const KATEGORIE_IKONY: Record<string, typeof Apple> = {
   ovoce_zelenina: Apple,
   peckoviny_obily: Wheat,
   suchary_testoviny: Cookie,
+  napoje: CupSoda,
   ostatni: Package,
 };
+
+/** Rychlé filtry (čipy) – name/macro-based, žádná data navíc. */
+type Cip = "zero" | "protein";
+const CIPY: { klic: Cip; nazev: string; plati: (p: KatalogPotravina) => boolean }[] = [
+  {
+    klic: "zero",
+    nazev: "Zero / bez cukru",
+    plati: (p) => /zero|bez cukru|sugar\s?free|neochucen/i.test(p.nazev),
+  },
+  {
+    klic: "protein",
+    nazev: "High protein",
+    plati: (p) => p.bilkoviny >= 15,
+  },
+];
 
 /** Podíl energie z B/S/T – vizuální pásek jako v kalorických tabulkách. */
 function PasekMakro({ p }: { p: Pick<KatalogPotravina, "bilkoviny" | "sacharidy" | "tuky"> }) {
@@ -163,6 +184,17 @@ export function Potraviny() {
   const [jenSlevy, setJenSlevy] = useState(
     () => new URLSearchParams(window.location.search).get("slevy") === "1",
   );
+  // rychlé čipy (Zero / High protein) – doplňkový filtr nad běžnými
+  const [cipy, setCipy] = useState<Set<Cip>>(new Set());
+  const prepnoutCip = (k: Cip) =>
+    setCipy((s) => {
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  // zobrazení nutric: na 100 g/ml vs. za celé balení
+  const [zaBaleni, setZaBaleni] = useState(false);
   const [razeni, setRazeni] = useState<RazeniKatalogu>(() => {
     const r = new URLSearchParams(window.location.search).get("razeni");
     return r !== null && RAZENI_PLATNA.has(r) ? (r as RazeniKatalogu) : "relevance";
@@ -194,16 +226,19 @@ export function Potraviny() {
 
   const potraviny = dotaz.data ?? [];
   const pocetSlev = useMemo(() => potraviny.filter((p) => p.sleva).length, [potraviny]);
-  const filtrovane = useMemo(
-    () => filtrujKatalog(potraviny, hledatOdlozene, kategorie, jenSlevy, razeni),
-    [potraviny, hledatOdlozene, kategorie, jenSlevy, razeni],
-  );
+  const filtrovane = useMemo(() => {
+    let vysledek = filtrujKatalog(potraviny, hledatOdlozene, kategorie, jenSlevy, razeni);
+    for (const c of CIPY) {
+      if (cipy.has(c.klic)) vysledek = vysledek.filter(c.plati);
+    }
+    return vysledek;
+  }, [potraviny, hledatOdlozene, kategorie, jenSlevy, razeni, cipy]);
   // velký katalog se vykresluje po dávkách – tisíce DOM uzlů naráz
   // by zabily mobil; filtr resetuje limit na první dávku
   const [limitZobrazeni, setLimitZobrazeni] = useState(DAVKA_ZOBRAZENI);
   useEffect(
     () => setLimitZobrazeni(DAVKA_ZOBRAZENI),
-    [hledatOdlozene, kategorie, jenSlevy, razeni],
+    [hledatOdlozene, kategorie, jenSlevy, razeni, cipy],
   );
   const zobrazeno = filtrovane.slice(0, limitZobrazeni);
   const zbyva = filtrovane.length - zobrazeno.length;
@@ -280,6 +315,39 @@ export function Potraviny() {
             <option key={k} value={k}>{v}</option>
           ))}
         </Select>
+        {CIPY.map((c) => {
+          const aktivni = cipy.has(c.klic);
+          return (
+            <button
+              key={c.klic}
+              type="button"
+              onClick={() => prepnoutCip(c.klic)}
+              aria-pressed={aktivni}
+              className={
+                aktivni
+                  ? "inline-flex h-10 items-center gap-1.5 rounded-lg border border-primary bg-primary-soft px-3 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                  : "inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-primary/60 hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
+              }
+            >
+              {aktivni && <Check className="size-4" aria-hidden />}
+              {c.nazev}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setZaBaleni((z) => !z)}
+          aria-pressed={zaBaleni}
+          title="Přepnout zobrazení nutric za celé balení"
+          className={
+            zaBaleni
+              ? "inline-flex h-10 items-center gap-1.5 rounded-lg border border-primary bg-primary-soft px-3 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary"
+              : "inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-primary/60 hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
+          }
+        >
+          <Package className="size-4" aria-hidden />
+          Za balení
+        </button>
       </div>
 
       {dotaz.isError && (
@@ -305,6 +373,7 @@ export function Potraviny() {
                 setEditovana(p);
                 setFormZobrazen(true);
               }}
+              zaBaleni={zaBaleni}
             />
           ))}
         {!dotaz.isLoading && filtrovane.length === 0 && (
@@ -355,6 +424,7 @@ export function Potraviny() {
                   setEditovana(p);
                   setFormZobrazen(true);
                 }}
+                zaBaleni={zaBaleni}
               />
             ))}
             {!dotaz.isLoading && filtrovane.length === 0 && (
@@ -534,6 +604,7 @@ function RadekPotraviny({
   pripnuta = false,
   naStalici,
   naUpravu,
+  zaBaleni = false,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
@@ -541,9 +612,12 @@ function RadekPotraviny({
   pripnuta?: boolean;
   naStalici?: () => void;
   naUpravu: () => void;
+  zaBaleni?: boolean;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
+  // „Za balení“ režim – makra násobíme baleniG/100 (jen když gramáž existuje)
+  const faktor = zaBaleni && p.baleniG && p.baleniG > 0 ? p.baleniG / 100 : 1;
 
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-surface-2/50">
@@ -569,6 +643,11 @@ function RadekPotraviny({
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
           ))}
         </span>
+        {p.baleniG != null && p.baleniG > 0 && (
+          <span className="block text-xs text-muted">
+            {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g
+          </span>
+        )}
         <AlergenInfo p={p} shoda={shoda} />
         <PasekMakro p={p} />
       </td>
@@ -586,11 +665,14 @@ function RadekPotraviny({
       {/* eshopové položky bez nutric (kalorie=0) – nulová hodnota by lživě */}
       {/* tvrdila „0 kcal", proto neutrální „bez údajů" */}
       <td className="px-4 py-2.5 text-right tabular-nums">
-        {p.kalorie > 0 ? formatujKcal(p.kalorie) : <span className="text-muted">bez údajů</span>}
+        {p.kalorie > 0 ? formatujKcal(p.kalorie * faktor) : <span className="text-muted">bez údajů</span>}
+        {zaBaleni && faktor !== 1 && (
+          <span className="block text-[10px] font-normal text-muted">za balení</span>
+        )}
       </td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.bilkoviny) : "–"}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.sacharidy) : "–"}</td>
-      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.tuky) : "–"}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.bilkoviny * faktor) : "–"}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.sacharidy * faktor) : "–"}</td>
+      <td className="px-4 py-2.5 text-right tabular-nums">{p.kalorie > 0 ? formatujMakro(p.tuky * faktor) : "–"}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">
         {cenaLabel(p, p.aktualniCena)}
         {p.sleva && p.puvodniCena != null && p.puvodniCena > p.aktualniCena && (
@@ -615,7 +697,10 @@ function RadekPotraviny({
       </td>
       {uzivatelId !== null && (
         <td className="px-4 py-2.5 text-right">
-          {vlastni && <AkcePotraviny p={p} naUpravu={naUpravu} />}
+          <span className="inline-flex items-center">
+            <TlacitkoRychlyZapis p={p} />
+            {vlastni && <AkcePotraviny p={p} naUpravu={naUpravu} />}
+          </span>
         </td>
       )}
     </tr>
@@ -630,6 +715,7 @@ function KartaPotraviny({
   pripnuta = false,
   naStalici,
   naUpravu,
+  zaBaleni = false,
 }: {
   p: KatalogPotravina;
   uzivatelId: string | null;
@@ -637,10 +723,12 @@ function KartaPotraviny({
   pripnuta?: boolean;
   naStalici?: () => void;
   naUpravu: () => void;
+  zaBaleni?: boolean;
 }) {
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   const Ikona = KATEGORIE_IKONY[p.kategorie ?? "ostatni"] ?? Package;
+  const faktor = zaBaleni && p.baleniG && p.baleniG > 0 ? p.baleniG / 100 : 1;
 
   return (
     <Card className="p-3">
@@ -678,12 +766,17 @@ function KartaPotraviny({
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
             ))}
           </p>
+          {p.baleniG != null && p.baleniG > 0 && (
+            <p className="mt-0.5 text-xs text-muted">
+              {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g
+            </p>
+          )}
           <AlergenInfo p={p} shoda={shoda} className="mt-0.5" />
           <PasekMakro p={p} />
           <div className="mt-2 flex items-baseline justify-between text-sm">
             <span className="tabular-nums text-muted">
               {p.kalorie > 0
-                ? `${formatujKcal(p.kalorie)} kcal · B ${formatujMakro(p.bilkoviny)} · S ${formatujMakro(p.sacharidy)} · T ${formatujMakro(p.tuky)}`
+                ? `${formatujKcal(p.kalorie * faktor)} kcal · B ${formatujMakro(p.bilkoviny * faktor)} · S ${formatujMakro(p.sacharidy * faktor)} · T ${formatujMakro(p.tuky * faktor)}${zaBaleni && faktor !== 1 ? " · za balení" : ""}`
                 : "bez nutričních údajů"}
             </span>
             <span className="tabular-nums font-semibold">
@@ -707,9 +800,115 @@ function KartaPotraviny({
               })()}
             </span>
           </div>
+          {uzivatelId !== null && (
+            <div className="mt-2 flex justify-end">
+              <TlacitkoRychlyZapis p={p} />
+            </div>
+          )}
         </div>
       </div>
     </Card>
+  );
+}
+
+/** Rychlý zápis do dnešního deníku přímo z katalogu – „+ Dnes“ rozbalí
+ *  volbu množství (g/ml nebo × balení) a zapíše jako „Ostatní“. */
+function TlacitkoRychlyZapis({ p }: { p: KatalogPotravina }) {
+  const klient = useQueryClient();
+  const [otevreno, setOtevreno] = useState(false);
+  const maBaleni = p.baleniG != null && p.baleniG > 0;
+  const [jednotka, setJednotka] = useState<"g" | "baleni">(maBaleni ? "baleni" : "g");
+  const [pocet, setPocet] = useState("1");
+  const [gramy, setGramy] = useState("100");
+
+  const mutace = useMutation({
+    mutationFn: () => {
+      const n = Number(jednotka === "baleni" ? pocet : gramy);
+      if (!Number.isFinite(n) || n <= 0) throw new Error("Zadejte množství větší než 0.");
+      const mnozstviG = jednotka === "baleni" && maBaleni
+        ? Math.round(n * p.baleniG!)
+        : Math.round(n);
+      const d = new Date();
+      const datum = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const cas = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const poznamka: NovaPoznamka = {
+        foodId: p.id,
+        nazev: p.nazev,
+        obrazek: p.obrazek ?? null,
+        mnozstviG: Math.min(10000, Math.max(1, mnozstviG)),
+        kalorie: p.kalorie,
+        bilkoviny: p.bilkoviny,
+        sacharidy: p.sacharidy,
+        tuky: p.tuky,
+      };
+      return zapisDoDeniku("ostatni", datum, cas, [poznamka]);
+    },
+    onSuccess: () => {
+      toast.success(`„${p.nazev}" zapsáno do dnešního deníku.`);
+      setOtevreno(false);
+      void klient.invalidateQueries({ queryKey: ["denik"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis selhal."),
+  });
+
+  if (!otevreno) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOtevreno(true)}
+        className="inline-flex size-10 items-center justify-center rounded-lg text-muted hover:bg-primary-soft hover:text-primary"
+        title={`Přidat ${p.nazev} do dnešního deníku`}
+        aria-label={`Přidat ${p.nazev} do dnešního deníku`}
+      >
+        <Plus className="size-4" />
+      </button>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1">
+      <input
+        type="number"
+        min={0.25}
+        step={jednotka === "baleni" ? 0.5 : 1}
+        inputMode="decimal"
+        value={jednotka === "baleni" ? pocet : gramy}
+        onChange={(e) =>
+          jednotka === "baleni" ? setPocet(e.target.value) : setGramy(e.target.value)
+        }
+        aria-label="Množství"
+        className="h-8 w-14 rounded-md border border-border bg-bg px-1.5 text-xs tabular-nums text-fg focus:outline-2 focus:outline-primary"
+      />
+      <select
+        value={jednotka}
+        onChange={(e) => setJednotka(e.target.value as "g" | "baleni")}
+        aria-label="Jednotka"
+        className="h-8 rounded-md border border-border bg-bg px-1 text-xs text-fg focus:outline-2 focus:outline-primary"
+      >
+        <option value="g">g/ml</option>
+        {maBaleni && (
+          <option value="baleni">
+            × {(p.baleniLabel ?? "balení").toLowerCase()}
+          </option>
+        )}
+      </select>
+      <button
+        type="button"
+        onClick={() => mutace.mutate()}
+        disabled={mutace.isPending}
+        className="inline-flex size-8 items-center justify-center rounded-md bg-primary text-primary-ink disabled:opacity-50"
+        aria-label="Zapsat do deníku"
+      >
+        <Check className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setOtevreno(false)}
+        className="inline-flex size-8 items-center justify-center rounded-md text-muted hover:text-fg"
+        aria-label="Zavřít rychlý zápis"
+      >
+        <X className="size-4" />
+      </button>
+    </span>
   );
 }
 

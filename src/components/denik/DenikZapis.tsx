@@ -46,10 +46,12 @@ interface PolozkaZapisu extends NovaPoznamka {
   /** klíč pro stabilní React key – lokální, nikoli DB id */
   klic: string;
   baleniG?: number | null;
+  baleniLabel?: string | null;
 }
 
 export function DenikZapis({
   potraviny,
+  vychoziJednotka = "g",
   cile,
   typPocatecni,
   datumPocatecni,
@@ -57,6 +59,8 @@ export function DenikZapis({
   naZavreni,
 }: {
   potraviny: PolozkaVyberu[];
+  /** předvolba z profilu: 'g' = 100 g | 'baleni' = 1× balení, kde je gramáž známá */
+  vychoziJednotka?: "g" | "baleni";
   cile: Cile | null;
   typPocatecni: TypJidla;
   datumPocatecni: string;
@@ -124,12 +128,17 @@ export function DenikZapis({
         foodId: p.id,
         nazev: p.nazev,
         obrazek: p.obrazek ?? null,
-        mnozstviG: 100,
+        // předvolba uživatele: „Celé balení“ → startovní množství = gramáž balení
+        mnozstviG:
+          vychoziJednotka === "baleni" && p.baleniG && p.baleniG > 0
+            ? Math.round(p.baleniG)
+            : 100,
         kalorie: p.kalorie,
         bilkoviny: p.bilkoviny ?? 0,
         sacharidy: p.sacharidy ?? 0,
         tuky: p.tuky ?? 0,
         baleniG: p.baleniG ?? null,
+        baleniLabel: p.baleniLabel ?? null,
       },
     ]);
     // posun dolů na novou položku
@@ -322,6 +331,7 @@ export function DenikZapis({
                   className="mt-2.5"
                   hodnota={p.mnozstviG}
                   baleniG={p.baleniG ?? null}
+                  baleniLabel={p.baleniLabel ?? null}
                   onZmena={(g) => nastavGramy(p.klic, g)}
                   ariaLabel={`Množství ${p.nazev}: ${formatujMakro(p.mnozstviG)} g – změnit`}
                 />
