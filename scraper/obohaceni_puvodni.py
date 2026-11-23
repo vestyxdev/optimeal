@@ -25,6 +25,7 @@ import time
 
 import requests
 
+from .db import _req
 from .proxy import aplikuj_proxy
 
 log = logging.getLogger("scraper.obohaceni_puvodni")
@@ -82,7 +83,8 @@ def _kandidati(hlavicky: dict, url: str, limit: int) -> list[dict]:
     out: list[dict] = []
     offset = 0
     while len(out) < limit:
-        r = requests.get(
+        r = _req(
+            "get",
             f"{url}/rest/v1/price_observations",
             headers=hlavicky,
             params={
@@ -166,7 +168,8 @@ def main() -> int:
                          slug, o["id"], bezna, p100)
                 stat["cen"] += 1
             else:
-                pr = requests.patch(
+                pr = _req(
+                    "patch",
                     f"{url}/rest/v1/price_observations",
                     headers={**hlavicky, "Prefer": "return=minimal"},
                     params={"id": f"eq.{o['id']}"},
