@@ -295,3 +295,68 @@ class TestReqRetry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOffImport(unittest.TestCase):
+    """off_import: parsing OFF produktu, český filtr, balení, sanity brzdy."""
+
+    def _produkt(self, **kw):
+        base = {
+            "code": "8594000123456",
+            "product_name": "Jogurt bílý",
+            "brands": "Mlékárna",
+            "quantity": "150 g",
+            "countries_tags": ["en:czechia"],
+            "nutriments": {"energy-kcal_100g": 70, "proteins_100g": 4.0,
+                           "carbohydrates_100g": 5.0, "fat_100g": 3.5, "fiber_100g": 0.5},
+            "allergens_tags": ["en:milk"],
+            "traces_tags": ["en:nuts"],
+        }
+        base.update(kw)
+        return base
+
+    def test_parsuj_kompletni(self):
+        from scraper.off_import import parsuj_produkt
+        r = parsuj_produkt(self._produkt())
+        self.assertIsNotNone(r)
+        assert r is not None
+        self.assertEqual(r["nazev"], "Jogurt bílý")
+        self.assertEqual(r["ean"], "8594000123456")
+        self.assertEqual(r["znacka"], "Mlékárna")
+        self.assertEqual(r["baleni_g"], 150.0)
+        self.assertEqual(r["vlaknina"], 0.5)
+        self.assertEqual(r["alergeny"], ["mleko"])
+        self.assertEqual(r["alergeny_stopy"], ["orisky"])
+        self.assertEqual(r["kategorie"], "mlecne_vyrobky")
+
+    def test_bez_kcal_preskocit(self):
+        from scraper.off_import import parsuj_produkt
+        p = self._produkt()
+        del p["nutriments"]["energy-kcal_100g"]
+        self.assertIsNone(parsuj_produkt(p))
+
+    def test_nemozne_makro_preskocit(self):
+        from scraper.off_import import parsuj_produkt
+        p = self._produkt()
+        p["nutriments"]["proteins_100g"] = 95.0
+        p["nutriments"]["carbohydrates_100g"] = 20.0
+        self.assertIsNone(parsuj_produkt(p))
+
+    def test_baleni_6pack(self):
+        from scraper.off_import import _baleni
+        self.assertEqual(_baleni("6 x 33 cl"), (1980.0, "Balení"))
+        self.assertEqual(_baleni("1 l"), (1000.0, "Láhev"))
+        self.assertEqual(_baleni("500 g"), (500.0, "Balení"))
+        self.assertEqual(_baleni(None), (100.0, "Balení"))
+
+    def test_je_cesky(self):
+        from scraper.off_import import je_cesky
+        self.assertTrue(je_cesky(self._produkt()))
+        self.assertTrue(je_cesky(self._produkt(code="4001686301233")))
+        self.assertFalse(je_cesky(self._produkt(code="4001686301233", countries_tags=["en:germany"])))
+
+    def test_neplatny_ean_zahodit(self):
+        from scraper.off_import import parsuj_produkt
+        r = parsuj_produkt(self._produkt(code="12ab"))
+        assert r is not None
+        self.assertIsNone(r["ean"])
