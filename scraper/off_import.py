@@ -20,6 +20,7 @@ import logging
 import re
 import sys
 import os
+import time
 import unicodedata
 
 import requests
@@ -221,8 +222,13 @@ def nacti_existujici() -> tuple[dict[str, dict], dict[str, dict]]:
     return ean_map, nazev_map
 
 
-def importuj(limit: int | None = None, dry_run: bool = False, stranek: int = 9999) -> dict:
-    """Hlavní běh. Vrací počty pro log/test."""
+def importuj(limit: int | None = None, dry_run: bool = False, stranek: int = 9999,
+             tempo: float = 3.0) -> dict:
+    """Hlavní běh. Vrací počty pro log/test.
+
+    `tempo` = pauza mezi stránkami v sekundách – OFF agresivně throttluje
+    (503), bez ohleduplného tempa sklizeň po pár stránkách umře.
+    """
     if not dry_run and (not SUPABASE_URL or not SUPABASE_KEY):
         raise RuntimeError("Chybí SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.")
     ean_map, nazev_map = ({}, {}) if dry_run else nacti_existujici()
@@ -235,13 +241,20 @@ def importuj(limit: int | None = None, dry_run: bool = False, stranek: int = 999
 
     stranka = 1
     hotovo = False
+    zasebou_chyb = 0
     while not hotovo and stranka <= stranek:
         try:
             produkty = stahni_stranku(stranka)
+            zasebou_chyb = 0
         except Exception as e:  # noqa: BLE001 – síťové chyby logujeme a končíme
             log.error("Stránka %d se nepodařila: %s", stranka, e)
             stav["chyb"] += 1
-            break
+            zasebou_chyb += 1
+            if zasebou_chyb >= 3:
+                log.error("Tři stránky po sobě nedostupné – OFF throttluje, končím.")
+                break
+            time.sleep(30 * zasebou_chyb)  # backoff přes throttling
+            continue
         if not produkty:
             break
         for p in produkty:
@@ -291,6 +304,8 @@ def importuj(limit: int | None = None, dry_run: bool = False, stranek: int = 999
         if len(produkty) < PAGE_SIZE:
             break
         stranka += 1
+        if tempo > 0:
+            time.sleep(tempo)
     return stav
 
 
@@ -299,10 +314,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None, help="max zpracovaných produktů")
     ap.add_argument("--dry-run", action="store_true", help="jen stáhne a parsuje, nic nezapisuje")
     ap.add_argument("--stranek", type=int, default=9999, help="max stránek OFF (200/stránka)")
+    ap.add_argument("--tempo", type=float, default=3.0, help="pauza mezi stránkami v s (OFF throttling)")
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    stav = importuj(limit=args.limit, dry_run=args.dry_run, stranek=args.stranek)
+    stav = importuj(limit=args.limit, dry_run=args.dry_run, stranek=args.stranek, tempo=args.tempo)
     log.info(
         "HOTOVO: staženo %(stazeno)d · aktualizováno %(aktualizovano)d · vloženo %(vlozeno)d · "
         "kolize %(kolize_nazvu)d · bez nutric %(bez_nutric)d · nečeské %(preskoceno_neize)d · chyby %(chyb)d",

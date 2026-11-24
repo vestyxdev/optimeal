@@ -1,0 +1,44 @@
+# OFF import – týdenní objemová sklizeň českého trhu z Open Food Facts.
+# Sobota ~04:00 CET: stáhne produkty s tagem en:czech-republic / EAN 859,
+# EAN-shody aktualizuje (makra/vláknina/značka/balení), nové vloží.
+# Idempotentní – reruny neduplikují. OFF throttluje, proto tempo 5 s/stránka.
+# Secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+name: OFF import
+
+on:
+  schedule:
+    - cron: "0 3 * * 6"  # sobota ~04:00 CET
+  workflow_dispatch:
+    inputs:
+      stranek:
+        description: "Max stránek OFF, 200 produktů/stránka (výchozí 100)"
+        required: false
+      limit:
+        description: "Max zpracovaných produktů (výchozí bez limitu)"
+        required: false
+      tempo:
+        description: "Pauza mezi stránkami v sekundách (výchozí 5)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r scraper/requirements.txt
+      - env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          ARGS="--stranek ${{ github.event.inputs.stranek || '100' }} --tempo ${{ github.event.inputs.tempo || '5' }}"
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+          fi
+          python -m scraper.off_import $ARGS
