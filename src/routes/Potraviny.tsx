@@ -645,7 +645,7 @@ function RadekPotraviny({
         </span>
         {p.baleniG != null && p.baleniG > 0 && (
           <span className="block text-xs text-muted">
-            {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g
+            {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
           </span>
         )}
         <AlergenInfo p={p} shoda={shoda} />
@@ -768,7 +768,7 @@ function KartaPotraviny({
           </p>
           {p.baleniG != null && p.baleniG > 0 && (
             <p className="mt-0.5 text-xs text-muted">
-              {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g
+              {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
             </p>
           )}
           <AlergenInfo p={p} shoda={shoda} className="mt-0.5" />

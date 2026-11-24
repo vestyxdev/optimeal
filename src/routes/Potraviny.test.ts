@@ -20,6 +20,8 @@ function p(nazev: string, ean: string | null = null, kategorie = "ostatni"): Kat
     obrazek: null,
     ean,
     baleniLabel: null,
+    vlaknina: null,
+    znacka: null,
   };
 }
 
