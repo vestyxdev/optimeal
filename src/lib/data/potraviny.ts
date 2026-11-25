@@ -35,19 +35,9 @@ export const SLOUPCE_AKTUALNI_CENY =
   " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, alergeny_stopy, diety, ean," +
   " obrazek, baleni_g, baleni_label, puvodni_cena, sleva_procenta, puvodni_zdroj, vlaknina, znacka";
 
-export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
-  const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
-
-  const data = await nactiVse<Record<string, unknown>>(
-    () =>
-      klient
-        .from("aktualni_ceny")
-        .select(SLOUPCE_AKTUALNI_CENY)
-        .order("nazev") as unknown as StrankovatelnyDotaz<Record<string, unknown>>,
-  );
-
-  return data.map((r) => ({
+/** Sdílený mapper řádku aktualni_ceny → KatalogPotravina. */
+function mapujKatalogRadek(r: Record<string, unknown>): KatalogPotravina {
+  return {
     id: r.food_id as string,
     nazev: r.nazev as string,
     kategorie: r.kategorie as string,
@@ -77,7 +67,68 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
     vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
     znacka: (r.znacka ?? null) as string | null,
-  }));
+  };
+}
+
+export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const data = await nactiVse<Record<string, unknown>>(
+    () =>
+      klient
+        .from("aktualni_ceny")
+        .select(SLOUPCE_AKTUALNI_CENY)
+        .order("nazev") as unknown as StrankovatelnyDotaz<Record<string, unknown>>,
+  );
+
+  return data.map(mapujKatalogRadek);
+}
+
+/** Filtry server-side prohlížení katalogu (RPC katalog_stranka). */
+export interface KatalogFiltrServer {
+  dotaz?: string;
+  kategorie?: string;
+  jenSlevy?: boolean;
+  zero?: boolean;
+  protein?: boolean;
+  razeni?: string;
+}
+
+export interface KatalogStranka {
+  radky: KatalogPotravina[];
+  celkem: number;
+}
+
+/**
+ * Server-side stránka katalogu – filtry/řazení/hledání běží v DB,
+ * klient stáhne jen viditelnou stránku (škáluje i při 20k+ potravinách).
+ */
+export async function nactiKatalogStranku(
+  filtr: KatalogFiltrServer,
+  limit = 100,
+  offset = 0,
+): Promise<KatalogStranka> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient.rpc("katalog_stranka", {
+    p_dotaz: filtr.dotaz?.trim() || null,
+    p_kategorie: filtr.kategorie && filtr.kategorie !== "vse" ? filtr.kategorie : null,
+    p_jen_slevy: filtr.jenSlevy ?? false,
+    p_zero: filtr.zero ?? false,
+    p_protein: filtr.protein ?? false,
+    p_razeni: filtr.razeni ?? "relevance",
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw new Error(`Katalog se nepodařilo načíst: ${error.message}`);
+
+  const radky = (data ?? []) as unknown as Record<string, unknown>[];
+  return {
+    radky: radky.map(mapujKatalogRadek),
+    celkem: radky.length > 0 ? Number(radky[0]?.celkem ?? 0) : 0,
+  };
 }
 
 /** Top akční nabídky živě z view – pro dashboard „Aktuální akce“. */

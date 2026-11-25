@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+﻿import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Apple, Beef, Carrot, Check, Cookie, CupSoda, Milk, Package, Pencil, Plus,
@@ -15,7 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Nacitani";
 import { useAuth } from "@/lib/auth";
 import { formatujCenu, formatujKcal, formatujMakro, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
-import { filtrujKatalog, type RazeniKatalogu } from "@/lib/katalog";
+import { type RazeniKatalogu } from "@/lib/katalog";
 import { cn } from "@/lib/cn";
 import { sklonuj } from "@/lib/sklonovani";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
@@ -25,7 +25,7 @@ import {
   nactiOffPodleEan,
   ALERGEN_NAZVY,
   normalizujEan,
-  nactiKatalogPotravin,
+  nactiKatalogStranku,
   nactiPotravinu,
   pridejPotravinu,
   nactiMapovaniZnacek,
@@ -154,7 +154,6 @@ const PRAZDNY_FORM: FormPotravina = {
 
 export function Potraviny() {
   const { uzivatel } = useAuth();
-  const dotaz = useQuery({ queryKey: ["katalog_potravin"], queryFn: nactiKatalogPotravin });
   const dotazProfil = useQuery({
     queryKey: ["profil"],
     queryFn: nactiProfil,
@@ -226,24 +225,40 @@ export function Potraviny() {
     setEditovana(null);
   };
 
-  const potraviny = dotaz.data ?? [];
-  const pocetSlev = useMemo(() => potraviny.filter((p) => p.sleva).length, [potraviny]);
-  const filtrovane = useMemo(() => {
-    let vysledek = filtrujKatalog(potraviny, hledatOdlozene, kategorie, jenSlevy, razeni);
-    for (const c of CIPY) {
-      if (cipy.has(c.klic)) vysledek = vysledek.filter(c.plati);
-    }
-    return vysledek;
-  }, [potraviny, hledatOdlozene, kategorie, jenSlevy, razeni, cipy]);
-  // velký katalog se vykresluje po dávkách – tisíce DOM uzlů naráz
-  // by zabily mobil; filtr resetuje limit na první dávku
+  // server-side stránkování: filtry/řazení/hledání běží v DB, klient stáhne
+  // jen viditelnou dávku. Filtr resetuje limit na první dávku.
   const [limitZobrazeni, setLimitZobrazeni] = useState(DAVKA_ZOBRAZENI);
   useEffect(
     () => setLimitZobrazeni(DAVKA_ZOBRAZENI),
     [hledatOdlozene, kategorie, jenSlevy, razeni, cipy],
   );
-  const zobrazeno = filtrovane.slice(0, limitZobrazeni);
-  const zbyva = filtrovane.length - zobrazeno.length;
+  const filtrServer = useMemo(
+    () => ({
+      dotaz: hledatOdlozene,
+      kategorie,
+      jenSlevy,
+      zero: cipy.has("zero"),
+      protein: cipy.has("protein"),
+      razeni,
+    }),
+    [hledatOdlozene, kategorie, jenSlevy, cipy, razeni],
+  );
+  const dotaz = useQuery({
+    queryKey: ["katalog_stranka", filtrServer, limitZobrazeni],
+    queryFn: () => nactiKatalogStranku(filtrServer, limitZobrazeni),
+    placeholderData: (predchozi) => predchozi,
+  });
+  // počet slev pro čip – jediný řádek stačí, celkem nese agregát
+  const dotazSlev = useQuery({
+    queryKey: ["katalog_pocet_slev"],
+    queryFn: () => nactiKatalogStranku({ jenSlevy: true }, 1),
+    staleTime: 60_000,
+  });
+  const pocetSlev = dotazSlev.data?.celkem ?? 0;
+
+  const zobrazeno = dotaz.data?.radky ?? [];
+  const celkemFiltrovano = dotaz.data?.celkem ?? 0;
+  const zbyva = Math.max(0, celkemFiltrovano - zobrazeno.length);
 
   return (
     <div className="space-y-6">
@@ -253,7 +268,7 @@ export function Potraviny() {
           <p className="mt-1 text-sm text-muted">
             {dotaz.isLoading
               ? "Načítám…"
-              : `${potraviny.length.toLocaleString("cs-CZ")} ${sklonuj(potraviny.length, "potravina", "potraviny", "potravin")} v katalogu. Generátor je používá automaticky.`}
+              : `${celkemFiltrovano.toLocaleString("cs-CZ")} ${sklonuj(celkemFiltrovano, "potravina", "potraviny", "potravin")} v katalogu. Generátor je používá automaticky.`}
           </p>
         </div>
         {uzivatel && !formZobrazen && (
@@ -378,7 +393,7 @@ export function Potraviny() {
               zaBaleni={zaBaleni}
             />
           ))}
-        {!dotaz.isLoading && filtrovane.length === 0 && (
+        {!dotaz.isLoading && zobrazeno.length === 0 && (
           <PrazdnyStav
             onReset={() => {
               setHledat("");
@@ -429,7 +444,7 @@ export function Potraviny() {
                 zaBaleni={zaBaleni}
               />
             ))}
-            {!dotaz.isLoading && filtrovane.length === 0 && (
+            {!dotaz.isLoading && zobrazeno.length === 0 && (
               <tr>
                 <td colSpan={8}>
                   <PrazdnyStav
