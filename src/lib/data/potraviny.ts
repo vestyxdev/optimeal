@@ -14,6 +14,10 @@ export interface KatalogPotravina extends Potravina {
   ean: string | null;
   /** popisek balení pro UI: Balení | Plechovka | Láhev | Kelímek | Kus | Sáček | Krabice */
   baleniLabel: string | null;
+  /** vláknina na 100 g/ml – null u zdrojů, které ji neudávají */
+  vlaknina: number | null;
+  /** značka včetně privátních labelů (Pilos, K-Classic, Clever, dmBio…) */
+  znacka: string | null;
 }
 
 /** České názvy alergenů EU-14 (klíče = foods.alergeny). */
@@ -29,7 +33,7 @@ export const SLOUPCE_AKTUALNI_CENY =
   "food_id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie," +
   " bezna_cena, aktualni_cena, obchod, sleva, platnost_do, zdroj_ceny," +
   " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, alergeny_stopy, diety, ean," +
-  " obrazek, baleni_g, baleni_label, puvodni_cena, sleva_procenta, puvodni_zdroj";
+  " obrazek, baleni_g, baleni_label, puvodni_cena, sleva_procenta, puvodni_zdroj, vlaknina, znacka";
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   const klient = supabase;
@@ -71,6 +75,8 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r.platnost_do ?? null) as string | null,
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
+    vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
+    znacka: (r.znacka ?? null) as string | null,
   }));
 }
 
@@ -115,6 +121,8 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
     platnostDo: (r.platnost_do ?? null) as string | null,
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
+    vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
+    znacka: (r.znacka ?? null) as string | null,
   }));
 }
 
