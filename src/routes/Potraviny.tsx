@@ -668,6 +668,7 @@ function RadekPotraviny({
           )}
           {vlastni && <Badge tono="primary">Vlastní</Badge>}
           {p.kalorie <= 0 && <Badge tono="neutral">bez nutric</Badge>}
+          {p.zdrojCeny === null && <Badge tono="neutral">odhad ceny</Badge>}
           {(p.diety ?? []).map((d) => (
             <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
           ))}
@@ -793,6 +794,7 @@ function KartaPotraviny({
             )}
             {vlastni && <Badge tono="primary">Vlastní</Badge>}
             {p.kalorie <= 0 && <Badge tono="neutral">bez nutric</Badge>}
+            {p.zdrojCeny === null && <Badge tono="neutral">odhad ceny</Badge>}
             {(p.diety ?? []).map((d) => (
               <Badge key={d} tono="ok">{DIETA_NAZVY[d] ?? d}</Badge>
             ))}

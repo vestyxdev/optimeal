@@ -21,7 +21,7 @@ function p(nazev: string, ean: string | null = null, kategorie = "ostatni"): Kat
     ean,
     baleniLabel: null,
     vlaknina: null,
-    znacka: null,
+    znacka: null, zdrojCeny: null,
   };
 }
 

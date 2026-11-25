@@ -18,6 +18,8 @@ export interface KatalogPotravina extends Potravina {
   vlaknina: number | null;
   /** značka včetně privátních labelů (Pilos, K-Classic, Clever, dmBio…) */
   znacka: string | null;
+  /** zdroj ceny (asortiment:rohlík.cz, scraper:tesco…) – null = jen bezna_cena odhad */
+  zdrojCeny: string | null;
 }
 
 /** České názvy alergenů EU-14 (klíče = foods.alergeny). */
@@ -67,6 +69,7 @@ function mapujKatalogRadek(r: Record<string, unknown>): KatalogPotravina {
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
     vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
     znacka: (r.znacka ?? null) as string | null,
+    zdrojCeny: (r.zdroj_ceny ?? null) as string | null,
   };
 }
 
@@ -146,35 +149,10 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
   if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
 
   const radky = (data ?? []) as unknown as Record<string, unknown>[];
-  return radky.map((r) => ({
-    id: r.food_id as string,
-    nazev: r.nazev as string,
-    kategorie: r.kategorie as string,
-    bilkoviny: Number(r.bilkoviny),
-    sacharidy: Number(r.sacharidy),
-    tuky: Number(r.tuky),
-    kalorie: Number(r.kalorie),
-    beznaCena: Number(r.bezna_cena),
-    aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
-    obchod: (r.sleva ? r.obchod : null) as string | null,
-    sleva: true,
-    vytvoril: (r.vytvoril ?? null) as string | null,
-    zdroj: (r.zdroj_potraviny as string) ?? "manual",
-    alergeny: (r.alergeny as string[]) ?? [],
-    alergenyStopy: (r.alergeny_stopy as string[]) ?? [],
-    diety: (r.diety as string[]) ?? [],
-    obrazek: (r.obrazek ?? null) as string | null,
-    ean: (r.ean ?? null) as string | null,
-    baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
-    baleniLabel: (r.baleni_label ?? null) as string | null,
-    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
-    puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
-    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
-    platnostDo: (r.platnost_do ?? null) as string | null,
-    pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
-    vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
-    znacka: (r.znacka ?? null) as string | null,
-  }));
+  return radky.map((r) => {
+    const zaklad = mapujKatalogRadek(r);
+    return { ...zaklad, obchod: (r.sleva ? zaklad.obchod : null) as string | null, sleva: true as const };
+  });
 }
 
 /** Veřejná akce pro landing – úzká projekce z RPC top_akce (funguje i pro anon). */
