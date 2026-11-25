@@ -22,6 +22,10 @@ export interface Profil {
   alergie: string[];
   cilovaVahaKg: number | null;
   tempoKgTydne: number | null;
+  /** oblíbené řetězce (názvy z retailers.nazev) – priorita slev a nákupů */
+  oblibeneObchody: string[];
+  /** výchozí jednotka v deníku: 'g' (gramy/ml) | 'baleni' (celé balení/ks) */
+  vychoziJednotka: "g" | "baleni";
 }
 
 interface RadkaProfilu {
@@ -41,6 +45,8 @@ interface RadkaProfilu {
   alergie: string[];
   cilova_vaha_kg: number | null;
   tempo_kg_tydne: number | null;
+  oblibene_obchody: string[] | null;
+  vychozi_jednotka: string | null;
 }
 
 function naProfil(r: RadkaProfilu): Profil {
@@ -61,6 +67,8 @@ function naProfil(r: RadkaProfilu): Profil {
     alergie: r.alergie ?? [],
     cilovaVahaKg: r.cilova_vaha_kg === null ? null : Number(r.cilova_vaha_kg),
     tempoKgTydne: r.tempo_kg_tydne === null ? null : Number(r.tempo_kg_tydne),
+    oblibeneObchody: (r.oblibene_obchody as string[] | null) ?? [],
+    vychoziJednotka: r.vychozi_jednotka === "baleni" ? "baleni" : "g",
   };
 }
 
@@ -105,6 +113,8 @@ export async function ulozProfil(zmeny: {
   alergie?: string[] | undefined;
   cilovaVahaKg?: number | null | undefined;
   tempoKgTydne?: number | null | undefined;
+  oblibeneObchody?: string[] | undefined;
+  vychoziJednotka?: "g" | "baleni" | undefined;
 }): Promise<void> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
@@ -129,6 +139,8 @@ export async function ulozProfil(zmeny: {
       ...(zmeny.alergie !== undefined ? { alergie: zmeny.alergie } : {}),
       ...(zmeny.cilovaVahaKg !== undefined ? { cilova_vaha_kg: zmeny.cilovaVahaKg } : {}),
       ...(zmeny.tempoKgTydne !== undefined ? { tempo_kg_tydne: zmeny.tempoKgTydne } : {}),
+      ...(zmeny.oblibeneObchody !== undefined ? { oblibene_obchody: zmeny.oblibeneObchody } : {}),
+      ...(zmeny.vychoziJednotka !== undefined ? { vychozi_jednotka: zmeny.vychoziJednotka } : {}),
       upraveno: new Date().toISOString(),
     })
     .eq("id", uzivatel.user.id);

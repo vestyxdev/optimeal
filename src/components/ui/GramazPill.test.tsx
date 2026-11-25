@@ -20,19 +20,34 @@ describe("GramazPill", () => {
     }
   });
 
-  it("přidá předvolbu balení, když baleniG není mezi předvolbami", () => {
+  it("ukáže předvolby N× balení, když baleniG je známé", () => {
     render(<GramazPill hodnota={100} onZmena={() => {}} baleniG={600} />);
     fireEvent.click(screen.getByRole("button", { name: /Množství/ }));
-    expect(screen.getByRole("menuitemradio", { name: "balení (600 g)" })).toBeTruthy();
+    for (const n of ["0,5×", "1×", "2×", "3×"]) {
+      expect(screen.getByRole("menuitemradio", { name: new RegExp(`^${n.replace("×", "\\S*")} balení`) })).toBeTruthy();
+    }
   });
 
-  it("nepřidá předvolbu balení, když gramáž sedí na předvolbu", () => {
+  it("předvolby balení ukáže i když gramáž sedí na předvolbu gramů", () => {
     render(<GramazPill hodnota={100} onZmena={() => {}} baleniG={150} />);
     fireEvent.click(screen.getByRole("button", { name: /Množství/ }));
-    expect(screen.queryByText(/balení/)).toBeNull();
+    expect(screen.getByRole("menuitemradio", { name: /^1× balení/ })).toBeTruthy();
   });
 
-  it("bez baleniG předvolbu balení neukáže", () => {
+  it("klik na 2× balení vrátí dvojnásobek gramáže", () => {
+    const zmena = vi.fn();
+    render(<GramazPill hodnota={150} onZmena={zmena} baleniG={150} />);
+    fireEvent.click(screen.getByRole("button", { name: /Množství/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^2× balení/ }));
+    expect(zmena).toHaveBeenCalledWith(300);
+  });
+
+  it("pilulka u celého balení ukáže „1× kelímek (150 g)“ místo holé gramáže", () => {
+    render(<GramazPill hodnota={150} onZmena={() => {}} baleniG={150} baleniLabel="Kelímek" />);
+    expect(screen.getByText(/1× kelímek \(150 g\)/)).toBeTruthy();
+  });
+
+  it("bez baleniG předvolby balení neukáže", () => {
     render(<GramazPill hodnota={100} onZmena={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Množství/ }));
     expect(screen.queryByText(/balení/)).toBeNull();

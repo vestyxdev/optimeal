@@ -660,6 +660,7 @@ export function Denik() {
             typPocatecni={zapisOtevren}
             datumPocatecni={datum}
             mojeAlergie={mojeAlergie}
+            vychoziJednotka={dotazProfil.data?.vychoziJednotka ?? "g"}
             naZavreni={() => setZapisOtevren(null)}
           />
         ))}

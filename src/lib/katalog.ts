@@ -4,7 +4,15 @@ import { bezDiakritiky, skoreShody } from "@/lib/vyhledavani";
 import { gramyBilkovinNa100Kc } from "@/lib/vyziva/hodnota";
 
 /** Režimy řazení katalogu – všechny z reálných dat, žádné odhady. */
-export type RazeniKatalogu = "relevance" | "cena" | "jednotkova" | "sleva" | "bilkovinyCena";
+export type RazeniKatalogu =
+  | "relevance"
+  | "cena"
+  | "jednotkova"
+  | "sleva"
+  | "bilkovinyCena"
+  | "bilkoviny"
+  | "kcal"
+  | "nazev";
 
 /** Cena balení pro řazení – bez gramáže vážené zboží bere Kč/kg. */
 function cenaBaleni(p: KatalogPotravina): number {
@@ -44,6 +52,19 @@ function seradit(vybrane: KatalogPotravina[], razeni: RazeniKatalogu): void {
             (gramyBilkovinNa100Kc(a.bilkoviny, a.aktualniCena) ?? -1) ||
           nutricNejprve(a, b),
       );
+      break;
+    case "bilkoviny":
+      vybrane.sort(
+        (a, b) => b.bilkoviny - a.bilkoviny || nutricNejprve(a, b),
+      );
+      break;
+    case "kcal":
+      vybrane.sort(
+        (a, b) => a.kalorie - b.kalorie || nutricNejprve(a, b),
+      );
+      break;
+    case "nazev":
+      vybrane.sort((a, b) => a.nazev.localeCompare(b.nazev, "cs"));
       break;
     case "relevance":
       vybrane.sort(nutricNejprve);

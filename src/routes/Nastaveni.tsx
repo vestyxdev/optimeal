@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Download, MonitorSmartphone, Moon, Sun, Trash2 } from "lucide-react";
+import { Download, MonitorSmartphone, Moon, Store, Sun, Trash2, Weight } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardNadpis } from "@/components/ui/Card";
 import { Input, Label } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useAuth } from "@/lib/auth";
 import { exportujMujData, stahniJson } from "@/lib/data/export";
-import { nactiAktivniCile } from "@/lib/data/profil";
+import { nactiAktivniCile, nactiProfil, ulozProfil } from "@/lib/data/profil";
+import { nactiObchody } from "@/lib/data/potraviny";
 import { formatujKcal, formatujMakro } from "@/lib/cena";
 import { useMotiv } from "@/lib/motiv";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Nastavení – vzhled, zabezpečení účtu (změna hesla), export dat
@@ -37,6 +39,8 @@ export function Nastaveni() {
 
       {uzivatel && <SekceZabezpeceni />}
       {uzivatel && <SekceCile />}
+      {uzivatel && <SekceObchody />}
+      {uzivatel && <SekceJednotka />}
       {uzivatel && <SekceData />}
 
       {/* vzhled */}
@@ -203,6 +207,112 @@ function SekceCile() {
         <Link to="/ucet" className="text-sm text-muted hover:text-fg hover:underline">
           Upravit ručně v Mém účtu →
         </Link>
+      </div>
+    </Card>
+  );
+}
+
+/** Oblíbené obchody – priorita při párování slev a nákupních seznamů. */
+function SekceObchody() {
+  const klient = useQueryClient();
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
+  const dotazObchody = useQuery({ queryKey: ["obchody"], queryFn: nactiObchody });
+  const vybrane = dotazProfil.data?.oblibeneObchody ?? [];
+
+  const mutace = useMutation({
+    mutationFn: (obchody: string[]) => ulozProfil({ oblibeneObchody: obchody }),
+    onSuccess: () => {
+      toast.success("Oblíbené obchody uloženy.");
+      void klient.invalidateQueries({ queryKey: ["profil"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Uložení selhalo."),
+  });
+
+  const prepni = (nazev: string) => {
+    const nove = vybrane.includes(nazev)
+      ? vybrane.filter((o) => o !== nazev)
+      : [...vybrane, nazev];
+    mutace.mutate(nove);
+  };
+
+  return (
+    <Card>
+      <CardNadpis>
+        <Store className="mr-1.5 inline size-4" aria-hidden />
+        Oblíbené obchody
+      </CardNadpis>
+      <p className="text-sm text-muted">
+        Řetězce, ve kterých nakupujete – dostanou přednost při párování slev
+        a sestavování nákupního seznamu.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {dotazObchody.isLoading && <p className="text-sm text-muted">Načítám obchody…</p>}
+        {(dotazObchody.data ?? []).map((nazev) => {
+          const aktivni = vybrane.includes(nazev);
+          return (
+            <button
+              key={nazev}
+              type="button"
+              onClick={() => prepni(nazev)}
+              aria-pressed={aktivni}
+              disabled={mutace.isPending}
+              className={
+                aktivni
+                  ? "inline-flex h-10 items-center rounded-lg border border-primary bg-primary-soft px-3 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                  : "inline-flex h-10 items-center rounded-lg border border-border bg-surface px-3 text-sm font-medium text-muted transition-colors hover:border-primary/60 hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
+              }
+            >
+              {nazev}
+            </button>
+          );
+        })}
+      </div>
+      {vybrane.length > 0 && (
+        <p className="mt-2 text-xs text-muted">
+          Vybrané: {vybrane.join(", ")}
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/** Výchozí jednotka pro zápis do deníku – gramy/ml vs. celé balení. */
+function SekceJednotka() {
+  const klient = useQueryClient();
+  const dotazProfil = useQuery({ queryKey: ["profil"], queryFn: nactiProfil });
+  const hodnota = dotazProfil.data?.vychoziJednotka ?? "g";
+
+  const mutace = useMutation({
+    mutationFn: (j: "g" | "baleni") => ulozProfil({ vychoziJednotka: j }),
+    onSuccess: () => {
+      toast.success("Výchozí jednotka uložena.");
+      void klient.invalidateQueries({ queryKey: ["profil"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Uložení selhalo."),
+  });
+
+  return (
+    <Card>
+      <CardNadpis>
+        <Weight className="mr-1.5 inline size-4" aria-hidden />
+        Deník – výchozí jednotka
+      </CardNadpis>
+      <p className="text-sm text-muted">
+        Při zápisu potraviny s balením (např. plechovka 500 ml) se předvyplní
+        zvolená jednotka – jde kdykoli přepnout přímo v deníku.
+      </p>
+      <div className="mt-3">
+        <Select
+          id="nast-jednotka"
+          aria-label="Výchozí jednotka"
+          value={hodnota}
+          onChange={(e) => mutace.mutate(e.target.value as "g" | "baleni")}
+          disabled={mutace.isPending || dotazProfil.isLoading}
+          className="w-auto min-w-56"
+        >
+          <option value="g">Gramy / mililitry</option>
+          <option value="baleni">Celé balení / kusy</option>
+        </Select>
       </div>
     </Card>
   );

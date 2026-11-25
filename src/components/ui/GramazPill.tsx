@@ -19,14 +19,17 @@ export function GramazPill({
   hodnota,
   onZmena,
   baleniG,
+  baleniLabel,
   ariaLabel,
   chyba = false,
   className,
 }: {
   hodnota: number;
   onZmena: (gramy: number) => void;
-  /** gramáž balení v g – přidá předvolbu „balení (N g)“ */
+  /** gramáž balení v g – přidá předvolby „N× Balení (N g)“ a vlastní násobek */
   baleniG?: number | null;
+  /** popisek balení (Balení|Plechovka|Láhev|Kelímek|Kus|Sáček|Krabice) */
+  baleniLabel?: string | null;
   ariaLabel?: string;
   chyba?: boolean;
   className?: string;
@@ -48,13 +51,20 @@ export function GramazPill({
     return () => document.removeEventListener("keydown", naKlavesu, true);
   }, [otevreno]);
 
-  const baleni =
-    baleniG && !PORCE_GRAMU.includes(Math.round(baleniG)) ? Math.round(baleniG) : null;
+  const baleni = baleniG && baleniG > 0 ? Math.round(baleniG) : null;
+  const label = baleniLabel ?? "Balení";
 
   const zvol = (g: number) => {
     onZmena(Math.min(MAX_GRAMU, Math.max(1, g)));
     setOtevreno(false);
   };
+
+  // hodnota je násobek balení? → pilulka ukáže „2× Kelímek (300 g)“
+  const nasobek = baleni !== null && baleni > 0 ? hodnota / baleni : 0;
+  const jeNasobek =
+    baleni !== null && Math.abs(nasobek - Math.round(nasobek * 4) / 4) < 0.01 && nasobek >= 0.25;
+  const formatujNasobek = (n: number) =>
+    (Math.round(n * 4) / 4).toLocaleString("cs-CZ", { maximumFractionDigits: 2 });
 
   return (
     <div className={cn("relative", className)}>
@@ -68,7 +78,11 @@ export function GramazPill({
           chyba ? "border-danger" : "border-border hover:border-primary/60",
         )}
       >
-        <span className="truncate">{formatujMakro(hodnota)} g</span>
+        <span className="truncate">
+          {jeNasobek
+            ? `${formatujNasobek(nasobek)}× ${label.toLowerCase()} (${formatujMakro(hodnota)} g)`
+            : `${formatujMakro(hodnota)} g`}
+        </span>
         <ChevronDown className="size-4 shrink-0 text-muted" />
       </button>
 
@@ -102,18 +116,28 @@ export function GramazPill({
               </button>
             ))}
             {baleni !== null && (
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={baleni === hodnota}
-                onClick={() => zvol(baleni)}
-                className={cn(
-                  "flex w-full items-center px-5 py-3 text-left text-sm tabular-nums transition-colors hover:bg-primary-soft",
-                  baleni === hodnota ? "font-bold text-primary" : "text-fg",
-                )}
-              >
-                balení ({baleni} g)
-              </button>
+              <>
+                {[0.5, 1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={Math.round(baleni * n) === hodnota}
+                    onClick={() => zvol(Math.max(1, Math.round(baleni * n)))}
+                    className={cn(
+                      "flex w-full items-center justify-between px-5 py-3 text-left text-sm tabular-nums transition-colors hover:bg-primary-soft",
+                      Math.round(baleni * n) === hodnota ? "font-bold text-primary" : "text-fg",
+                    )}
+                  >
+                    <span>
+                      {formatujNasobek(n)}× {label.toLowerCase()}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {formatujMakro(Math.round(baleni * n))} g
+                    </span>
+                  </button>
+                ))}
+              </>
             )}
             <div className="flex items-center gap-2 border-t border-border px-5 py-3">
               <label htmlFor="gramaz-vlastni" className="text-sm text-muted">

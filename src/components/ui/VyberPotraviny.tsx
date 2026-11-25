@@ -41,6 +41,8 @@ export interface PolozkaVyberu {
   obrazek?: string | null;
   /** hmotnost balení v g – známe-li ji, ukážeme cenu za balení */
   baleniG?: number | null;
+  /** popisek balení (Balení|Plechovka|Láhev|Kelímek|Kus|Sáček|Krabice) */
+  baleniLabel?: string | null;
   /** alergenové tagy – s mojeAlergie prop ukážeme varování */
   alergeny?: string[];
   /** podmnožina alergeny = jen stopy („může obsahovat") – varujeme jemněji */

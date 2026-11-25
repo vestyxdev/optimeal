@@ -107,7 +107,7 @@ describe("DenikZapis", () => {
     vykresli();
     fireEvent.click(screen.getByText("test-pridej"));
     fireEvent.click(screen.getByRole("button", { name: /Množství Kuřecí prsa/ }));
-    expect(screen.getByRole("menuitemradio", { name: "balení (600 g)" })).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: /^1× balení/ })).toBeTruthy();
   });
 
   it("odebrání položky vrátí prázdný stav a Zapsat vypne", () => {

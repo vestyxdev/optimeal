@@ -12,6 +12,8 @@ export interface KatalogPotravina extends Potravina {
   zdroj: string;
   obrazek: string | null;
   ean: string | null;
+  /** popisek balení pro UI: Balení | Plechovka | Láhev | Kelímek | Kus | Sáček | Krabice */
+  baleniLabel: string | null;
 }
 
 /** České názvy alergenů EU-14 (klíče = foods.alergeny). */
@@ -27,7 +29,7 @@ export const SLOUPCE_AKTUALNI_CENY =
   "food_id, nazev, kategorie, bilkoviny, sacharidy, tuky, kalorie," +
   " bezna_cena, aktualni_cena, obchod, sleva, platnost_do, zdroj_ceny," +
   " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, alergeny_stopy, diety, ean," +
-  " obrazek, baleni_g, puvodni_cena, sleva_procenta, puvodni_zdroj";
+  " obrazek, baleni_g, baleni_label, puvodni_cena, sleva_procenta, puvodni_zdroj";
 
 export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
   const klient = supabase;
@@ -63,6 +65,7 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     obrazek: (r.obrazek ?? null) as string | null,
     ean: (r.ean ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    baleniLabel: (r.baleni_label ?? null) as string | null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
     puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
@@ -106,6 +109,7 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
     obrazek: (r.obrazek ?? null) as string | null,
     ean: (r.ean ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    baleniLabel: (r.baleni_label ?? null) as string | null,
     puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
     puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
     slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
@@ -143,6 +147,7 @@ export async function nactiVerejneAkce(limit = 12): Promise<VerejnaAkce[]> {
     platnostDo: (r.platnost_do ?? null) as string | null,
     obrazek: (r.obrazek ?? null) as string | null,
     baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    baleniLabel: (r.baleni_label ?? null) as string | null,
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
   }));
 }
@@ -504,4 +509,17 @@ export async function nactiOffPodleEan(
   const json = (await odpoved.json()) as { status?: number; product?: OffProdukt };
   if (json.status !== 1 || !json.product) return null;
   return parsujOffProdukty([json.product]);
+}
+
+/** Názvy aktivních řetězců pro předvolby uživatele (oblíbené obchody). */
+export async function nactiObchody(): Promise<string[]> {
+  const klient = supabase;
+  if (!klient) return [];
+  const { data, error } = await klient
+    .from("retailers")
+    .select("nazev")
+    .eq("aktivni", true)
+    .order("nazev");
+  if (error) throw new Error(`Obchody se nenačetly: ${error.message}`);
+  return (data ?? []).map((r: { nazev: string }) => r.nazev);
 }
