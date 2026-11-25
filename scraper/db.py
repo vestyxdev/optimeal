@@ -9,7 +9,9 @@ from __future__ import annotations
 import difflib
 import logging
 import os
+import random
 import re
+import time
 from datetime import date, datetime, timezone
 
 import requests
@@ -18,6 +20,45 @@ from .normalizace import normalizuj_nazev, stem_nazev
 from .retailers.base import Nabidka, je_potravina
 
 log = logging.getLogger("scraper.db")
+
+# PostgREST zápis/čtení: přechodný 429/5xx nebo síťový výpadek nesmí
+# shodit celý leg – 3 pokusy s exponenciálním backoffem + jitterem.
+# Aplikační 4xx (RLS deny, constraint) se vrací hned, retry je nezmění.
+_DB_POKUSY = 3
+_DB_RETRY_STATUSY = frozenset((429, 500, 502, 503, 504))
+
+
+def _req(method: str, url: str, **kw) -> requests.Response:
+    """requests.<method> s retry/backoffem na 429/5xx a síťové chyby.
+
+    Volá vždy přes modul `requests` (requests.get/post/…) – testy
+    patchující scraper.db.requests.<metoda> tak zůstávají platné.
+    """
+    for pokus in range(1, _DB_POKUSY + 1):
+        try:
+            r = getattr(requests, method)(url, **kw)
+        except requests.RequestException as e:
+            if pokus == _DB_POKUSY:
+                raise
+            cekani = 2 * (3 ** (pokus - 1)) + random.uniform(0, 0.6)
+            log.warning(
+                "%s %s – %s, opakuji za %.1f s (pokus %d/%d)",
+                method.upper(), url.rsplit("/", 1)[-1],
+                e.__class__.__name__, cekani, pokus, _DB_POKUSY,
+            )
+            time.sleep(cekani)
+            continue
+        if r.status_code in _DB_RETRY_STATUSY and pokus < _DB_POKUSY:
+            cekani = 2 * (3 ** (pokus - 1)) + random.uniform(0, 0.6)
+            log.warning(
+                "%s %s – HTTP %d, opakuji za %.1f s (pokus %d/%d)",
+                method.upper(), url.rsplit("/", 1)[-1], r.status_code,
+                cekani, pokus, _DB_POKUSY,
+            )
+            time.sleep(cekani)
+            continue
+        return r
+    return r  # poslední odpověď (5xx i po vyčerpání pokusů)
 
 
 def _platna_puvodni(puvodni: float, cena: float) -> bool:
@@ -55,7 +96,8 @@ class SupabaseWriter:
         self._indexy_hotove = False
 
     def _get(self, tabulka: str, sloupce: str = "*", **params) -> list[dict]:
-        r = requests.get(
+        r = _req(
+            "get",
             f"{self.url}/rest/v1/{tabulka}",
             headers=self._hlavicky,
             params={"select": sloupce, **params},
@@ -69,7 +111,8 @@ class SupabaseWriter:
         health-check (>50 % meziběhový pokles scraped počtu znamená
         spíš rozbitý parser/výpadek zdroje než hubený leták)."""
         try:
-            r = requests.get(
+            r = _req(
+                "get",
                 f"{self.url}/rest/v1/price_observations",
                 headers={**self._hlavicky, "Prefer": "count=exact"},
                 params={"zdroj": f"eq.{zdroj}", "select": "id", "limit": 0},
@@ -133,7 +176,8 @@ class SupabaseWriter:
         if klic in self._retailery:
             return self._retailery[klic]
         # nový obchod – vlož a zapamatuj
-        r = requests.post(
+        r = _req(
+            "post",
             f"{self.url}/rest/v1/retailers",
             headers={**self._hlavicky, "Prefer": "return=representation,resolution=ignore-duplicates"},
             json={"nazev": nazev, "aktivni": True, "poznamka": "z open-prices"},
@@ -161,7 +205,8 @@ class SupabaseWriter:
     def _dopln_ean(self, food_id: str, ean: str) -> None:
         """Doplní chybějící EAN na potravinu – best-effort, chyby jen logujeme."""
         try:
-            r = requests.patch(
+            r = _req(
+                "patch",
                 f"{self.url}/rest/v1/foods",
                 headers={**self._hlavicky, "Prefer": "return=minimal"},
                 params={"id": f"eq.{food_id}"},
@@ -221,7 +266,8 @@ class SupabaseWriter:
             )
             stat["sparovano"] += 1
         if radky:
-            r = requests.post(
+            r = _req(
+                "post",
                 f"{self.url}/rest/v1/price_observations",
                 headers={
                     **self._hlavicky,
@@ -340,7 +386,8 @@ class SupabaseWriter:
         if not patch:
             return
         try:
-            r = requests.patch(
+            r = _req(
+                "patch",
                 f"{self.url}/rest/v1/foods",
                 headers={**self._hlavicky, "Prefer": "return=minimal"},
                 params={"id": f"eq.{food_id}"},
@@ -430,7 +477,8 @@ class SupabaseWriter:
         # by u tisíců řádků mohla timeoutovat a padala na řádkový fallback
         for i in range(0, len(radky_list), 500):
             davka = radky_list[i : i + 500]
-            r = requests.post(
+            r = _req(
+                "post",
                 f"{self.url}/rest/v1/price_observations",
                 headers={
                     **self._hlavicky,
@@ -449,7 +497,8 @@ class SupabaseWriter:
             log.error("Dávka letákových cen %d: HTTP %d – %s",
                       len(davka), r.status_code, r.text[:400])
             for radek in davka:
-                rr = requests.post(
+                rr = _req(
+                    "post",
                     f"{self.url}/rest/v1/price_observations",
                     headers={**self._hlavicky,
                              "Prefer": "resolution=ignore-duplicates,"
@@ -484,7 +533,8 @@ class SupabaseWriter:
             "schvaleno": True,
         }
         try:
-            r = requests.post(
+            r = _req(
+                "post",
                 f"{self.url}/rest/v1/foods",
                 headers={**self._hlavicky,
                          "Prefer": "return=representation,resolution=ignore-duplicates"},
@@ -547,7 +597,8 @@ class SupabaseWriter:
             )
             for i in range(0, len(davky), 500):
                 davka = davky[i : i + 500]
-                r = requests.post(
+                r = _req(
+                    "post",
                     f"{self.url}/rest/v1/price_observations",
                     headers={**self._hlavicky,
                              "Prefer": "resolution=ignore-duplicates"},
@@ -565,7 +616,8 @@ class SupabaseWriter:
                     len(davka), r.status_code, r.text[:400],
                 )
                 for radek in davka:
-                    rr = requests.post(
+                    rr = _req(
+                        "post",
                         f"{self.url}/rest/v1/price_observations",
                         headers={**self._hlavicky,
                                  "Prefer": "resolution=ignore-duplicates"},
@@ -660,7 +712,8 @@ class SupabaseWriter:
         smazano = 0
         for zdroj in zdroje:
             try:
-                r = requests.delete(
+                r = _req(
+                    "delete",
                     f"{self.url}/rest/v1/price_observations",
                     headers={**self._hlavicky, "Prefer": "count=exact"},
                     params={
@@ -680,7 +733,8 @@ class SupabaseWriter:
         """Smaže pozorování s prošlou platností (view je filtruje taky,
         ale tabulka zůstává čistá a malá)."""
         try:
-            r = requests.delete(
+            r = _req(
+                "delete",
                 f"{self.url}/rest/v1/price_observations",
                 headers={**self._hlavicky, "Prefer": "count=exact"},
                 params={

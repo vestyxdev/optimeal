@@ -12,7 +12,7 @@ from scraper.normalizace import (
     obchod_z_location,
 )
 from scraper import open_prices
-from scraper.db import SupabaseWriter, _platna_puvodni
+from scraper.db import SupabaseWriter, _platna_puvodni, _req
 
 
 class TestFoodId(unittest.TestCase):
@@ -249,6 +249,48 @@ class TestPlatnaPuvodni(unittest.TestCase):
         self.assertFalse(_platna_puvodni(0, 5))
         self.assertFalse(_platna_puvodni(10, 0))
         self.assertFalse(_platna_puvodni(-5, 5))
+
+
+class TestReqRetry(unittest.TestCase):
+    """_req: retry+backoff na 429/5xx a síťové chyby, 4xx hned zpět."""
+
+    def _odpoved(self, status: int) -> MagicMock:
+        r = MagicMock()
+        r.status_code = status
+        r.ok = status < 400
+        return r
+
+    def test_503_pak_200_zkus_znovu(self):
+        with patch("scraper.db.requests.get") as m_get, \
+             patch("scraper.db.time.sleep"):
+            m_get.side_effect = [self._odpoved(503), self._odpoved(200)]
+            r = _req("get", "http://x/rest/v1/foods", timeout=5)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(m_get.call_count, 2)
+
+    def test_429_vycerpani_pokusu_vrati_posledni(self):
+        with patch("scraper.db.requests.post") as m_post, \
+             patch("scraper.db.time.sleep"):
+            m_post.return_value = self._odpoved(429)
+            r = _req("post", "http://x/rest/v1/foods", timeout=5)
+        self.assertEqual(r.status_code, 429)
+        self.assertEqual(m_post.call_count, 3)  # _DB_POKUSY
+
+    def test_4xx_se_neopakuje(self):
+        with patch("scraper.db.requests.post") as m_post, \
+             patch("scraper.db.time.sleep"):
+            m_post.return_value = self._odpoved(409)
+            r = _req("post", "http://x/rest/v1/foods", timeout=5)
+        self.assertEqual(r.status_code, 409)
+        m_post.assert_called_once()
+
+    def test_sitova_chyba_propaguje_po_poslednim_pokusu(self):
+        with patch("scraper.db.requests.get") as m_get, \
+             patch("scraper.db.time.sleep"):
+            m_get.side_effect = requests.ConnectionError("reset")
+            with self.assertRaises(requests.ConnectionError):
+                _req("get", "http://x/rest/v1/foods", timeout=5)
+        self.assertEqual(m_get.call_count, 3)
 
 
 if __name__ == "__main__":

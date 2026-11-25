@@ -27,6 +27,7 @@ import time
 
 import requests
 
+from .db import _req
 from .proxy import aplikuj_proxy
 
 log = logging.getLogger("scraper.obohaceni_eshop")
@@ -185,7 +186,8 @@ def _kandidati(hlavicky: dict, url: str, limit: int) -> list[dict]:
     kandidati: list[dict] = []
     offset = 0
     while len(kandidati) < limit:
-        r = requests.get(
+        r = _req(
+            "get",
             f"{url}/rest/v1/foods",
             headers=hlavicky,
             params={
@@ -209,7 +211,8 @@ def _kandidati(hlavicky: dict, url: str, limit: int) -> list[dict]:
 
 
 def _patch(hlavicky: dict, url: str, food_id: str, payload: dict) -> bool:
-    r = requests.patch(
+    r = _req(
+        "patch",
         f"{url}/rest/v1/foods",
         headers={**hlavicky, "Prefer": "return=minimal"},
         params={"id": f"eq.{food_id}"},

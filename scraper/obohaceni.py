@@ -28,6 +28,8 @@ import unicodedata
 
 import requests
 
+from .db import _req
+
 log = logging.getLogger("scraper.obohaceni")
 
 OFF = "https://cz.openfoodfacts.org"
@@ -174,7 +176,7 @@ def main() -> int:
         "order": "vytvoreno.asc",
         "or": "(schvaleno.eq.false,kalorie.eq.0)",
     }
-    r = requests.get(f"{url}/rest/v1/foods", headers=h, params=params, timeout=30)
+    r = _req("get", f"{url}/rest/v1/foods", headers=h, params=params, timeout=30)
     r.raise_for_status()
     foods = r.json()
     log.info("K obohacení: %d potravin", len(foods))
@@ -195,7 +197,8 @@ def main() -> int:
             log.info("DRY %s ← %s", food["nazev"][:50], list(patch))
             doplneno += 1
             continue
-        pr = requests.patch(
+        pr = _req(
+            "patch",
             f"{url}/rest/v1/foods", headers=h,
             params={"id": f"eq.{food['id']}"}, json=patch, timeout=30,
         )
@@ -203,7 +206,8 @@ def main() -> int:
             # OFF EAN už nese jiná potravina → opakovat bez EANu,
             # ať se makra aspoň zapíší (jinak přijdeme i o ně)
             patch.pop("ean", None)
-            pr = requests.patch(
+            pr = _req(
+                "patch",
                 f"{url}/rest/v1/foods", headers=h,
                 params={"id": f"eq.{food['id']}"}, json=patch, timeout=30,
             )

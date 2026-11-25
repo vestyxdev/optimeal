@@ -113,11 +113,23 @@ export function Denik() {
 
   const mutaceSmaz = useMutation({
     mutationFn: smazPoznamkuDeniku,
+    // optimisticky – řádek zmizí hned; při chybě se cache vrátí
+    onMutate: async (id) => {
+      await dotazovak.cancelQueries({ queryKey: ["denik", datum] });
+      const predchozi = dotazovak.getQueryData<PoznamkaDeniku[]>(["denik", datum]);
+      dotazovak.setQueryData<PoznamkaDeniku[]>(["denik", datum], (stare) =>
+        (stare ?? []).filter((p) => p.id !== id),
+      );
+      return { predchozi };
+    },
     onSuccess: () => {
       toast.success("Záznam odebrán.");
-      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Smazání selhalo."),
+    onError: (e, _v, ctx) => {
+      if (ctx?.predchozi) dotazovak.setQueryData(["denik", datum], ctx.predchozi);
+      toast.error(e instanceof Error ? e.message : "Smazání selhalo.");
+    },
+    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
 
   // gramáž uloženého záznamu – optimisticky, součty se přepočítají hned
@@ -203,14 +215,41 @@ export function Denik() {
   // „Zapsat vše" – dávkový insert jen nalezených položek do zvoleného slotu
   const mutaceRychly = useMutation({
     mutationFn: (poznamky: NovaPoznamka[]) => zapisDoDeniku(rychlyTyp, datum, "", poznamky),
+    // optimisticky – položky se ukážou hned, při chybě se cache vrátí
+    onMutate: async (poznamky) => {
+      await dotazovak.cancelQueries({ queryKey: ["denik", datum] });
+      const predchozi = dotazovak.getQueryData<PoznamkaDeniku[]>(["denik", datum]);
+      const zapsanoAt = new Date(`${datum}T12:00:00`).toISOString();
+      dotazovak.setQueryData<PoznamkaDeniku[]>(["denik", datum], (stare) => [
+        ...(stare ?? []),
+        ...poznamky.map((p, i) => ({
+          id: `optim-rychly-${i}-${zapsanoAt}`,
+          foodId: p.foodId,
+          nazev: p.nazev,
+          obrazek: p.obrazek,
+          typJidla: rychlyTyp,
+          mnozstviG: p.mnozstviG,
+          kalorie: p.kalorie,
+          bilkoviny: p.bilkoviny,
+          sacharidy: p.sacharidy,
+          tuky: p.tuky,
+          zapsanoDne: datum,
+          zapsanoAt,
+        })),
+      ]);
+      return { predchozi };
+    },
     onSuccess: (_v, zapsane) => {
       setRychly("");
       setRychlyGramy({});
       setRychlyShody({});
       toast.success(`Zapsáno ${zapsane.length} ${sklonuj(zapsane.length, "položka", "položky", "položek")}.`);
-      void dotazovak.invalidateQueries({ queryKey: ["denik"] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Zápis selhal."),
+    onError: (e, _v, ctx) => {
+      if (ctx?.predchozi) dotazovak.setQueryData(["denik", datum], ctx.predchozi);
+      toast.error(e instanceof Error ? e.message : "Zápis selhal.");
+    },
+    onSettled: () => void dotazovak.invalidateQueries({ queryKey: ["denik"] }),
   });
 
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);

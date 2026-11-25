@@ -94,6 +94,26 @@ export function Mealprep() {
     [vstupy, recepty, dotazCeny.data],
   );
 
+  // rozbor (kcal+cena) a alergenové shody per recept – závisí na datech
+  // a profilu, NE na porcích; bez mema se počítal na každý render
+  // při každém klepnutí na volič porcí
+  const rozborMap = useMemo(() => {
+    const m = new Map<
+      string,
+      { rozbor: ReturnType<typeof spocitejRecept>; obsahShoda: string[]; stopyShoda: string[] }
+    >();
+    for (const r of recepty) {
+      const stopySet = new Set(stopyReceptu(r));
+      const shoda = alergenyReceptu(r).filter((a) => mojeAlergie.includes(a));
+      m.set(r.id, {
+        rozbor: spocitejRecept(r, dotazCeny.data ?? null),
+        obsahShoda: shoda.filter((a) => !stopySet.has(a)),
+        stopyShoda: shoda.filter((a) => stopySet.has(a)),
+      });
+    }
+    return m;
+  }, [recepty, dotazCeny.data, mojeAlergie]);
+
   // podpis aktuální konfigurace – uložení se zamkne, dokud se porce nezmění
   const podpis = useMemo(() => JSON.stringify(vstupy), [vstupy]);
   const [ulozenyPlanPodpis, setUlozenyPlanPodpis] = useState<string | null>(null);
@@ -166,12 +186,12 @@ export function Mealprep() {
         )}
         <div className="divide-y divide-border">
           {recepty.map((recept) => {
-            const rozbor = spocitejRecept(recept, dotazCeny.data ?? null);
+            const {
+              rozbor = { naPorci: { kalorie: 0, cena: 0 } },
+              obsahShoda = [],
+              stopyShoda = [],
+            } = rozborMap.get(recept.id) ?? {};
             const vybrano = porce[recept.id] ?? 0;
-            const stopySet = new Set(stopyReceptu(recept));
-            const shodaAlergie = alergenyReceptu(recept).filter((a) => mojeAlergie.includes(a));
-            const obsahShoda = shodaAlergie.filter((a) => !stopySet.has(a));
-            const stopyShoda = shodaAlergie.filter((a) => stopySet.has(a));
             return (
               <div key={recept.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
