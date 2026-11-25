@@ -44,3 +44,5 @@ jobs:
           python -m scraper.off_import $ARGS
           # medián reálných pozorování zlepší referenční ceny položek bez živé ceny
           python -m scraper.obnov_ceny
+          # fuzzy dedupe: import přinesl nové řádky, sloučit případné duplicity
+          python -m scraper.dedupe_fuzzy --merge
