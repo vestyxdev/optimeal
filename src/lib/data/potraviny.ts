@@ -550,6 +550,36 @@ export interface TrigramVysledek {
 }
 
 /**
+ * Mapování privátních labelů na řetězce (znacky_mapovani) – „Pilos" → „Lidl".
+ * Katalog tak umí ukázat „jen v Lidlu" u značkových privátních produktů.
+ */
+export async function nactiMapovaniZnacek(): Promise<Map<string, string>> {
+  const klient = supabase;
+  if (!klient) return new Map();
+  const { data, error } = await klient
+    .from("znacky_mapovani")
+    .select("znacka, retailer_id, retailers(nazev)");
+  if (error) return new Map();
+  const mapa = new Map<string, string>();
+  for (const r of data ?? []) {
+    const row = r as { znacka: string; retailers: { nazev: string } | { nazev: string }[] | null };
+    const obchod = Array.isArray(row.retailers) ? row.retailers[0]?.nazev : row.retailers?.nazev;
+    if (obchod) mapa.set(row.znacka.toLowerCase(), obchod);
+  }
+  return mapa;
+}
+
+/** Najde řetězec pro značku produktu (substring shoda – „Pilos jogurt" vs label „pilos"). */
+export function obchodProZnacku(znacka: string | null, mapovani: Map<string, string>): string | null {
+  if (!znacka) return null;
+  const z = znacka.toLowerCase();
+  for (const [label, obchod] of mapovani) {
+    if (z === label || z.startsWith(label) || z.includes(label)) return obchod;
+  }
+  return null;
+}
+
+/**
  * Serverové fulltext hledání přes pg_trgm + unaccent – diakritika-insenzitivní
  * („kureci prsa“ → „Kuřecí prsa“), prefix shody první. Škáluje i na katalog,
  * který se do klienta už nevejde; lokální filtrace zůstává jako instantní fallback.

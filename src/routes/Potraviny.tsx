@@ -28,6 +28,8 @@ import {
   nactiKatalogPotravin,
   nactiPotravinu,
   pridejPotravinu,
+  nactiMapovaniZnacek,
+  obchodProZnacku,
   smazPotravinu,
   upravPotravinu,
   type KatalogPotravina,
@@ -597,6 +599,16 @@ function TlacitkoStalice({
   );
 }
 
+/** Mapování privátních labelů – React Query cache sdílí jeden fetch napříč řádky. */
+function useMapovaniZnacek() {
+  const dotaz = useQuery({
+    queryKey: ["znacky-mapovani"],
+    queryFn: nactiMapovaniZnacek,
+    staleTime: Infinity,
+  });
+  return dotaz.data ?? new Map<string, string>();
+}
+
 function RadekPotraviny({
   p,
   uzivatelId,
@@ -614,6 +626,8 @@ function RadekPotraviny({
   naUpravu: () => void;
   zaBaleni?: boolean;
 }) {
+  const mapovaniZnacek = useMapovaniZnacek();
+  const jenVObchode = obchodProZnacku(p.znacka ?? null, mapovaniZnacek);
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   // „Za balení“ režim – makra násobíme baleniG/100 (jen když gramáž existuje)
@@ -645,7 +659,7 @@ function RadekPotraviny({
         </span>
         {p.baleniG != null && p.baleniG > 0 && (
           <span className="block text-xs text-muted">
-            {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
+            {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{jenVObchode ? ` (jen ${jenVObchode})` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
           </span>
         )}
         <AlergenInfo p={p} shoda={shoda} />
@@ -725,6 +739,8 @@ function KartaPotraviny({
   naUpravu: () => void;
   zaBaleni?: boolean;
 }) {
+  const mapovaniZnacek = useMapovaniZnacek();
+  const jenVObchode = obchodProZnacku(p.znacka ?? null, mapovaniZnacek);
   const vlastni = uzivatelId !== null && p.vytvoril === uzivatelId;
   const shoda = mojeAlergie.filter((a) => obsahujeAlergen(p, a));
   const Ikona = KATEGORIE_IKONY[p.kategorie ?? "ostatni"] ?? Package;
@@ -768,7 +784,7 @@ function KartaPotraviny({
           </p>
           {p.baleniG != null && p.baleniG > 0 && (
             <p className="mt-0.5 text-xs text-muted">
-              {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
+              {p.baleniLabel ?? "Balení"} {formatujMakro(p.baleniG)} g{p.znacka ? ` · ${p.znacka}` : ""}{jenVObchode ? ` (jen ${jenVObchode})` : ""}{p.vlaknina != null ? ` · vl. ${formatujMakro(p.vlaknina)} g` : ""}
             </p>
           )}
           <AlergenInfo p={p} shoda={shoda} className="mt-0.5" />
