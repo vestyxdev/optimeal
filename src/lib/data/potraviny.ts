@@ -523,3 +523,51 @@ export async function nactiObchody(): Promise<string[]> {
   if (error) throw new Error(`Obchody se nenačetly: ${error.message}`);
   return (data ?? []).map((r: { nazev: string }) => r.nazev);
 }
+
+/** Jedna řádka serverového trigramového hledání (RPC hledej_potraviny). */
+export interface TrigramVysledek {
+  foodId: string;
+  nazev: string;
+  kategorie: string;
+  kalorie: number;
+  bilkoviny: number;
+  sacharidy: number;
+  tuky: number;
+  vlaknina: number | null;
+  znacka: string | null;
+  baleniG: number | null;
+  baleniLabel: string | null;
+  ean: string | null;
+  podobnost: number;
+}
+
+/**
+ * Serverové fulltext hledání přes pg_trgm + unaccent – diakritika-insenzitivní
+ * („kureci prsa“ → „Kuřecí prsa“), prefix shody první. Škáluje i na katalog,
+ * který se do klienta už nevejde; lokální filtrace zůstává jako instantní fallback.
+ */
+export async function hledejPotravinyTrigram(dotaz: string, maxVysledku = 20): Promise<TrigramVysledek[]> {
+  const klient = supabase;
+  const q = dotaz.trim();
+  if (!klient || q.length < 2) return [];
+  const { data, error } = await klient.rpc("hledej_potraviny", {
+    dotaz: q,
+    max_vysledku: maxVysledku,
+  });
+  if (error) throw new Error(`Hledání selhalo: ${error.message}`);
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    foodId: r.food_id as string,
+    nazev: r.nazev as string,
+    kategorie: r.kategorie as string,
+    kalorie: Number(r.kalorie),
+    bilkoviny: Number(r.bilkoviny),
+    sacharidy: Number(r.sacharidy),
+    tuky: Number(r.tuky),
+    vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
+    znacka: (r.znacka ?? null) as string | null,
+    baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
+    baleniLabel: (r.baleni_label ?? null) as string | null,
+    ean: (r.ean ?? null) as string | null,
+    podobnost: Number(r.podobnost),
+  }));
+}

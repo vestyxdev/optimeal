@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { MiniaturaPotraviny } from "@/components/ui/MiniaturaPotraviny";
 import { podporujeSkenovaniKodu, SkenovaniEan } from "@/components/potraviny/SkenovaniEan";
-import { ALERGEN_NAZVY, hledejPodleEanLokalne } from "@/lib/data/potraviny";
+import { ALERGEN_NAZVY, hledejPodleEanLokalne, hledejPotravinyTrigram } from "@/lib/data/potraviny";
 import { nactiStalice, prepnoutStalici } from "@/lib/data/spiz";
 import { obsahujeAlergen } from "@/lib/generator/generator";
 import { formatujCenu, formatujKcal, formatujPlatnostDo, formatujStariCeny } from "@/lib/cena";
@@ -143,6 +143,21 @@ export function VyberPotraviny({
   // odložený dotaz – filtrace velkého katalogu neblokuje psaní
   const dotazOdlozeny = useDeferredValue(dotaz);
 
+  // serverové trigramové hledání (pg_trgm+unaccent) – debounce 250 ms,
+  // doběhne po lokálním instantním filtru a doplní zásahy z celého katalogu
+  const [dotazServer, setDotazServer] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDotazServer(dotaz.trim()), 250);
+    return () => clearTimeout(t);
+  }, [dotaz]);
+  const dotazTrigram = useQuery({
+    queryKey: ["trigram-hledani", dotazServer],
+    queryFn: () => hledejPotravinyTrigram(dotazServer, 20),
+    enabled: dotazServer.length >= 2,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   const filtrovane = useMemo(() => {
     const d = norm(dotazOdlozeny.trim());
     const vybrane = potraviny.filter(
@@ -168,6 +183,44 @@ export function VyberPotraviny({
         (d === "" || norm(p.nazev).includes(d)),
     ).length;
   }, [potraviny, dotazOdlozeny, kategorie]);
+
+  // serverové zásahy, které lokální preload neobsahuje – katalog roste
+  // přes OFF import a do klienta se už nemusí vejít celý
+  const serverExtra = useMemo<PolozkaVyberu[]>(() => {
+    if (!dotazTrigram.data) return [];
+    const lokalniIds = new Set(potraviny.map((p) => p.id));
+    return dotazTrigram.data
+      .filter((r) => !lokalniIds.has(r.foodId))
+      .filter((r) => kategorie === null || r.kategorie === kategorie)
+      .map((r) => ({
+        id: r.foodId,
+        nazev: r.znacka ? `${r.nazev} (${r.znacka})` : r.nazev,
+        kalorie: r.kalorie,
+        bilkoviny: r.bilkoviny,
+        sacharidy: r.sacharidy,
+        tuky: r.tuky,
+        aktualniCena: 0,
+        sleva: false,
+        kategorie: r.kategorie,
+        baleniG: r.baleniG,
+        baleniLabel: r.baleniLabel,
+      }));
+  }, [dotazTrigram.data, potraviny, kategorie]);
+
+  // finální pořadí: serverové trigramové řazení je hlavní signál relevance
+  // (fuzzy shoda i přes překlepy a pořadí slov), lokální filtr doplní zbytek
+  // a poslouží jako instantní fallback, než server doběhne
+  const zobrazene = useMemo(() => {
+    const servery = dotazTrigram.data;
+    if (!servery || dotazServer !== dotaz.trim()) return filtrovane;
+    const serverIds = new Set(servery.map((r) => r.foodId));
+    const nejprve = servery
+      .map((r) => mapa.get(r.foodId))
+      .filter((p): p is PolozkaVyberu => p !== undefined)
+      .filter((p) => kategorie === null || p.kategorie === kategorie);
+    const zbytek = filtrovane.filter((p) => !serverIds.has(p.id));
+    return [...nejprve, ...zbytek].slice(0, MAX_VYSLEDKU);
+  }, [dotazTrigram.data, dotazServer, dotaz, filtrovane, mapa, kategorie]);
 
   const veSleve = useMemo(() => potraviny.filter((p) => p.sleva).slice(0, 10), [potraviny]);
   const nedavne = useMemo(
@@ -313,9 +366,10 @@ export function VyberPotraviny({
                   value={dotaz}
                   onChange={(e) => setDotaz(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && filtrovane.length > 0) {
+                    const prvni = zobrazene[0] ?? serverExtra[0];
+                    if (e.key === "Enter" && prvni) {
                       e.preventDefault();
-                      vyber(filtrovane[0]!.id);
+                      vyber(prvni.id);
                     }
                   }}
                   placeholder="Hledat potravinu…"
@@ -353,10 +407,20 @@ export function VyberPotraviny({
               /* výsledky hledání / filtru */
               <div className="flex min-h-0 flex-1 flex-col">
                 <ul role="listbox" className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 sm:px-3">
-                  {filtrovane.map((p) => (
+                  {zobrazene.map((p) => (
                     <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} pripnuta={stalice.has(p.id)} onPin={pinuj} />
                   ))}
-                  {filtrovane.length === 0 && (
+                  {serverExtra.length > 0 && (
+                    <>
+                      <li className="px-4 pb-1 pt-3 text-xs font-semibold text-muted">
+                        Další z celého katalogu
+                      </li>
+                      {serverExtra.map((p) => (
+                        <Radek key={p.id} p={p} aktivni={p.id === hodnota} onVyber={vyber} mojeAlergie={mojeAlergie} pripnuta={stalice.has(p.id)} onPin={pinuj} />
+                      ))}
+                    </>
+                  )}
+                  {zobrazene.length === 0 && serverExtra.length === 0 && (
                     <li className="px-4 py-10 text-center text-sm text-muted">
                       Nic nenalezeno – zkuste jiný dotaz.
                     </li>
