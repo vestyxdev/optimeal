@@ -1,0 +1,66 @@
+# Zdraví scraper pipeline – denní kontrola čerstvosti a objemu dat.
+# 19:00 UTC (po všech scrape vlnách). Při selhání vytvoří/aktualizuje
+# GitHub issue „Scraper zdraví" – mrtvé řetězce a rozbité pipeline
+# tak nezůstanou tiché. Samotný run červeně selže.
+name: Zdravi scraperu
+
+on:
+  schedule:
+    - cron: "0 19 * * *"  # denně večer po scrape vlnách
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  kontrola:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r scraper/requirements.txt
+
+      - name: Kontrola zdraví
+        id: kontrola
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python -m scraper.zdravi > zdravi-report.md 2> zdravi-stderr.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          cat zdravi-report.md
+        continue-on-error: true
+
+      - name: Upsert issue při selhání
+        if: steps.kontrola.outputs.exitcode != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITUL="Scraper zdraví: $(date +%Y-%m-%d) kontrola selhala"
+          BODY=$(cat zdravi-report.md)
+          EXISTUJICI=$(gh issue list --label zdravi --state open --json number --jq '.[0].number // empty' -R "${{ github.repository }}")
+          if [ -n "$EXISTUJICI" ]; then
+            gh issue comment "$EXISTUJICI" --body "$BODY" -R "${{ github.repository }}"
+            echo "Komentář přidán k issue #$EXISTUJICI"
+          else
+            gh issue create --title "$TITUL" --body "$BODY" --label zdravi -R "${{ github.repository }}" || \
+            gh issue create --title "$TITUL" --body "$BODY" -R "${{ github.repository }}"
+          fi
+
+      - name: Zavři issue když je vše zase zdravé
+        if: steps.kontrola.outputs.exitcode == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTUJICI=$(gh issue list --label zdravi --state open --json number --jq '.[0].number // empty' -R "${{ github.repository }}")
+          if [ -n "$EXISTUJICI" ]; then
+            gh issue close "$EXISTUJICI" --comment "Pipeline je opět zdravá – automaticky zavřeno." -R "${{ github.repository }}"
+          fi
+
+      - name: Selž červeně při problému
+        if: steps.kontrola.outputs.exitcode != '0'
+        run: exit 1

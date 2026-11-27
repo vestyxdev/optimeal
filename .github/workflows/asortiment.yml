@@ -4,8 +4,9 @@
 #
 # Každý eshop = vlastní matrix job (vlastní runner+IP). iTesco chybí
 # schválně – je za WAF (403), Tesco promos kryje Kupi.cz.
-# Po eshopovém ingestu běží v tom samém jobu krátké OFF obohacení
-# (--limit 300), které doplní makra novým potravinám.
+# OFF obohacení tu schválně NENÍ – Rohlík scrape trvá 2h+ a trailing
+# krok umíral na 240min timeoutu; hloubkové obohacení kryje nedělní
+# obohaceni.yml (--limit 1500), čerstvost eshop produktů eshop krok níže.
 name: AsortimentScraper
 
 on:
@@ -67,9 +68,3 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python -m scraper.obohaceni_eshop --limit 400
-
-      - name: OFF obohacení nových potravin
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python -m scraper.obohaceni --limit 300
