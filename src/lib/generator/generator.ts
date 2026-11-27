@@ -646,9 +646,11 @@ const NEPOTRAVINA_RE =
   /s[ée]rum|pleťov|plet(?!ýn)|kosmeti|šampon|m[ýy]dl|dezinfek|parf[ée]m|toaletn|prac[íi]\s|detergent|dopln[ěe]k stravy|tableta|kapsl|vitam[íi]n|probiotik|kolagen|omega.?3|hořčík|magnez|veterin[áa]r|granule pro|krmiv|pipet|antiparazit|odčerv|substr[aá]t|hnojiv|podest[ýy]l|pokojov[ée] rostlin|tr[áa]vn[íi]k|zahradni[čc]|insekticid|pesticid/i;
 
 /** Nepotravina (kosmetika, drogerie, krmivo, tablety). Vejce
- * obohacená o omega-3 jsou potravina, ne doplněk stravy. */
+ * obohacená o omega-3 jsou potravina, ne doplněk stravy.
+ * „plet" chytá i complet (celozrnné výrobky) a pletenec (pečivo) –
+ * negativní test je vrací; lookbehind kvůli staršímu Safari ne. */
 export function jeNepotravinovy(p: { nazev: string }): boolean {
-  return NEPOTRAVINA_RE.test(p.nazev) && !/vejc/i.test(p.nazev);
+  return NEPOTRAVINA_RE.test(p.nazev) && !/vejc|complet|pletenec/i.test(p.nazev);
 }
 
 /** Alkohol – OFF katalog obsahuje i lihoviny; „37 % obj." nebo
