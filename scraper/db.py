@@ -61,6 +61,19 @@ def _req(method: str, url: str, **kw) -> requests.Response:
     return r  # poslední odpověď (5xx i po vyčerpání pokusů)
 
 
+# Jednotkové/velikostní tokeny neodlišují produkty – „0,5l" ani „500"
+# nepomáhají poznat, jestli jde o stejný produkt. Pro strict containment
+# se počítá krytí jen nad obsahovými tokeny.
+_RE_CISLO_NEBO_JEDNOTKA = re.compile(
+    r"^(\d+([.,]\d+)?|\d*(g|gr|kg|mg|ml|cl|dl|l|ks|cm|mm|x|mln)|pack)$"
+)
+
+
+def _obsahove_tokeny(norm_nazev: str) -> list[str]:
+    """Tokeny normalizovaného názvu bez čísel a jednotek."""
+    return [t for t in norm_nazev.split() if not _RE_CISLO_NEBO_JEDNOTKA.match(t)]
+
+
 def _platna_puvodni(puvodni: float, cena: float) -> bool:
     """Sanity ověřené původní ceny – stejné meze jako view aktualni_ceny:
     musí znamenat aspoň ~1 % slevu a nesmí přesáhnout 2,5× akční cenu
@@ -289,7 +302,7 @@ class SupabaseWriter:
     # Letákové/eshopové nabídky (PriceScraper)
     # ------------------------------------------------------------------
 
-    def _food_id_fuzzy(self, ean: str | None, nazev: str) -> str | None:
+    def _food_id_fuzzy(self, ean: str | None, nazev: str, strict: bool = False) -> str | None:
         """Párování nabídek na foods.
 
         Letákové názvy jsou povídavé („Mléko trvanlivé Pragolaktos –
@@ -297,6 +310,14 @@ class SupabaseWriter:
         Pořadí: EAN → přesný název → token-subset → substring
         (word-boundary) → difflib ≥0.8. Preferujeme nejkonkrétnější
         shodu (delší název potraviny).
+
+        strict=True (eshopový asortiment): containmentské cesty vyžadují,
+        aby obsahové tokeny potraviny pokryly ≥60 % obsahových tokenů
+        nabídky. Bez toho jednotokenové generické potraviny („Pivo")
+        absorbují celý sortiment („Radegast Ryzlink světlý ležák 0,5l"
+        ⊆ pivo) – produkt se nikdy nezaloží jako vlastní řádek a ke
+        collapse (food,retailer) přežije jen nejlevnější SKU. Letáky
+        strict nepoužívají – tam je generická shoda záměr.
         """
         food_id = self._food_id(ean, nazev)
         if food_id:
@@ -307,6 +328,7 @@ class SupabaseWriter:
             return None
         cil_stem = stem_nazev(nazev)
         cil_stem_t = set(cil_stem.split())
+        cil_obsah = _obsahove_tokeny(cil)
         self.nacti_potraviny()  # naplní _norm_potraviny + _token_index
         # kandidáti = potraviny sdílející aspoň jeden token/kmen s nabídkou;
         # prázdná množina → žádná lexikálně podobná potravina neexistuje
@@ -321,25 +343,36 @@ class SupabaseWriter:
             ft = fn.split()
             fts = set(ft)
             fst = set(fstem.split())
+            # strict režim: containment je důkaz jen když potravina pokrývá
+            # většinu obsahu nabídky – jinak je to generičtější nadřazený
+            # pojem a produkt má dostat vlastní řádek
+            if strict:
+                ft_obsah = _obsahove_tokeny(fn)
+                kryti = len(ft_obsah) / max(1, len(cil_obsah))
+                containment_ok = kryti >= 0.6
+            else:
+                containment_ok = True
             skore = 0.0
-            if ft and len(ft) >= 1 and fts <= cil_t:
+            if containment_ok and ft and len(ft) >= 1 and fts <= cil_t:
                 # všechna slova názvu potraviny jsou v nabídce
                 skore = 0.90 + 0.01 * len(ft)
-            elif fst and fst <= cil_stem_t:
+            elif containment_ok and fst and fst <= cil_stem_t:
                 # totéž na kmenech – „citrony" nabídka ≈ „citrón" katalog
                 skore = 0.89 + 0.01 * len(fst)
-            elif len(fn) >= 4 and re.search(rf"\b{re.escape(fn)}\b", cil):
+            elif containment_ok and len(fn) >= 4 and re.search(rf"\b{re.escape(fn)}\b", cil):
                 skore = 0.88 + 0.01 * len(fn)
-            elif len(fstem) >= 4 and re.search(rf"\b{re.escape(fstem)}\b", cil_stem):
+            elif containment_ok and len(fstem) >= 4 and re.search(rf"\b{re.escape(fstem)}\b", cil_stem):
                 skore = 0.87 + 0.01 * len(fstem)
             elif len(cil) >= 4 and re.search(rf"\b{re.escape(cil)}\b", fn):
+                # obrácený containment – nabídka je podřetězec potraviny;
+                # černou díru nedělá (žrouti jsou dlouzí, ne generičtí)
                 skore = 0.85
             else:
                 # okno: srovnej jméno potraviny s každým podřetězcem
                 # nabídky stejné délky – „kuřecí prsa" vs „kuřecí
                 # prsní řízky" → okno „kuřecí prsní" ≈ 0.85
                 cl = cil.split()
-                if len(cl) >= len(ft) and ft:
+                if len(cl) >= len(ft) and ft and containment_ok:
                     best_win = max(
                         difflib.SequenceMatcher(
                             None, fn, " ".join(cl[i : i + len(ft)])
@@ -637,7 +670,10 @@ class SupabaseWriter:
             if not je_potravina(n.nazev):
                 stat["preskoceno"] += 1
                 continue
-            food_id = self._food_id_fuzzy(n.ean, n.nazev)
+            # strict: eshopové SKU má dostat vlastní řádek, když není
+            # skutečně týmž produktem – volný containment by ho nechal
+            # pohltit generickou potravinou (viz _food_id_fuzzy)
+            food_id = self._food_id_fuzzy(n.ean, n.nazev, strict=True)
             if not food_id and vytvarej:
                 food_id = self.vytvor_potravinu(n)
                 if food_id:

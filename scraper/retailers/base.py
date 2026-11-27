@@ -167,9 +167,21 @@ RE_NEPOTRAVINA = re.compile(
     r"osvěžovač|vonn(á|é|ý) (tyčink|svíčk|vosk)|žárovk|"
     r"pytle? na (odpad|smeti)|gumové rukavice|latexové rukavice|"
     r"nitrilov|ubrousk|navlék|mop\b|kbelík|vědro|\blufa\b|"
-    r"krmivo pro|granule pro (psy|kočk)|pro psy\b|pro kočky\b|"
+    r"krmivo pro|granule pro (psy|kočk)|pro psy\b|pro kočky\b|\bkrmiv|"
     r"kočičí (stelivo|wc|toaleta)|stelivo|hovinko|pamlse?k|"
-    r"dentální (pasta|kartáč|voda)|vlhčený toaletní|inkontinenčn",
+    r"dentální (pasta|kartáč|voda)|vlhčený toaletní|inkontinenčn|"
+    # kosmetika – sérum je v potravinářských názvech neexistující;
+    # „krém" záměrně NE (houbový krém je polévka)
+    r"sérum|serum\b|kosmeti|parfém|toaletní vod|odličova|"
+    r"(denní|noční|hydratační)( \w+)? krém|"
+    r"bublinková koupel|\bkoupel\b|"
+    # doplňky stravy nejsou potraviny pro účely srovnávání cen
+    r"dopln[ěe]k stravy|"
+    # zahrada
+    r"hnojiv|substrát pro|\bhnůj\b|"
+    # čistící prostředky co klouzavé patterny minuly (Cif/Sanytol/Cillit)
+    r"dezinfek|čisticí (sprej|prostředek|gel|přípravek|olej)|odstraňovač skvrn|"
+    r"bělicí prostředek|na vodní kámen",
     re.IGNORECASE)
 
 
