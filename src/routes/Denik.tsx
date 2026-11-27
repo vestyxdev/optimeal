@@ -24,6 +24,7 @@ import {
   posledniPredchoziDen,
   posunDen,
   sectiPrijem,
+  sectiVlakninu,
   smazPoznamkuDeniku,
   TYPY_JIDLA,
   upravPoznamkuDeniku,
@@ -254,6 +255,7 @@ export function Denik() {
 
   const poznamky = useMemo(() => dotazDenik.data ?? [], [dotazDenik.data]);
   const prijem = useMemo(() => sectiPrijem(poznamky), [poznamky]);
+  const vlaknina = useMemo(() => sectiVlakninu(poznamky), [poznamky]);
   const podleJidel = useMemo(() => {
     const mapa = new Map<TypJidla, PoznamkaDeniku[]>();
     for (const t of TYPY_JIDLA) mapa.set(t.klic, []);
@@ -536,6 +538,19 @@ export function Denik() {
               jednotka="g" formatuj={formatujMakro}
             />
           </div>
+        )}
+        {/* vláknina – spodní odhad jen z katalogových řádků; pokrytí poctivě ukáže,
+            pro jak velkou část gramáže údaj známe (recepty/ruční řádky ho nemají) */}
+        {!dotazDenik.isPending && vlaknina.gramy > 0 && (
+          <p className="mt-1.5 px-1 text-xs tabular-nums text-muted">
+            Vláknina: <span className="font-semibold text-fg">{formatujMakro(vlaknina.gramy)} g</span>
+            {cile?.vlakninaG ? ` / cíl ${cile.vlakninaG} g` : ""}
+            {vlaknina.pokryti < 0.9 && (
+              <span className="ml-1">
+                · údaj známý u {Math.round(vlaknina.pokryti * 100)} % gramáže
+              </span>
+            )}
+          </p>
         )}
       </section>
 

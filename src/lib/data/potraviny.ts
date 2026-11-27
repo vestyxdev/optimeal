@@ -18,6 +18,8 @@ export interface KatalogPotravina extends Potravina {
   vlaknina: number | null;
   /** značka včetně privátních labelů (Pilos, K-Classic, Clever, dmBio…) */
   znacka: string | null;
+  /** zdroj ceny (asortiment:rohlík.cz, scraper:tesco…) – null = jen bezna_cena odhad */
+  zdrojCeny: string | null;
 }
 
 /** České názvy alergenů EU-14 (klíče = foods.alergeny). */
@@ -35,19 +37,9 @@ export const SLOUPCE_AKTUALNI_CENY =
   " pozorovano_at, vytvoril, zdroj_potraviny, alergeny, alergeny_stopy, diety, ean," +
   " obrazek, baleni_g, baleni_label, puvodni_cena, sleva_procenta, puvodni_zdroj, vlaknina, znacka";
 
-export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
-  const klient = supabase;
-  if (!klient) throw new Error("Supabase není připojeno.");
-
-  const data = await nactiVse<Record<string, unknown>>(
-    () =>
-      klient
-        .from("aktualni_ceny")
-        .select(SLOUPCE_AKTUALNI_CENY)
-        .order("nazev") as unknown as StrankovatelnyDotaz<Record<string, unknown>>,
-  );
-
-  return data.map((r) => ({
+/** Sdílený mapper řádku aktualni_ceny → KatalogPotravina. */
+function mapujKatalogRadek(r: Record<string, unknown>): KatalogPotravina {
+  return {
     id: r.food_id as string,
     nazev: r.nazev as string,
     kategorie: r.kategorie as string,
@@ -77,7 +69,69 @@ export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
     pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
     vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
     znacka: (r.znacka ?? null) as string | null,
-  }));
+    zdrojCeny: (r.zdroj_ceny ?? null) as string | null,
+  };
+}
+
+export async function nactiKatalogPotravin(): Promise<KatalogPotravina[]> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const data = await nactiVse<Record<string, unknown>>(
+    () =>
+      klient
+        .from("aktualni_ceny")
+        .select(SLOUPCE_AKTUALNI_CENY)
+        .order("nazev") as unknown as StrankovatelnyDotaz<Record<string, unknown>>,
+  );
+
+  return data.map(mapujKatalogRadek);
+}
+
+/** Filtry server-side prohlížení katalogu (RPC katalog_stranka). */
+export interface KatalogFiltrServer {
+  dotaz?: string;
+  kategorie?: string;
+  jenSlevy?: boolean;
+  zero?: boolean;
+  protein?: boolean;
+  razeni?: string;
+}
+
+export interface KatalogStranka {
+  radky: KatalogPotravina[];
+  celkem: number;
+}
+
+/**
+ * Server-side stránka katalogu – filtry/řazení/hledání běží v DB,
+ * klient stáhne jen viditelnou stránku (škáluje i při 20k+ potravinách).
+ */
+export async function nactiKatalogStranku(
+  filtr: KatalogFiltrServer,
+  limit = 100,
+  offset = 0,
+): Promise<KatalogStranka> {
+  const klient = supabase;
+  if (!klient) throw new Error("Supabase není připojeno.");
+
+  const { data, error } = await klient.rpc("katalog_stranka", {
+    p_dotaz: filtr.dotaz?.trim() || null,
+    p_kategorie: filtr.kategorie && filtr.kategorie !== "vse" ? filtr.kategorie : null,
+    p_jen_slevy: filtr.jenSlevy ?? false,
+    p_zero: filtr.zero ?? false,
+    p_protein: filtr.protein ?? false,
+    p_razeni: filtr.razeni ?? "relevance",
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw new Error(`Katalog se nepodařilo načíst: ${error.message}`);
+
+  const radky = (data ?? []) as unknown as Record<string, unknown>[];
+  return {
+    radky: radky.map(mapujKatalogRadek),
+    celkem: radky.length > 0 ? Number(radky[0]?.celkem ?? 0) : 0,
+  };
 }
 
 /** Top akční nabídky živě z view – pro dashboard „Aktuální akce“. */
@@ -95,35 +149,10 @@ export async function nactiAktualniSlevy(limit = 10): Promise<KatalogPotravina[]
   if (error) throw new Error(`Slevy se nepodařilo načíst: ${error.message}`);
 
   const radky = (data ?? []) as unknown as Record<string, unknown>[];
-  return radky.map((r) => ({
-    id: r.food_id as string,
-    nazev: r.nazev as string,
-    kategorie: r.kategorie as string,
-    bilkoviny: Number(r.bilkoviny),
-    sacharidy: Number(r.sacharidy),
-    tuky: Number(r.tuky),
-    kalorie: Number(r.kalorie),
-    beznaCena: Number(r.bezna_cena),
-    aktualniCena: Number(r.aktualni_cena ?? r.bezna_cena),
-    obchod: (r.sleva ? r.obchod : null) as string | null,
-    sleva: true,
-    vytvoril: (r.vytvoril ?? null) as string | null,
-    zdroj: (r.zdroj_potraviny as string) ?? "manual",
-    alergeny: (r.alergeny as string[]) ?? [],
-    alergenyStopy: (r.alergeny_stopy as string[]) ?? [],
-    diety: (r.diety as string[]) ?? [],
-    obrazek: (r.obrazek ?? null) as string | null,
-    ean: (r.ean ?? null) as string | null,
-    baleniG: r.baleni_g != null ? Number(r.baleni_g) : null,
-    baleniLabel: (r.baleni_label ?? null) as string | null,
-    puvodniCena: r.puvodni_cena != null ? Number(r.puvodni_cena) : null,
-    puvodniZdroj: (r.puvodni_zdroj ?? null) as NonNullable<KatalogPotravina["puvodniZdroj"]>,
-    slevaProcenta: r.sleva_procenta != null ? Number(r.sleva_procenta) : null,
-    platnostDo: (r.platnost_do ?? null) as string | null,
-    pozorovanoAt: (r.pozorovano_at ?? null) as string | null,
-    vlaknina: r.vlaknina != null ? Number(r.vlaknina) : null,
-    znacka: (r.znacka ?? null) as string | null,
-  }));
+  return radky.map((r) => {
+    const zaklad = mapujKatalogRadek(r);
+    return { ...zaklad, obchod: (r.sleva ? zaklad.obchod : null) as string | null, sleva: true as const };
+  });
 }
 
 /** Veřejná akce pro landing – úzká projekce z RPC top_akce (funguje i pro anon). */
@@ -547,6 +576,36 @@ export interface TrigramVysledek {
   baleniLabel: string | null;
   ean: string | null;
   podobnost: number;
+}
+
+/**
+ * Mapování privátních labelů na řetězce (znacky_mapovani) – „Pilos" → „Lidl".
+ * Katalog tak umí ukázat „jen v Lidlu" u značkových privátních produktů.
+ */
+export async function nactiMapovaniZnacek(): Promise<Map<string, string>> {
+  const klient = supabase;
+  if (!klient) return new Map();
+  const { data, error } = await klient
+    .from("znacky_mapovani")
+    .select("znacka, retailer_id, retailers(nazev)");
+  if (error) return new Map();
+  const mapa = new Map<string, string>();
+  for (const r of data ?? []) {
+    const row = r as { znacka: string; retailers: { nazev: string } | { nazev: string }[] | null };
+    const obchod = Array.isArray(row.retailers) ? row.retailers[0]?.nazev : row.retailers?.nazev;
+    if (obchod) mapa.set(row.znacka.toLowerCase(), obchod);
+  }
+  return mapa;
+}
+
+/** Najde řetězec pro značku produktu (substring shoda – „Pilos jogurt" vs label „pilos"). */
+export function obchodProZnacku(znacka: string | null, mapovani: Map<string, string>): string | null {
+  if (!znacka) return null;
+  const z = znacka.toLowerCase();
+  for (const [label, obchod] of mapovani) {
+    if (z === label || z.startsWith(label) || z.includes(label)) return obchod;
+  }
+  return null;
 }
 
 /**

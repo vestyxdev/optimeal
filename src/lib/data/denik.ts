@@ -79,6 +79,8 @@ export interface PoznamkaDeniku extends Makra100 {
   alergeny?: string[];
   /** podmnožina jen ze stop – „může obsahovat", jemnější varování */
   alergenyStopy?: string[];
+  /** vláknina/100 g napojené potraviny – null u receptů a ručních řádků */
+  vlaknina?: number | null;
 }
 
 /** Položka formuláře před zápisem (z výběru z katalogu). */
@@ -152,6 +154,31 @@ export function sectiPrijem(
     bilkoviny: Math.round(soucet.bilkoviny * 10) / 10,
     sacharidy: Math.round(soucet.sacharidy * 10) / 10,
     tuky: Math.round(soucet.tuky * 10) / 10,
+  };
+}
+
+/**
+ * Součet vlákniny za den (g). Známe jen u řádků navázaných na katalogovou
+ * potravinu – recepty a ruční položky přeskočí, takže jde o SPODNÍ odhad.
+ * Vrací i podíl pokrytí (hmotnost se známou vlákninou / celková hmotnost),
+ * aby UI umělo poctivě říct „údaje jen pro část jídel".
+ */
+export function sectiVlakninu(
+  poznamky: { mnozstviG: number; vlaknina?: number | null }[],
+): { gramy: number; pokryti: number } {
+  let gramy = 0;
+  let gramuCelkem = 0;
+  let gramuZnamych = 0;
+  for (const p of poznamky) {
+    gramuCelkem += p.mnozstviG;
+    if (p.vlaknina != null && p.vlaknina > 0) {
+      gramy += (p.vlaknina * p.mnozstviG) / 100;
+      gramuZnamych += p.mnozstviG;
+    }
+  }
+  return {
+    gramy: Math.round(gramy * 10) / 10,
+    pokryti: gramuCelkem > 0 ? gramuZnamych / gramuCelkem : 0,
   };
 }
 
@@ -266,7 +293,7 @@ interface RadkaDeniku {
   tuky: number | string;
   zapsano_dne: string;
   zapsano_at: string;
-  potravina?: { alergeny?: string[] | null; alergeny_stopy?: string[] | null } | null;
+  potravina?: { alergeny?: string[] | null; alergeny_stopy?: string[] | null; vlaknina?: number | string | null } | null;
 }
 
 function naPoznamku(r: RadkaDeniku): PoznamkaDeniku {
@@ -285,12 +312,13 @@ function naPoznamku(r: RadkaDeniku): PoznamkaDeniku {
     zapsanoAt: r.zapsano_at,
     alergeny: r.potravina?.alergeny ?? [],
     alergenyStopy: r.potravina?.alergeny_stopy ?? [],
+    vlaknina: r.potravina?.vlaknina != null ? Number(r.potravina.vlaknina) : null,
   };
 }
 
 const SLOUPCE_DENIKU =
   "id, food_id, nazev, obrazek, typ_jidla, mnozstvi_g, kalorie, bilkoviny, sacharidy, tuky, zapsano_dne, zapsano_at," +
-  " potravina:foods(alergeny, alergeny_stopy)";
+  " potravina:foods(alergeny, alergeny_stopy, vlaknina)";
 
 /** Všechny záznamy deníku pro daný den (ISO YYYY-MM-DD). */
 export async function nactiDenik(datum: string): Promise<PoznamkaDeniku[]> {

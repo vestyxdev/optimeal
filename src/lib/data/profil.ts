@@ -1,4 +1,4 @@
-import type { Aktivita, Cile, CilTela, Pohlavi } from "@/lib/vyziva/cile";
+﻿import type { Aktivita, Cile, CilTela, Pohlavi } from "@/lib/vyziva/cile";
 import { rpcChybi, supabase } from "@/lib/supabase";
 
 /**
@@ -147,24 +147,19 @@ export async function ulozProfil(zmeny: {
   if (error) throw new Error(`Profil se neuložil: ${error.message}`);
 }
 
-/** Načte aktivní sadu cílů (kalorie + makra). */
-export async function nactiAktivniCile(): Promise<Cile | null> {
+/** Načte aktivní sadu cílů (kalorie + makra; vláknina/voda jen jsou-li ručně doplněné). */
+export async function nactiAktivniCile(): Promise<(Cile & { vlakninaG?: number | null; vodaMl?: number | null }) | null> {
   const klient = supabase;
   if (!klient) throw new Error("Supabase není připojeno.");
 
   const { data, error } = await klient
     .from("nutrition_goals")
-    .select("kalorie, bilkoviny, sacharidy, tuky")
+    .select("kalorie, bilkoviny, sacharidy, tuky, vlaknina_g, voda_ml")
     .eq("aktivni", true)
     .maybeSingle();
   if (error) throw new Error(`Cíle se nenačetly: ${error.message}`);
   if (!data) return null;
-  return {
-    kalorie: data.kalorie,
-    bilkoviny: data.bilkoviny,
-    sacharidy: data.sacharidy,
-    tuky: data.tuky,
-  };
+  return { kalorie: data.kalorie, bilkoviny: data.bilkoviny, sacharidy: data.sacharidy, tuky: data.tuky, vlakninaG: data.vlaknina_g ?? null, vodaMl: data.voda_ml ?? null };
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   posunDen,
   receptNaPoznamku,
   sectiPrijem,
+  sectiVlakninu,
   spocitejSerii,
   nazevTypuJidla,
   typJidlaZNazvu,
@@ -391,5 +392,22 @@ describe("receptNaPoznamku", () => {
     );
     expect(p).not.toBeNull();
     expect(p!.kalorie).toBeCloseTo(174, 0);
+  });
+});
+
+describe("sectiVlakninu", () => {
+  it("pocita vlnkaminu jen z katalogovych radku a hlasi pokryti", () => {
+    const r = sectiVlakninu([
+      { mnozstviG: 200, vlaknina: 5 },   // 10 g
+      { mnozstviG: 100, vlaknina: null }, // recept / rucni radek
+      { mnozstviG: 100, vlaknina: 2.5 },  // 2.5 g
+    ]);
+    expect(r.gramy).toBeCloseTo(12.5, 1);
+    // znama vlnkamina u 300 ze 400 g = 75 %
+    expect(r.pokryti).toBeCloseTo(0.75, 2);
+  });
+
+  it("prazdny denik – nula a nulove pokryti", () => {
+    expect(sectiVlakninu([])).toEqual({ gramy: 0, pokryti: 0 });
   });
 });
