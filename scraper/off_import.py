@@ -300,8 +300,12 @@ def importuj(limit: int | None = None, dry_run: bool = False, stranek: int = 999
             except requests.RequestException as e:
                 log.warning("Síťová chyba u %s: %s", radek["nazev"], e)
                 stav["chyb"] += 1
-        log.info("Stránka %d hotova: %+d vloženo celkem %d", stranka, 0, stav["vlozeno"])
-        if len(produkty) < PAGE_SIZE:
+        log.info("Stránka %d hotova: vloženo celkem %d", stranka, stav["vlozeno"])
+        # Konec stránkování poznáme z PRÁZDNÉ stránky, ne z len < PAGE_SIZE –
+        # OFF server-side cappuje page_size na 100 (my žádáme 200), takže
+        # len(produkty) < PAGE_SIZE platí od první stránky a sklizeň by se
+        # po ní zastavila (bug 2026-11-28: jen 100 produktů místo ~20k).
+        if len(produkty) < 100:
             break
         stranka += 1
         if tempo > 0:
