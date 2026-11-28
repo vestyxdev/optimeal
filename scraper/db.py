@@ -593,6 +593,17 @@ class SupabaseWriter:
                 if n.ean:
                     self._ean_index[n.ean] = fid
                 return fid
+            # HTTP chyba insertu (constraint, RLS, neznámý sloupec) byla
+            # roky potichu – „nových potravin 0" bez stopy v logu.
+            # Logovat první výskyt každého statusu, ne všech 7000.
+            if not r.ok:
+                self._vytvor_chyby = getattr(self, "_vytvor_chyby", set())
+                if r.status_code not in self._vytvor_chyby:
+                    self._vytvor_chyby.add(r.status_code)
+                    log.warning(
+                        "Založení potraviny '%s' → HTTP %d: %s",
+                        n.nazev[:50], r.status_code, r.text[:200],
+                    )
             # duplicitní název → dohledej existující
             self.nacti_potraviny()
             return self._nazev_index.get(normalizuj_nazev(n.nazev[:200]))
